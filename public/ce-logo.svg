@@ -1,0 +1,124 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Ring gradient (cyan -> blue -> pink) -->
+    <linearGradient id="ringGrad" x1="28" y1="40" x2="228" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38E8FF"/>
+      <stop offset="48%" stop-color="#3568FF"/>
+      <stop offset="100%" stop-color="#FF3EA5"/>
+    </linearGradient>
+
+    <!-- Ring highlight (specular streak) -->
+    <linearGradient id="ringHi" x1="40" y1="34" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Glow for the ring -->
+    <filter id="ringGlow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="6.5" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.95 0" result="g"/>
+      <feMerge>
+        <feMergeNode in="g"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Metallic rim -->
+    <linearGradient id="metal" x1="64" y1="54" x2="200" y2="210" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="35%" stop-color="#BFD7FF"/>
+      <stop offset="65%" stop-color="#EAF2FF"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+
+    <!-- Inner shield split -->
+    <linearGradient id="innerLeft" x1="78" y1="70" x2="128" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E63FF"/>
+      <stop offset="100%" stop-color="#0D1558"/>
+    </linearGradient>
+    <linearGradient id="innerRight" x1="128" y1="70" x2="182" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3A2BFF"/>
+      <stop offset="100%" stop-color="#C026D3"/>
+    </linearGradient>
+
+    <!-- Subtle inner vignette -->
+    <radialGradient id="innerVig" cx="45%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.22"/>
+    </radialGradient>
+
+    <!-- Shield shine -->
+    <linearGradient id="shine" x1="76" y1="64" x2="170" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== Medium Neon Ring ===== -->
+  <!-- Outer glow stroke -->
+  <circle cx="128" cy="128" r="100"
+          fill="none"
+          stroke="url(#ringGrad)"
+          stroke-width="12"
+          stroke-linecap="round"
+          filter="url(#ringGlow)"/>
+  <!-- Inner crisp stroke -->
+  <circle cx="128" cy="128" r="100"
+          fill="none"
+          stroke="url(#ringGrad)"
+          stroke-width="6"
+          stroke-linecap="round"/>
+  <!-- Specular highlight streak (partial arc) -->
+  <path d="M62 64 A92 92 0 0 1 148 42"
+        fill="none"
+        stroke="url(#ringHi)"
+        stroke-width="6"
+        stroke-linecap="round"
+        opacity="0.95"/>
+
+  <!-- ===== Shield (metallic rim + inner split) ===== -->
+  <!-- Rim -->
+  <path d="M128 46 L198 84 V160 L128 214 L58 160 V84 Z"
+        fill="url(#metal)"/>
+
+  <!-- Inner inset (slightly smaller shield) -->
+  <!-- Right half -->
+  <path d="M128 58 L188 88 V154 L128 200 Z"
+        fill="url(#innerRight)"/>
+  <!-- Left half -->
+  <path d="M128 58 L128 200 L68 154 V88 Z"
+        fill="url(#innerLeft)"/>
+
+  <!-- Inner vignette for depth -->
+  <path d="M128 58 L188 88 V154 L128 200 L68 154 V88 Z"
+        fill="url(#innerVig)"/>
+
+  <!-- Rim highlight line (gives bevel feel) -->
+  <path d="M128 52 L194 86 V158 L128 208 L62 158 V86 Z"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-opacity="0.55"
+        stroke-width="2"/>
+
+  <!-- Shield shine -->
+  <path d="M78 92 C96 70 124 60 156 64 C140 74 122 92 112 120 C104 142 98 160 86 176 C78 160 70 130 78 92 Z"
+        fill="url(#shine)"/>
+
+  <!-- ===== Blocky CE ===== -->
+  <text x="128" y="162"
+        text-anchor="middle"
+        font-family="Impact, Haettenschweiler, 'Arial Black', system-ui, sans-serif"
+        font-size="98"
+        font-weight="900"
+        fill="#FFFFFF"
+        letter-spacing="-2">
+    CE
+  </text>
+</svg>
