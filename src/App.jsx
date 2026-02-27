@@ -28,6 +28,31 @@ function resolveStage(streamEvent) {
   return "";
 }
 
+function RefreshCacheIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20 4.8V10.2H14.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 19.2V13.8H9.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.2 9.9C6.9 8.35 8.1 7.05 9.62 6.2C11.14 5.35 12.9 5.03 14.62 5.29C16.34 5.55 17.92 6.38 19.1 7.68" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M17.8 14.1C17.1 15.65 15.9 16.95 14.38 17.8C12.86 18.65 11.1 18.97 9.38 18.71C7.66 18.45 6.08 17.62 4.9 16.32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AnalyzeCacheIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.7" stroke="currentColor" strokeWidth="2" />
+      <path d="M8 14.8L10.8 12L12.9 14.1L16.2 10.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 18.2H16.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="8" cy="14.8" r="1.05" fill="currentColor" />
+      <circle cx="10.8" cy="12" r="1.05" fill="currentColor" />
+      <circle cx="12.9" cy="14.1" r="1.05" fill="currentColor" />
+      <circle cx="16.2" cy="10.4" r="1.05" fill="currentColor" />
+    </svg>
+  );
+}
+
 export default function App() {
   const [conversationId] = useState(crypto.randomUUID());
   const [auditVersion, setAuditVersion] = useState(0);
@@ -305,7 +330,7 @@ export default function App() {
                       title={cacheRefreshLoading ? "Refreshing cache..." : "Refresh cache"}
                       aria-label={cacheRefreshLoading ? "Refreshing cache" : "Refresh cache"}
                     >
-                      <img src="/cache-refresh.svg" alt="" />
+                      <RefreshCacheIcon />
                     </button>
                     <button
                       type="button"
@@ -314,7 +339,7 @@ export default function App() {
                       title={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
                       aria-label={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
                     >
-                      <img src="/cache-analyze.svg" alt="" />
+                      <AnalyzeCacheIcon />
                     </button>
                   </div>
                 </div>

@@ -1,7 +1,6 @@
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="10.5" cy="6" rx="5.5" ry="2.5" stroke="currentColor" stroke-width="1.9"/>
-  <path d="M5 6V12C5 13.381 7.462 14.5 10.5 14.5C11.084 14.5 11.647 14.459 12.177 14.383" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-  <path d="M5 9C5 10.381 7.462 11.5 10.5 11.5C13.538 11.5 16 10.381 16 9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-  <path d="M19.5 13.5V16.5H16.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M14.7 17.2C15.341 18.358 16.575 19.169 18.003 19.169C20.091 19.169 21.784 17.476 21.784 15.388C21.784 13.964 20.977 12.734 19.825 12.091" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+  <path d="M20 4.8V10.2H14.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4 19.2V13.8H9.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M6.2 9.9C6.9 8.35 8.1 7.05 9.62 6.2C11.14 5.35 12.9 5.03 14.62 5.29C16.34 5.55 17.92 6.38 19.1 7.68" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M17.8 14.1C17.1 15.65 15.9 16.95 14.38 17.8C12.86 18.65 11.1 18.97 9.38 18.71C7.66 18.45 6.08 17.62 4.9 16.32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
 </svg>
