@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import ChatPanel from "./components/ChatPanel";
 import AuditTimeline from "./components/AuditTimeline";
-import { fetchAudits, subscribeConversation } from "./api/convengine.api.js";
+import CacheAnalyzePage from "./components/CacheAnalyzePage";
+import { fetchAudits, refreshCaches, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
 const MIN_PROGRESS_VISIBLE_MS = 9000;
@@ -36,6 +37,9 @@ export default function App() {
   });
   const [engineIntent, setEngineIntent] = useState("");
   const [engineState, setEngineState] = useState("");
+  const [activePage, setActivePage] = useState("chat");
+  const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
+  const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
   const [liveProgressText, setLiveProgressText] = useState("");
   const progressShownAtRef = useRef(0);
   const progressTimerRef = useRef(null);
@@ -228,6 +232,24 @@ export default function App() {
     if (typeof state === "string" && state.trim()) setEngineState(state.trim());
   };
 
+  const onCacheRefresh = async () => {
+    setCacheRefreshLoading(true);
+    setCacheRefreshMessage("");
+    try {
+      const message = await refreshCaches();
+      setCacheRefreshMessage(message || "Cache refresh completed");
+    } catch (err) {
+      setCacheRefreshMessage(err instanceof Error ? err.message : "Cache refresh failed");
+    } finally {
+      setCacheRefreshLoading(false);
+      window.setTimeout(() => setCacheRefreshMessage(""), 4200);
+    }
+  };
+
+  const onToggleAnalyzePage = () => {
+    setActivePage((prev) => (prev === "chat" ? "cache" : "chat"));
+  };
+
   return (
     <>
       <aside className={`audit-drawer ${auditOpen ? "open" : ""} ${auditResizing ? "resizing" : ""}`} style={{ width: `${auditDrawerWidth}px` }}>
@@ -240,12 +262,12 @@ export default function App() {
               type="button"
               className={`audit-icon-btn audit-copy ${copiedConvId ? "is-copied" : ""}`}
               onClick={onCopyConversationId}
-              title={copiedConvId ? "Conversation id copied" : "Copy conversation id"}
-              aria-label={copiedConvId ? "Copied" : "Copy"}
+              title={copiedConvId ? "Conversation ID copied" : "Copy Conversation ID"}
+              aria-label={copiedConvId ? "Conversation ID copied" : "Copy Conversation ID"}
             >
               {copiedConvId ? "✓" : "⎘"}
             </button>
-            <button type="button" className="audit-icon-btn audit-close" onClick={() => setAuditOpen(false)} title="Hide audit panel" aria-label="Close audit">✕</button>
+            <button type="button" className="audit-icon-btn audit-close" onClick={() => setAuditOpen(false)} title="Close Audit Timeline" aria-label="Close Audit Timeline">✕</button>
           </div>
         </div>
         <AuditTimeline audits={auditEvents} loading={auditLoading} error={auditError} />
@@ -255,7 +277,13 @@ export default function App() {
         <main className="main-chat-layout">
           <header className="top-nav">
             <div className="brand-wrap">
-              <span className="brand-icon" aria-hidden="true">
+              <button
+                type="button"
+                className="brand-icon hero-home-btn"
+                onClick={() => window.location.reload()}
+                title="ConvEngine"
+                aria-label="ConvEngine"
+              >
                 <img
                   src={themeMode === "dark" ? "/logo-dark.png" : "/logo-light.png"}
                   alt="ConvEngine"
@@ -264,16 +292,46 @@ export default function App() {
                     e.currentTarget.src = "/conv.svg";
                   }}
                 />
-              </span>
+              </button>
               <div className="brand-copy">
-                <h1>ConvEngine</h1>
+                <div className="brand-title-row">
+                  <h1>ConvEngine</h1>
+                  <div className="hero-cache-actions">
+                    <button
+                      type="button"
+                      className="hero-cache-icon-btn hero-cache-icon-btn-refresh"
+                      onClick={onCacheRefresh}
+                      disabled={cacheRefreshLoading}
+                      title={cacheRefreshLoading ? "Refreshing cache..." : "Refresh cache"}
+                      aria-label={cacheRefreshLoading ? "Refreshing cache" : "Refresh cache"}
+                    >
+                      <img src="/cache-refresh.svg" alt="" />
+                    </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-analyze ${activePage === "cache" ? "is-active" : ""}`}
+                      onClick={onToggleAnalyzePage}
+                      title={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
+                      aria-label={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
+                    >
+                      <img src="/cache-analyze.svg" alt="" />
+                    </button>
+                  </div>
+                </div>
                 <p>Structured AI. Predictable Intelligence.</p>
               </div>
             </div>
 
             <div className="top-center-status" aria-live="polite">
-              {engineIntent ? <span className="hero-chip hero-chip-intent">intent: {engineIntent}</span> : null}
-              {engineState ? <span className="hero-chip hero-chip-state">state: {engineState}</span> : null}
+              {activePage === "chat" ? (
+                <>
+                  {engineIntent ? <span className="hero-chip hero-chip-intent">intent: {engineIntent}</span> : null}
+                  {engineState ? <span className="hero-chip hero-chip-state">state: {engineState}</span> : null}
+                </>
+              ) : (
+                <span className="hero-chip hero-chip-state">cache diagnostics</span>
+              )}
+              {cacheRefreshMessage ? <span className="hero-chip hero-chip-intent">{cacheRefreshMessage}</span> : null}
             </div>
 
             <div className="top-actions">
@@ -281,8 +339,8 @@ export default function App() {
                 type="button"
                 className={themeMode === "light" ? "hero-theme-toggle moon" : "hero-theme-toggle sun"}
                 onClick={() => setThemeMode((prev) => (prev === "light" ? "dark" : "light"))}
-                aria-label={themeMode === "light" ? "Switch to dark mode" : "Switch to light mode"}
-                title={themeMode === "light" ? "Dark mode" : "Light mode"}
+                aria-label={themeMode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                title={themeMode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
               >
                 {themeMode === "light" ? "◐" : "☀"}
               </button>
@@ -291,7 +349,8 @@ export default function App() {
                 type="button"
                 className="audit-toggle"
                 onClick={() => setAuditOpen(true)}
-                title="Show audit panel"
+                title="Open Audit Timeline"
+                aria-label="Open Audit Timeline"
                 style={{ display: auditOpen ? "none" : "inline-flex" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -306,12 +365,16 @@ export default function App() {
             </div>
           </header>
 
-          <ChatPanel
-            conversationId={conversationId}
-            onAuditUpdate={() => setAuditVersion((v) => v + 1)}
-            onEngineStatusUpdate={onEngineStatusUpdate}
-            progressText={liveProgressText}
-          />
+          {activePage === "chat" ? (
+            <ChatPanel
+              conversationId={conversationId}
+              onAuditUpdate={() => setAuditVersion((v) => v + 1)}
+              onEngineStatusUpdate={onEngineStatusUpdate}
+              progressText={liveProgressText}
+            />
+          ) : (
+            <CacheAnalyzePage />
+          )}
         </main>
       </div>
     </>

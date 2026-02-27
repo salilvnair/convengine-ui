@@ -157,7 +157,7 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
               disabled={isTyping}
               rows={1}
             />
-            <button type="button" className="chat-send" onClick={handleSend} disabled={isTyping || !input.trim()} title="Send">
+            <button type="button" className="chat-send" onClick={handleSend} disabled={isTyping || !input.trim()} title="Send Message" aria-label="Send Message">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M3 20L21 12L3 4L3 10L15 12L3 14L3 20Z" fill="currentColor" />
               </svg>
@@ -215,7 +215,7 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
                 disabled={isTyping}
                 rows={1}
               />
-              <button type="button" className="chat-send" onClick={handleSend} disabled={isTyping || !input.trim()} title="Send">
+              <button type="button" className="chat-send" onClick={handleSend} disabled={isTyping || !input.trim()} title="Send Message" aria-label="Send Message">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M3 20L21 12L3 4L3 10L15 12L3 14L3 20Z" fill="currentColor" />
                 </svg>

@@ -1,4 +1,5 @@
 const API_BASE = "http://localhost:8080/api/v1/conversation";
+const CACHE_BASE = "http://localhost:8080/api/v1/cache";
 const WS_BASE = "http://localhost:8080";
 
 const STREAM_STAGE_EVENTS = [
@@ -89,6 +90,36 @@ export async function fetchAudits(conversationId) {
 
 export async function fetchAuditTrace(conversationId) {
   const res = await fetch(`${API_BASE}/audit/${conversationId}/trace`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function refreshCaches() {
+  const res = await fetch(`${CACHE_BASE}/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return res.text();
+}
+
+export async function analyzeCaches(warmup = true) {
+  const res = await fetch(`${CACHE_BASE}/analyze?warmup=${warmup ? "true" : "false"}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
