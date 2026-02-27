@@ -89,7 +89,7 @@ function isAssistantErrorBubble(bubble) {
   return text.trim().startsWith("Error:");
 }
 
-export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatusUpdate, progressText = "" }) {
+export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatusUpdate, onTurnTimingUpdate, progressText = "" }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -115,6 +115,8 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
   async function handleSend() {
     const userText = input.trim();
     if (!userText || isTyping) return;
+    const turnStartedAt = performance.now();
+    onTurnTimingUpdate?.(null);
 
     setInput("");
     setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", text: userText }]);
@@ -126,10 +128,12 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
       const status = extractEngineStatus(res);
       onEngineStatusUpdate?.(status);
       setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", text: assistantText }]);
+      onTurnTimingUpdate?.(Math.max(0, Math.round(performance.now() - turnStartedAt)));
       onAuditUpdate?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Request failed";
       setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", text: `Error: ${message}` }]);
+      onTurnTimingUpdate?.(Math.max(0, Math.round(performance.now() - turnStartedAt)));
     } finally {
       setIsTyping(false);
     }

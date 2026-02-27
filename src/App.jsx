@@ -62,6 +62,7 @@ export default function App() {
   });
   const [engineIntent, setEngineIntent] = useState("");
   const [engineState, setEngineState] = useState("");
+  const [turnLatencyMs, setTurnLatencyMs] = useState(null);
   const [activePage, setActivePage] = useState("chat");
   const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
   const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
@@ -275,6 +276,20 @@ export default function App() {
     setActivePage((prev) => (prev === "chat" ? "cache" : "chat"));
   };
 
+  const onTurnTimingUpdate = (elapsedMs) => {
+    if (typeof elapsedMs !== "number" || Number.isNaN(elapsedMs)) {
+      setTurnLatencyMs(null);
+      return;
+    }
+    setTurnLatencyMs(Math.max(0, Math.round(elapsedMs)));
+  };
+
+  const formatTurnLatency = (ms) => {
+    if (typeof ms !== "number") return "";
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
+  };
+
   return (
     <>
       <aside className={`audit-drawer ${auditOpen ? "open" : ""} ${auditResizing ? "resizing" : ""}`} style={{ width: `${auditDrawerWidth}px` }}>
@@ -352,6 +367,7 @@ export default function App() {
                 <>
                   {engineIntent ? <span className="hero-chip hero-chip-intent">intent: {engineIntent}</span> : null}
                   {engineState ? <span className="hero-chip hero-chip-state">state: {engineState}</span> : null}
+                  {turnLatencyMs !== null ? <span className="hero-chip hero-chip-timing">time: {formatTurnLatency(turnLatencyMs)}</span> : null}
                 </>
               ) : (
                 <span className="hero-chip hero-chip-state">cache diagnostics</span>
@@ -395,6 +411,7 @@ export default function App() {
               conversationId={conversationId}
               onAuditUpdate={() => setAuditVersion((v) => v + 1)}
               onEngineStatusUpdate={onEngineStatusUpdate}
+              onTurnTimingUpdate={onTurnTimingUpdate}
               progressText={liveProgressText}
             />
           ) : (
