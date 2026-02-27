@@ -118,6 +118,7 @@ function metaForStage(stage) {
   if (key.startsWith("INTENT_")) return { icon: "🧠", color: "border-indigo-500" };
   if (key.startsWith("RESPONSE_")) return { icon: "📝", color: "border-emerald-500" };
   if (key.startsWith("AUTO_ADVANCE_")) return { icon: "⚡", color: "border-cyan-500" };
+  if (key.startsWith("RULE_MATCH")) return { icon: "✅", color: "border-cyan-500" };
   if (key.startsWith("CONTAINER_")) return { icon: "📦", color: "border-amber-500" };
   if (key.startsWith("MCP_")) return { icon: "🧰", color: "border-slate-500" };
   return { icon: "•", color: "border-slate-300" };
