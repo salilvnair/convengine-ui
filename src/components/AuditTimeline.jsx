@@ -3,7 +3,10 @@ import { useMemo, useState } from "react";
 const STAGE_META = {
   USER_INPUT: { icon: "🗣️", color: "border-sky-500" },
   DIALOGUE_ACT_CLASSIFIED: { icon: "🗂️", color: "border-cyan-500" },
+  DIALOGUE_ACT_LLM_INPUT: { icon: "🧠📥", color: "border-indigo-500" },
+  DIALOGUE_ACT_LLM_OUTPUT: { icon: "🧠📤", color: "border-violet-500" },
   INTERACTION_POLICY_DECIDED: { icon: "🧭", color: "border-indigo-500" },
+  CORRECTION_STEP_RETRY_REQUESTED: { icon: "🔁", color: "border-amber-500" },
 
   PENDING_ACTION_SKIPPED: { icon: "⏭️", color: "border-slate-500" },
   PENDING_ACTION_EXECUTED: { icon: "✅", color: "border-emerald-500" },
