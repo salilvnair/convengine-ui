@@ -78,6 +78,11 @@ const STAGE_META = {
   MCP_TOOL_ERROR: { icon: "⚠️", color: "border-red-500" },
   MCP_FINAL_ANSWER: { icon: "🎉", color: "border-green-600" },
 
+  DBKG_QUERY_SQL_EXECUTION: { icon: "㏈", color: "border-blue-500" },
+  DYNAMIC_SQL_EXECUTION: { icon: "㏈", color: "border-blue-500" },
+  DBKG_QUERY_SQL_EXECUTION_ERROR: { icon: "㏈❌", color: "border-red-500" },
+  DYNAMIC_SQL_EXECUTION_ERROR: { icon: "㏈❌", color: "border-red-500" },
+
   CONVERSATION_RESET: { icon: "🔄", color: "border-slate-500" },
   PIPELINE_TIMING: { icon: "⏱️", color: "border-slate-500" },
   ENGINE_RETURN: { icon: "🏆", color: "border-lime-600" },

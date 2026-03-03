@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ChatPanel from "./components/ChatPanel";
 import AuditTimeline from "./components/AuditTimeline";
 import CacheAnalyzePage from "./components/CacheAnalyzePage";
+import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
 import { fetchAudits, refreshCaches, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
@@ -53,6 +54,17 @@ function AnalyzeCacheIcon() {
   );
 }
 
+function InspectDbIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.5" y="4.2" width="17" height="6.1" rx="1.6" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="3.5" y="13.7" width="10.8" height="6.1" rx="1.6" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M17 14.3L20.7 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="16.2" cy="13.5" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 export default function App() {
   const [conversationId] = useState(crypto.randomUUID());
   const [auditVersion, setAuditVersion] = useState(0);
@@ -64,6 +76,11 @@ export default function App() {
   const [engineState, setEngineState] = useState("");
   const [turnLatencyMs, setTurnLatencyMs] = useState(null);
   const [activePage, setActivePage] = useState("chat");
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [inspectPrefix, setInspectPrefix] = useState("");
+  const [inspectSchema, setInspectSchema] = useState("");
+  const [inspectMatchMode, setInspectMatchMode] = useState("REGEX");
+  const [inspectQuery, setInspectQuery] = useState({ prefix: "", schema: "", matchMode: "REGEX" });
   const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
   const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
   const [liveProgressText, setLiveProgressText] = useState("");
@@ -276,6 +293,16 @@ export default function App() {
     setActivePage((prev) => (prev === "chat" ? "cache" : "chat"));
   };
 
+  const onOpenInspectDialog = () => {
+    setInspectOpen(true);
+  };
+
+  const onRunInspect = () => {
+    setInspectQuery({ prefix: inspectPrefix, schema: inspectSchema, matchMode: inspectMatchMode });
+    setInspectOpen(false);
+    setActivePage("schema");
+  };
+
   const onTurnTimingUpdate = (elapsedMs) => {
     if (typeof elapsedMs !== "number" || Number.isNaN(elapsedMs)) {
       setTurnLatencyMs(null);
@@ -356,6 +383,15 @@ export default function App() {
                     >
                       <AnalyzeCacheIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-db ${activePage === "schema" ? "is-active" : ""}`}
+                      onClick={onOpenInspectDialog}
+                      title="Inspect DB schema tables/columns/joins"
+                      aria-label="Inspect DB schema tables columns joins"
+                    >
+                      <InspectDbIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -370,7 +406,9 @@ export default function App() {
                   {turnLatencyMs !== null ? <span className="hero-chip hero-chip-timing">time: {formatTurnLatency(turnLatencyMs)}</span> : null}
                 </>
               ) : (
-                <span className="hero-chip hero-chip-state">cache diagnostics</span>
+                <span className="hero-chip hero-chip-state">
+                  {activePage === "cache" ? "cache diagnostics" : "db schema inspect"}
+                </span>
               )}
               {cacheRefreshMessage ? <span className="hero-chip hero-chip-intent">{cacheRefreshMessage}</span> : null}
             </div>
@@ -414,11 +452,44 @@ export default function App() {
               onTurnTimingUpdate={onTurnTimingUpdate}
               progressText={liveProgressText}
             />
-          ) : (
+          ) : activePage === "cache" ? (
             <CacheAnalyzePage />
+          ) : (
+            <DbSchemaInspectPage
+              query={inspectQuery}
+              onOpenRunDialog={onOpenInspectDialog}
+            />
           )}
         </main>
       </div>
+
+      {inspectOpen ? (
+        <div className="ce-modal-overlay" role="dialog" aria-modal="true">
+          <div className="ce-modal">
+            <h3>Inspect DB Schema</h3>
+            <p>Enter table pattern or exact table name, choose match mode, then run inspection.</p>
+            <label>
+              Name
+              <input value={inspectPrefix} onChange={(e) => setInspectPrefix(e.target.value)} placeholder="any table name or table name substring" />
+            </label>
+            <label>
+              Match
+              <select value={inspectMatchMode} onChange={(e) => setInspectMatchMode(e.target.value)}>
+                <option value="REGEX">REGEX</option>
+                <option value="EXACT">EXACT</option>
+              </select>
+            </label>
+            <label>
+              Schema
+              <input value={inspectSchema} onChange={(e) => setInspectSchema(e.target.value)} placeholder="(optional) uses convengine.schema.active" />
+            </label>
+            <div className="ce-modal-actions">
+              <button type="button" className="cache-analyze-load" onClick={onRunInspect}>Run</button>
+              <button type="button" className="cache-analyze-load cache-analyze-secondary" onClick={() => setInspectOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

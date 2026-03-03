@@ -1,5 +1,6 @@
 const API_BASE = "http://localhost:8080/api/v1/conversation";
 const CACHE_BASE = "http://localhost:8080/api/v1/cache";
+const DB_BASE = "http://localhost:8080/api/v1/db";
 const WS_BASE = "http://localhost:8080";
 
 const STREAM_STAGE_EVENTS = [
@@ -133,6 +134,38 @@ export async function analyzeCaches(warmup = true) {
     throw new Error(`Backend error: ${res.status}`);
   }
 
+  return res.json();
+}
+
+export async function inspectDbSchema(prefix = "", schema = "") {
+  const q = new URLSearchParams();
+  q.set("prefix", prefix || "");
+  if (schema && String(schema).trim()) {
+    q.set("schema", String(schema).trim());
+  }
+  const res = await fetch(`${DB_BASE}/inspect-schema?${q.toString()}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function generateDbSchemaSeed(payload) {
+  const res = await fetch(`${DB_BASE}/agent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
   return res.json();
 }
 
