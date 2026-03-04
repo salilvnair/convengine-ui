@@ -10,24 +10,10 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
   const [selectedColumns, setSelectedColumns] = useState(() => columns.map(() => true));
   const [hasHorizontalScroll, setHasHorizontalScroll] = useState(false);
   const hasTitle = Boolean(String(title ?? "").trim());
-  const columnsSignature = useMemo(
-    () => columns.map((c) => String(c ?? "")).join("||"),
-    [columns]
-  );
+  const isPickerOpen = showColumnPicker && pickerOpen;
 
   useEffect(() => {
-    const allSelected = columns.map(() => true);
-    setSelectedColumns(allSelected);
-    setPickerOpen(false);
-  }, [columnsSignature]);
-
-  useEffect(() => {
-    if (showColumnPicker) return;
-    setPickerOpen(false);
-  }, [showColumnPicker]);
-
-  useEffect(() => {
-    if (!pickerOpen) return undefined;
+    if (!isPickerOpen) return undefined;
     function onDocMouseDown(event) {
       if (pickerRef.current && !pickerRef.current.contains(event.target)) {
         setPickerOpen(false);
@@ -35,11 +21,11 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
     }
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [pickerOpen]);
+  }, [isPickerOpen]);
 
-  const visibleIndices = useMemo(() => selectedColumns
-    .map((selected, idx) => (selected ? idx : -1))
-    .filter((idx) => idx >= 0), [selectedColumns]);
+  const visibleIndices = useMemo(() => columns
+    .map((_, idx) => (selectedColumns[idx] !== false ? idx : -1))
+    .filter((idx) => idx >= 0), [columns, selectedColumns]);
 
   const effectiveVisibleIndices = visibleIndices.length ? visibleIndices : [0];
   const visibleColumns = effectiveVisibleIndices.map((idx) => columns[idx]);
@@ -54,7 +40,7 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
     updateScrollState();
     window.addEventListener("resize", updateScrollState);
     return () => window.removeEventListener("resize", updateScrollState);
-  }, [visibleColumns, visibleRows, pickerOpen]);
+  }, [visibleColumns, visibleRows, isPickerOpen]);
 
   const colWidths = visibleColumns.map((col, idx) => {
     const headerLen = String(col ?? "").trim().length;
@@ -68,7 +54,7 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
     return `${widthCh}ch`;
   });
 
-  const selectedCount = selectedColumns.filter(Boolean).length;
+  const selectedCount = columns.reduce((count, _, idx) => count + (selectedColumns[idx] !== false ? 1 : 0), 0);
   const openPicker = () => setPickerOpen(true);
 
   return (
@@ -98,7 +84,7 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
             <span className="ce-table-cols-hover-label">Columns</span>
             <span>{selectedCount}</span>
           </button>
-          {pickerOpen && (
+          {isPickerOpen && (
             <div className="ce-table-cols-popup ce-table-cols-popup-inline" role="dialog" aria-label="Select columns">
               <div className="ce-table-cols-popup-title">Columns</div>
               <div className="ce-table-cols-list">
@@ -106,11 +92,11 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
                   <label key={`pick-${String(col)}-${idx}`} className="ce-table-cols-item">
                     <input
                       type="checkbox"
-                      checked={Boolean(selectedColumns[idx])}
+                      checked={selectedColumns[idx] !== false}
                       onChange={(e) => {
                         const next = [...selectedColumns];
                         next[idx] = e.target.checked;
-                        if (!next.some(Boolean)) {
+                        if (!columns.some((_, i) => next[i] !== false)) {
                           return;
                         }
                         setSelectedColumns(next);
@@ -129,7 +115,7 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
         </div>
       ) : null}
       <div ref={wrapRef} className={`ce-table-wrap ${hasHorizontalScroll ? "has-scroll-x" : "no-scroll-x"}`}>
-        {pickerOpen && hasTitle && showColumnPicker && (
+        {isPickerOpen && hasTitle && showColumnPicker && (
           <div className="ce-table-cols-popup" role="dialog" aria-label="Select columns">
             <div className="ce-table-cols-popup-title">Columns</div>
             <div className="ce-table-cols-list">
@@ -137,11 +123,11 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
                 <label key={`pick-${String(col)}-${idx}`} className="ce-table-cols-item">
                   <input
                     type="checkbox"
-                    checked={Boolean(selectedColumns[idx])}
+                    checked={selectedColumns[idx] !== false}
                     onChange={(e) => {
                       const next = [...selectedColumns];
                       next[idx] = e.target.checked;
-                      if (!next.some(Boolean)) {
+                      if (!columns.some((_, i) => next[i] !== false)) {
                         return;
                       }
                       setSelectedColumns(next);
