@@ -1,37 +1,175 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { renderInlineTokens } from "./renderInlineTokens";
 
 export function DbTable({ title, columns = [], rows = [], note, className = "" }) {
   const colsClass = `ce-table-cols-${columns.length || 0}`;
-  const presets = {
-    2: [25, 75],
-    3: [25, 40, 35],
-    4: [22, 28, 25, 25],
-    5: [18, 22, 20, 20, 20],
-  };
-  const fallbackWidth = columns.length > 0 ? 100 / columns.length : 100;
-  const widths = presets[columns.length] || columns.map(() => fallbackWidth);
+  const showColumnPicker = columns.length >= 5;
+  const pickerRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState(() => columns.map(() => true));
+  const [hasHorizontalScroll, setHasHorizontalScroll] = useState(false);
+  const hasTitle = Boolean(String(title ?? "").trim());
+  const columnsSignature = useMemo(
+    () => columns.map((c) => String(c ?? "")).join("||"),
+    [columns]
+  );
+
+  useEffect(() => {
+    const allSelected = columns.map(() => true);
+    setSelectedColumns(allSelected);
+    setPickerOpen(false);
+  }, [columnsSignature]);
+
+  useEffect(() => {
+    if (showColumnPicker) return;
+    setPickerOpen(false);
+  }, [showColumnPicker]);
+
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+    function onDocMouseDown(event) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [pickerOpen]);
+
+  const visibleIndices = useMemo(() => selectedColumns
+    .map((selected, idx) => (selected ? idx : -1))
+    .filter((idx) => idx >= 0), [selectedColumns]);
+
+  const effectiveVisibleIndices = visibleIndices.length ? visibleIndices : [0];
+  const visibleColumns = effectiveVisibleIndices.map((idx) => columns[idx]);
+  const visibleRows = rows.map((row) => effectiveVisibleIndices.map((idx) => (Array.isArray(row) ? row[idx] : "")));
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const updateScrollState = () => {
+      setHasHorizontalScroll(el.scrollWidth > el.clientWidth + 1);
+    };
+    updateScrollState();
+    window.addEventListener("resize", updateScrollState);
+    return () => window.removeEventListener("resize", updateScrollState);
+  }, [visibleColumns, visibleRows, pickerOpen]);
+
+  const colWidths = visibleColumns.map((col, idx) => {
+    const headerLen = String(col ?? "").trim().length;
+    const maxRowLen = visibleRows.reduce((maxLen, row) => {
+      const value = row[idx];
+      const len = String(value ?? "").trim().length;
+      return Math.max(maxLen, len);
+    }, 0);
+    const maxLen = Math.max(headerLen, maxRowLen);
+    const widthCh = Math.min(42, Math.max(8, maxLen + 2));
+    return `${widthCh}ch`;
+  });
+
+  const selectedCount = selectedColumns.filter(Boolean).length;
+  const openPicker = () => setPickerOpen(true);
 
   return (
-    <section
-      className={`ce-table-card ${colsClass} ${className}`.trim()}
-      style={{ width: "100%", maxWidth: "100%", display: "block" }}
-    >
-      {title ? <h3 className="ce-table-card-title">{renderInlineTokens(title)}</h3> : null}
-      <div className="ce-table-wrap" style={{ width: "100%", maxWidth: "100%" }}>
-        <table style={{ width: "100%", minWidth: "100%", tableLayout: "fixed" }}>
+    <section className={`ce-table-card ${colsClass} ${className} ${!hasTitle ? "ce-table-card-inline-picker" : ""}`.trim()} ref={pickerRef}>
+      {hasTitle ? (
+      <div className="ce-table-card-head">
+        <h3 className="ce-table-card-title">{renderInlineTokens(title)}</h3>
+        {showColumnPicker && (
+          <button type="button" className="ce-table-cols-btn" onClick={openPicker} title="Choose columns" aria-label="Choose columns">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16M15 4v16" />
+            </svg>
+            <span className="ce-table-cols-hover-label">Columns</span>
+            <span>{selectedCount}</span>
+          </button>
+        )}
+      </div>
+      ) : null}
+      {!hasTitle && showColumnPicker ? (
+        <div className="ce-table-inline-tools">
+          <button type="button" className="ce-table-cols-btn ce-table-cols-btn-inline" onClick={openPicker} title="Choose columns" aria-label="Choose columns">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16M15 4v16" />
+            </svg>
+            <span className="ce-table-cols-hover-label">Columns</span>
+            <span>{selectedCount}</span>
+          </button>
+          {pickerOpen && (
+            <div className="ce-table-cols-popup ce-table-cols-popup-inline" role="dialog" aria-label="Select columns">
+              <div className="ce-table-cols-popup-title">Columns</div>
+              <div className="ce-table-cols-list">
+                {columns.map((col, idx) => (
+                  <label key={`pick-${String(col)}-${idx}`} className="ce-table-cols-item">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedColumns[idx])}
+                      onChange={(e) => {
+                        const next = [...selectedColumns];
+                        next[idx] = e.target.checked;
+                        if (!next.some(Boolean)) {
+                          return;
+                        }
+                        setSelectedColumns(next);
+                      }}
+                    />
+                    <span>{String(col)}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="ce-table-cols-actions">
+                <button type="button" className="ce-table-cols-action" onClick={() => setPickerOpen(false)}>Cancel</button>
+                <button type="button" className="ce-table-cols-action primary" onClick={() => setPickerOpen(false)}>OK</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+      <div ref={wrapRef} className={`ce-table-wrap ${hasHorizontalScroll ? "has-scroll-x" : "no-scroll-x"}`}>
+        {pickerOpen && hasTitle && showColumnPicker && (
+          <div className="ce-table-cols-popup" role="dialog" aria-label="Select columns">
+            <div className="ce-table-cols-popup-title">Columns</div>
+            <div className="ce-table-cols-list">
+              {columns.map((col, idx) => (
+                <label key={`pick-${String(col)}-${idx}`} className="ce-table-cols-item">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedColumns[idx])}
+                    onChange={(e) => {
+                      const next = [...selectedColumns];
+                      next[idx] = e.target.checked;
+                      if (!next.some(Boolean)) {
+                        return;
+                      }
+                      setSelectedColumns(next);
+                    }}
+                  />
+                  <span>{String(col)}</span>
+                </label>
+              ))}
+            </div>
+            <div className="ce-table-cols-actions">
+              <button type="button" className="ce-table-cols-action" onClick={() => setPickerOpen(false)}>Cancel</button>
+              <button type="button" className="ce-table-cols-action primary" onClick={() => setPickerOpen(false)}>OK</button>
+            </div>
+          </div>
+        )}
+        <table>
           <colgroup>
-            {columns.map((_, i) => (
-              <col key={`col-${i + 1}`} style={{ width: `${widths[i]}%` }} />
+            {colWidths.map((w, i) => (
+              <col key={`cw-${i}`} style={{ width: w }} />
             ))}
           </colgroup>
           <thead>
             <tr>
-              {columns.map((col, i) => (
+              {visibleColumns.map((col, i) => (
                 <th key={`${String(col)}-${i}`}>
                   <span
                     className={`ce-table-cell-content ce-table-cell-head ce-table-cell-col-${i + 1}`}
-                    style={{ display: "block", width: "100%" }}
+                    style={{ display: "block" }}
                   >
                     {renderInlineTokens(col)}
                   </span>
@@ -40,13 +178,13 @@ export function DbTable({ title, columns = [], rows = [], note, className = "" }
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rIdx) => (
+            {visibleRows.map((row, rIdx) => (
               <tr key={rIdx}>
                 {row.map((cell, cIdx) => (
                   <td key={cIdx}>
                     <span
                       className={`ce-table-cell-content ce-table-cell-body ce-table-cell-col-${cIdx + 1}`}
-                      style={{ display: "block", width: "100%", boxSizing: "border-box" }}
+                      style={{ display: "block", boxSizing: "border-box" }}
                     >
                       {renderInlineTokens(cell)}
                     </span>

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { sendMessage } from "../api/convengine.api.js";
+import { DbTable } from "./convengine/DbTable.jsx";
 
 function stringifyPayload(payload) {
   if (payload == null) return "";
@@ -89,6 +90,77 @@ function isAssistantErrorBubble(bubble) {
   return text.trim().startsWith("Error:");
 }
 
+function isMarkdownTableSeparator(line) {
+  const trimmed = line.trim();
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/.test(trimmed);
+}
+
+function splitMarkdownRow(line) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function parseMarkdownTableSegments(text) {
+  const source = typeof text === "string" ? text : String(text ?? "");
+  const lines = source.split(/\r?\n/);
+  const segments = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const next = i + 1 < lines.length ? lines[i + 1] : "";
+    if (!line.includes("|") || !isMarkdownTableSeparator(next)) {
+      let start = i;
+      i += 1;
+      while (i < lines.length) {
+        const maybeHeader = lines[i];
+        const maybeSep = i + 1 < lines.length ? lines[i + 1] : "";
+        if (maybeHeader.includes("|") && isMarkdownTableSeparator(maybeSep)) break;
+        i += 1;
+      }
+      const block = lines.slice(start, i).join("\n").trim();
+      if (block) segments.push({ type: "text", text: block });
+      continue;
+    }
+
+    const headers = splitMarkdownRow(line);
+    const rows = [];
+    i += 2;
+    while (i < lines.length) {
+      const rowLine = lines[i];
+      if (!rowLine.includes("|") || !rowLine.trim()) break;
+      rows.push(splitMarkdownRow(rowLine));
+      i += 1;
+    }
+    segments.push({ type: "table", headers, rows });
+    while (i < lines.length && !lines[i].trim()) i += 1;
+  }
+
+  return segments.length ? segments : [{ type: "text", text: source }];
+}
+
+function renderAssistantContent(text) {
+  const segments = parseMarkdownTableSegments(text);
+  return segments.map((segment, idx) => {
+    if (segment.type === "table") {
+      return (
+        <div key={`tbl-${idx}`} style={{ margin: "10px 0" }}>
+          <DbTable columns={segment.headers} rows={segment.rows} />
+        </div>
+      );
+    }
+    return (
+      <pre key={`txt-${idx}`} className="chat-text">
+        {segment.text}
+      </pre>
+    );
+  });
+}
+
+function containsMarkdownTable(text) {
+  return parseMarkdownTableSegments(text).some((segment) => segment.type === "table");
+}
+
 export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatusUpdate, onTurnTimingUpdate, progressText = "" }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -97,7 +169,8 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
   const inputRef = useRef(null);
 
   const isInitial = useMemo(() => messages.length === 0 && !isTyping, [messages.length, isTyping]);
-  const isMultiLine = input.includes("\n") || input.length > 90;
+  const normalizedInput = input.replace(/\s+$/g, "");
+  const isMultiLine = normalizedInput.length > 0 && (normalizedInput.includes("\n") || normalizedInput.length > 90);
 
   useEffect(() => {
     const el = threadRef.current;
@@ -108,6 +181,10 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
+    if (!input.trim()) {
+      el.style.height = "";
+      return;
+    }
     el.style.height = "0px";
     el.style.height = `${Math.min(el.scrollHeight, 168)}px`;
   }, [input, isInitial]);
@@ -171,10 +248,12 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
       ) : (
         <>
           <div ref={threadRef} className="chat-thread">
-            {messages.map((bubble) => (
+            {messages.map((bubble) => {
+              const hasMarkdownTable = bubble.role === "assistant" && !isAssistantErrorBubble(bubble) && containsMarkdownTable(bubble.text);
+              return (
               <article
                 key={bubble.id}
-                className={`chat-message ${bubble.role === "user" ? "chat-message-user" : "chat-message-left"} ${isAssistantErrorBubble(bubble) ? "chat-message-error" : ""}`}
+                className={`chat-message ${bubble.role === "user" ? "chat-message-user" : "chat-message-left"} ${isAssistantErrorBubble(bubble) ? "chat-message-error" : ""} ${hasMarkdownTable ? "chat-message-table" : ""}`}
               >
                 <div className={`chat-avatar ${bubble.role === "user" ? "chat-avatar-user" : "chat-avatar-assistant"} ${isAssistantErrorBubble(bubble) ? "chat-avatar-error" : ""}`}>
                   {bubble.role === "user" ? <UserGlyph /> : <AgentGlyph />}
@@ -184,14 +263,18 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
                   <div
                     className={`chat-bubble ${bubbleShapeClass(bubble.text)} ${bubble.role === "user" ? "chat-bubble-user" : "chat-bubble-agent"} ${isAssistantErrorBubble(bubble) ? "chat-bubble-error" : ""}`}
                   >
-                    <pre className="chat-text">
-                      {isAssistantErrorBubble(bubble) && <span className="chat-error-prefix" aria-hidden="true">!</span>}
-                      {bubble.text}
-                    </pre>
+                    {bubble.role === "assistant" && !isAssistantErrorBubble(bubble) ? (
+                      <Fragment>{renderAssistantContent(bubble.text)}</Fragment>
+                    ) : (
+                      <pre className="chat-text">
+                        {isAssistantErrorBubble(bubble) && <span className="chat-error-prefix" aria-hidden="true">!</span>}
+                        {bubble.text}
+                      </pre>
+                    )}
                   </div>
                 </div>
               </article>
-            ))}
+            )})}
 
             {isTyping && (
               <article className="chat-message chat-message-left" aria-live="polite">
