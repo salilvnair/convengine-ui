@@ -77,6 +77,22 @@ export async function sendMessage(conversationId, message, inputParams = {}, res
   return res.json();
 }
 
+export async function submitConversationFeedback(payload = {}) {
+  const res = await fetch(`${API_BASE}/feedback`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function fetchAudits(conversationId) {
   const res = await fetch(`${API_BASE}/audit/${conversationId}`, {
     method: "GET",

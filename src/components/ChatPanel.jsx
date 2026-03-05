@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { sendMessage } from "../api/convengine.api.js";
+import { sendMessage, submitConversationFeedback } from "../api/convengine.api.js";
 import { DbTable } from "./convengine/DbTable.jsx";
 
 function stringifyPayload(payload) {
@@ -74,6 +74,26 @@ function AgentGlyph() {
       <path d="M9 18h6" />
       <path d="M10 8v.01" />
       <path d="M14 8v.01" />
+    </svg>
+  );
+}
+
+function ThumbUpGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 10v10" />
+      <path d="M3 10h4v10H3z" />
+      <path d="M7 20h8.2a2.3 2.3 0 0 0 2.2-1.7l1.3-4.6a2.3 2.3 0 0 0-2.2-2.9H12l.8-4.1a2 2 0 0 0-2-2.4H10l-3 5.7V20z" />
+    </svg>
+  );
+}
+
+function ThumbDownGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 14V4" />
+      <path d="M3 4h4v10H3z" />
+      <path d="M7 4h8.2a2.3 2.3 0 0 1 2.2 1.7l1.3 4.6a2.3 2.3 0 0 1-2.2 2.9H12l.8 4.1a2 2 0 0 1-2 2.4H10l-3-5.7V4z" />
     </svg>
   );
 }
@@ -204,7 +224,13 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
       const assistantText = stringifyPayload(res?.payload?.value ?? res?.payload ?? "");
       const status = extractEngineStatus(res);
       onEngineStatusUpdate?.(status);
-      setMessages((m) => [...m, { id: crypto.randomUUID(), role: "assistant", text: assistantText }]);
+      setMessages((m) => [...m, {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: assistantText,
+        feedback: null,
+        feedbackBusy: false,
+      }]);
       onTurnTimingUpdate?.(Math.max(0, Math.round(performance.now() - turnStartedAt)));
       onAuditUpdate?.();
     } catch (err) {
@@ -221,6 +247,39 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
     e.preventDefault();
     handleSend();
   };
+
+  async function handleFeedback(messageId, feedbackType) {
+    if (!messageId || !feedbackType) return;
+    let selectedMessage = null;
+    setMessages((prev) => prev.map((msg) => {
+      if (msg.id !== messageId) return msg;
+      selectedMessage = msg;
+      return { ...msg, feedbackBusy: true };
+    }));
+    if (!selectedMessage) return;
+
+    try {
+      await submitConversationFeedback({
+        conversationId,
+        feedbackType,
+        messageId: selectedMessage.id,
+        assistantResponse: selectedMessage.text,
+        metadata: {
+          role: selectedMessage.role,
+          hasMarkdownTable: containsMarkdownTable(selectedMessage.text),
+        },
+      });
+      setMessages((prev) => prev.map((msg) => (
+        msg.id === messageId
+          ? { ...msg, feedback: feedbackType, feedbackBusy: false }
+          : msg
+      )));
+    } catch {
+      setMessages((prev) => prev.map((msg) => (
+        msg.id === messageId ? { ...msg, feedbackBusy: false } : msg
+      )));
+    }
+  }
 
   return (
     <section className={`chat-root ${isInitial ? "chat-root-initial" : ""}`}>
@@ -250,31 +309,62 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
           <div ref={threadRef} className="chat-thread">
             {messages.map((bubble) => {
               const hasMarkdownTable = bubble.role === "assistant" && !isAssistantErrorBubble(bubble) && containsMarkdownTable(bubble.text);
+              const showFeedback = bubble.role === "assistant" && !isAssistantErrorBubble(bubble);
               return (
-              <article
-                key={bubble.id}
-                className={`chat-message ${bubble.role === "user" ? "chat-message-user" : "chat-message-left"} ${isAssistantErrorBubble(bubble) ? "chat-message-error" : ""} ${hasMarkdownTable ? "chat-message-table" : ""}`}
-              >
-                <div className={`chat-avatar ${bubble.role === "user" ? "chat-avatar-user" : "chat-avatar-assistant"} ${isAssistantErrorBubble(bubble) ? "chat-avatar-error" : ""}`}>
-                  {bubble.role === "user" ? <UserGlyph /> : <AgentGlyph />}
-                  {isAssistantErrorBubble(bubble) && <span className="chat-error-avatar-badge" aria-hidden="true">!</span>}
-                </div>
-                <div className="chat-content">
-                  <div
-                    className={`chat-bubble ${bubbleShapeClass(bubble.text)} ${bubble.role === "user" ? "chat-bubble-user" : "chat-bubble-agent"} ${isAssistantErrorBubble(bubble) ? "chat-bubble-error" : ""}`}
+                <Fragment key={bubble.id}>
+                  <article
+                    className={`chat-message ${bubble.role === "user" ? "chat-message-user" : "chat-message-left"} ${isAssistantErrorBubble(bubble) ? "chat-message-error" : ""} ${hasMarkdownTable ? "chat-message-table" : ""}`}
                   >
-                    {bubble.role === "assistant" && !isAssistantErrorBubble(bubble) ? (
-                      <Fragment>{renderAssistantContent(bubble.text)}</Fragment>
-                    ) : (
-                      <pre className="chat-text">
-                        {isAssistantErrorBubble(bubble) && <span className="chat-error-prefix" aria-hidden="true">!</span>}
-                        {bubble.text}
-                      </pre>
-                    )}
-                  </div>
-                </div>
-              </article>
-            )})}
+                    <div className={`chat-avatar ${bubble.role === "user" ? "chat-avatar-user" : "chat-avatar-assistant"} ${isAssistantErrorBubble(bubble) ? "chat-avatar-error" : ""}`}>
+                      {bubble.role === "user" ? <UserGlyph /> : <AgentGlyph />}
+                      {isAssistantErrorBubble(bubble) && <span className="chat-error-avatar-badge" aria-hidden="true">!</span>}
+                    </div>
+                    <div className="chat-content">
+                      <div
+                        className={`chat-bubble ${bubbleShapeClass(bubble.text)} ${bubble.role === "user" ? "chat-bubble-user" : "chat-bubble-agent"} ${isAssistantErrorBubble(bubble) ? "chat-bubble-error" : ""}`}
+                      >
+                        {bubble.role === "assistant" && !isAssistantErrorBubble(bubble) ? (
+                          <Fragment>{renderAssistantContent(bubble.text)}</Fragment>
+                        ) : (
+                          <pre className="chat-text">
+                            {isAssistantErrorBubble(bubble) && <span className="chat-error-prefix" aria-hidden="true">!</span>}
+                            {bubble.text}
+                          </pre>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                  {showFeedback && (
+                    <div className={`chat-feedback-row ${hasMarkdownTable ? "chat-feedback-row-table" : ""}`}>
+                      <div className="chat-feedback-actions" role="group" aria-label="Message feedback">
+                        <button
+                          type="button"
+                          className={`chat-feedback-btn chat-feedback-up ${bubble.feedback === "THUMBS_UP" ? "is-selected" : ""}`}
+                          title="Thumbs up"
+                          aria-label="Thumbs up"
+                          disabled={bubble.feedbackBusy}
+                          onClick={() => handleFeedback(bubble.id, "THUMBS_UP")}
+                        >
+                          <ThumbUpGlyph />
+                          <span className="chat-feedback-label">Helpful</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`chat-feedback-btn chat-feedback-down ${bubble.feedback === "THUMBS_DOWN" ? "is-selected" : ""}`}
+                          title="Thumbs down"
+                          aria-label="Thumbs down"
+                          disabled={bubble.feedbackBusy}
+                          onClick={() => handleFeedback(bubble.id, "THUMBS_DOWN")}
+                        >
+                          <ThumbDownGlyph />
+                          <span className="chat-feedback-label">Not helpful</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })}
 
             {isTyping && (
               <article className="chat-message chat-message-left" aria-live="polite">

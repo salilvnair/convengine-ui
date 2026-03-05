@@ -741,6 +741,83 @@ body {
   align-items: flex-end;
 }
 
+.chat-feedback-row {
+  --chat-row-base-max: 920px;
+  max-width: 920px;
+  margin: -16px auto 18px;
+  padding: 0 18px 0 70px;
+}
+
+.chat-feedback-row-table {
+  max-width: min(1700px, calc(100vw - 20px));
+  margin-left: calc((100% - min(var(--chat-row-base-max), 100%)) / 2);
+  margin-right: auto;
+}
+
+.chat-feedback-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.chat-message-left:hover + .chat-feedback-row .chat-feedback-actions,
+.chat-message-left:focus-within + .chat-feedback-row .chat-feedback-actions,
+.chat-feedback-row:hover .chat-feedback-actions,
+.chat-feedback-row:focus-within .chat-feedback-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.chat-feedback-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.chat-feedback-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chat-feedback-label {
+  line-height: 1;
+}
+
+.chat-feedback-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-feedback-btn:disabled {
+  opacity: 0.6;
+}
+
+.chat-feedback-up.is-selected {
+  color: #166534;
+  background: transparent;
+}
+
+.chat-feedback-down.is-selected {
+  color: #991b1b;
+  background: transparent;
+}
+
 .chat-bubble {
   width: fit-content;
   max-width: 100%;
@@ -1295,6 +1372,26 @@ body {
 [data-theme='dark'] .chat-avatar-user .chat-avatar-icon {
   color: #93c5fd;
   filter: none;
+}
+
+[data-theme='dark'] .chat-feedback-btn {
+  background: transparent;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .chat-feedback-btn:hover:not(:disabled) {
+  color: #e2e8f0;
+  background: transparent;
+}
+
+[data-theme='dark'] .chat-feedback-up.is-selected {
+  color: #bbf7d0;
+  background: transparent;
+}
+
+[data-theme='dark'] .chat-feedback-down.is-selected {
+  color: #fecaca;
+  background: transparent;
 }
 
 .chat-avatar-thinking {
