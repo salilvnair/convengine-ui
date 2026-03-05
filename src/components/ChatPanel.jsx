@@ -120,6 +120,31 @@ function splitMarkdownRow(line) {
   return trimmed.split("|").map((cell) => cell.trim());
 }
 
+function prettifyMarkdownHeader(header) {
+  const raw = typeof header === "string" ? header.trim() : String(header ?? "").trim();
+  if (!raw) return "";
+  const withSpaces = raw
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+  const acronym = new Map([
+    ["id", "ID"],
+    ["ui", "UI"],
+    ["aso", "ASO"],
+    ["don", "DON"],
+    ["sql", "SQL"],
+  ]);
+  return withSpaces
+    .split(" ")
+    .map((token) => {
+      const lower = token.toLowerCase();
+      if (acronym.has(lower)) return acronym.get(lower);
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}
+
 function parseMarkdownTableSegments(text) {
   const source = typeof text === "string" ? text : String(text ?? "");
   const lines = source.split(/\r?\n/);
@@ -165,7 +190,7 @@ function renderAssistantContent(text) {
     if (segment.type === "table") {
       return (
         <div key={`tbl-${idx}`} style={{ margin: "10px 0" }}>
-          <DbTable columns={segment.headers} rows={segment.rows} />
+          <DbTable columns={segment.headers.map(prettifyMarkdownHeader)} rows={segment.rows} />
         </div>
       );
     }
@@ -340,24 +365,22 @@ export default function ChatPanel({ conversationId, onAuditUpdate, onEngineStatu
                         <button
                           type="button"
                           className={`chat-feedback-btn chat-feedback-up ${bubble.feedback === "THUMBS_UP" ? "is-selected" : ""}`}
-                          title="Thumbs up"
+                          title="Mark response as helpful"
                           aria-label="Thumbs up"
                           disabled={bubble.feedbackBusy}
                           onClick={() => handleFeedback(bubble.id, "THUMBS_UP")}
                         >
                           <ThumbUpGlyph />
-                          <span className="chat-feedback-label">Helpful</span>
                         </button>
                         <button
                           type="button"
                           className={`chat-feedback-btn chat-feedback-down ${bubble.feedback === "THUMBS_DOWN" ? "is-selected" : ""}`}
-                          title="Thumbs down"
+                          title="Mark response as not helpful"
                           aria-label="Thumbs down"
                           disabled={bubble.feedbackBusy}
                           onClick={() => handleFeedback(bubble.id, "THUMBS_DOWN")}
                         >
                           <ThumbDownGlyph />
-                          <span className="chat-feedback-label">Not helpful</span>
                         </button>
                       </div>
                     </div>
