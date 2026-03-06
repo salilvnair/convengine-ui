@@ -440,7 +440,7 @@ body {
   background: transparent;
   border: 0;
   box-shadow: none;
-  color: #dbeafe;
+  color: #1e3a8a;
   padding: 4px 8px;
   min-width: auto;
   height: auto;
@@ -449,8 +449,8 @@ body {
 }
 
 .ce-table-cols-btn-inline:hover {
-  background: transparent;
-  color: #ffffff;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
 }
 
 .ce-table-inline-tools {
@@ -962,17 +962,21 @@ body {
     rgba(156, 163, 175, 0.92) 58%,
     rgba(156, 163, 175, 0.92) 100%
   );
-  background-size: 220% 100%;
+  background-size: 400% 100%;
   background-position: 210% 50%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: thinkingReflectionSweep 2.2s linear infinite;
+  will-change: background-position;
+  animation: thinkingReflectionSweep 6.5s linear infinite;
+  animation-fill-mode: both;
 }
 
 @keyframes thinkingReflectionSweep {
-  0% { background-position: 210% 50%; }
-  100% { background-position: -10% 50%; }
+  0%   { background-position: 210% 50%; }   /* pause start */
+  15%  { background-position: 210% 50%; }   /* ~1s pause (15% of 6.5s) */
+  85%  { background-position: -10% 50%; }   /* slow sweep */
+  100% { background-position: -10% 50%; }   /* pause end */
 }
 
 .chat-composer-wrap {
@@ -1537,6 +1541,16 @@ body {
 
 [data-theme='dark'] .ce-table-cols-btn:hover {
   background: rgba(96, 165, 250, 0.28);
+}
+
+[data-theme='dark'] .ce-table-cols-btn-inline {
+  background: transparent;
+  color: #dbeafe;
+}
+
+[data-theme='dark'] .ce-table-cols-btn-inline:hover {
+  background: transparent;
+  color: #ffffff;
 }
 
 [data-theme='dark'] .ce-table-cols-popup {
