@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useRef } from "react";
+import React, { useMemo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import ReactFlow, { Background, Controls, Handle, Position, MarkerType, useNodesState, useEdgesState } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -10,34 +10,58 @@ const COLORS = [
     { bg: "#fef3c7", color: '#b45309', border: '#fde68a' }, // amber
     { bg: "#e0f2fe", color: '#0369a1', border: '#bae6fd' }, // sky
 ];
- 
+
+const DARK_COLORS = [
+    { bg: "rgba(99,102,241,0.14)", color: "#c4b5fd", border: "rgba(99,102,241,0.28)" },   // indigo
+    { bg: "rgba(236,72,153,0.12)", color: "#f9a8d4", border: "rgba(236,72,153,0.26)" },   // pink
+    { bg: "rgba(56,189,248,0.12)", color: "#7dd3fc", border: "rgba(56,189,248,0.26)" },   // sky
+    { bg: "rgba(16,185,129,0.12)", color: "#6ee7b7", border: "rgba(16,185,129,0.26)" },   // emerald
+    { bg: "rgba(251,191,36,0.12)", color: "#fde68a", border: "rgba(251,191,36,0.24)" },   // amber
+    { bg: "rgba(167,139,250,0.12)", color: "#c4b5fd", border: "rgba(167,139,250,0.26)" }, // violet
+];
+
+function useIsDarkTheme() {
+    const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+    useEffect(() => {
+        const el = document.documentElement;
+        const cb = () => setIsDark(el.getAttribute('data-theme') === 'dark');
+        const observer = new MutationObserver(cb);
+        observer.observe(el, { attributes: true, attributeFilter: ['data-theme'] });
+        return () => observer.disconnect();
+    }, []);
+    return isDark;
+}
+
 const YamlNode = ({ data, id }) => {
+    const dark = data.isDark;
     return (
         <div className={`yaml-node ${data.focus ? 'focus' : ''}`} style={{
-            background: '#fff',
-            border: `2px solid ${data.focus ? '#3b82f6' : data.headerTheme.border || '#e2e8f0'}`,
+            background: dark ? 'linear-gradient(165deg, #0d1117, #131a24)' : '#fff',
+            border: `2px solid ${data.focus ? (dark ? '#38bdf8' : '#3b82f6') : data.headerTheme.border || (dark ? 'rgba(56,189,248,0.18)' : '#e2e8f0')}`,
             borderRadius: '8px',
             minWidth: '220px',
             fontSize: '12px',
-            boxShadow: data.focus ? '0 0 0 4px rgba(59, 130, 246, 0.2)' : '0 2px 5px -1px rgb(0 0 0 / 0.1)',
+            boxShadow: data.focus
+                ? (dark ? '0 0 0 4px rgba(56,189,248,0.2)' : '0 0 0 4px rgba(59, 130, 246, 0.2)')
+                : (dark ? '0 8px 24px rgba(0,0,0,0.55), 0 0 48px rgba(56,189,248,0.04)' : '0 2px 5px -1px rgb(0 0 0 / 0.1)'),
             fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         }}>
             {!data.isRoot && (
                 <Handle
                     type="target"
                     position={Position.Left}
-                    style={{ width: '10px', height: '10px', background: '#cbd5e1', border: '2px solid #fff', left: '-6px' }}
+                    style={{ width: '10px', height: '10px', background: dark ? '#1e293b' : '#cbd5e1', border: `2px solid ${dark ? 'rgba(56,189,248,0.5)' : '#fff'}`, left: '-6px', boxShadow: dark ? '0 0 6px rgba(56,189,248,0.15)' : 'none' }}
                 />
             )}
 
             <div className="yaml-node-header" style={{
                 padding: '8px 12px',
-                borderBottom: `1px solid ${data.headerTheme.border || '#e2e8f0'}`,
+                borderBottom: `1px solid ${data.headerTheme.border || (dark ? 'rgba(56,189,248,0.12)' : '#e2e8f0')}`,
                 fontWeight: '600',
-                background: data.headerTheme.bg || '#f3e8ff',
+                background: data.headerTheme.bg || (dark ? 'rgba(99,102,241,0.12)' : '#f3e8ff'),
                 borderTopLeftRadius: '6px',
                 borderTopRightRadius: '6px',
-                color: data.headerTheme.color || '#6b21a8',
+                color: data.headerTheme.color || (dark ? '#c4b5fd' : '#6b21a8'),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -59,16 +83,16 @@ const YamlNode = ({ data, id }) => {
                             width: '24px',
                             height: '24px',
                             borderRadius: '4px',
-                            border: `1px solid ${data.headerTheme.border || '#cbd5e1'}`,
-                            background: 'rgba(255, 255, 255, 0.4)',
-                            color: data.headerTheme.color || '#6b21a8',
+                            border: `1px solid ${data.headerTheme.border || (dark ? 'rgba(56,189,248,0.3)' : '#cbd5e1')}`,
+                            background: dark ? 'rgba(15,23,42,0.5)' : 'rgba(255, 255, 255, 0.4)',
+                            color: data.headerTheme.color || (dark ? '#c4b5fd' : '#6b21a8'),
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
                             fontSize: '14px',
                             transition: 'all 0.2s',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            boxShadow: dark ? '0 0 8px rgba(56,189,248,0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
                         }}
                         className="nodrag nopan sbuilder-node-expand-all"
                         title="Toggle all children"
@@ -83,13 +107,13 @@ const YamlNode = ({ data, id }) => {
                     <div key={item.key} style={{
                         display: 'flex',
                         padding: '8px 24px 8px 12px', /* extra right padding for toggle button */
-                        borderBottom: index < data.items.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        borderBottom: index < data.items.length - 1 ? `1px solid ${dark ? 'rgba(148,163,184,0.08)' : '#f1f5f9'}` : 'none',
                         position: 'relative',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        background: '#ffffff'
+                        background: dark ? 'transparent' : '#ffffff'
                     }}>
-                        <span style={{ color: '#3b82f6', fontWeight: '500' }}>{item.key}:</span>
+                        <span style={{ color: dark ? '#67e8f9' : '#3b82f6', fontWeight: '500' }}>{item.key}:</span>
 
                         {item.isPrimitive ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -100,17 +124,17 @@ const YamlNode = ({ data, id }) => {
                                         height: '12px',
                                         backgroundColor: String(item.value),
                                         borderRadius: '2px',
-                                        border: '1px solid #e2e8f0'
+                                        border: `1px solid ${dark ? 'rgba(148,163,184,0.2)' : '#e2e8f0'}`
                                     }}></span>
                                 )}
-                                <span style={{ color: '#475569', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }} title={String(item.value)}>
+                                <span style={{ color: dark ? '#e2e8f0' : '#475569', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }} title={String(item.value)}>
                                     {typeof item.value === 'string' && !item.type === 'color' && item.value.startsWith('#')
                                         ? item.value
                                         : (String(item.value).length > 25 ? String(item.value).substring(0, 25) + '...' : String(item.value))}
                                 </span>
                             </div>
                         ) : (
-                            <span style={{ color: '#64748b', fontSize: '11px' }}>
+                            <span style={{ color: dark ? '#94a3b8' : '#64748b', fontSize: '11px' }}>
                                 {item.type === 'array' ? `[${item.length} items]` : `{${item.length} keys}`}
                             </span>
                         )}
@@ -133,9 +157,9 @@ const YamlNode = ({ data, id }) => {
                                         width: '20px',
                                         height: '20px',
                                         borderRadius: '50%',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#f8fafc',
-                                        color: '#64748b',
+                                        border: `1px solid ${dark ? 'rgba(56,189,248,0.35)' : '#cbd5e1'}`,
+                                        background: dark ? 'linear-gradient(135deg, #1e293b, #0f172a)' : '#f8fafc',
+                                        color: dark ? '#67e8f9' : '#64748b',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -144,7 +168,7 @@ const YamlNode = ({ data, id }) => {
                                         lineHeight: '1',
                                         padding: '0 0 2px 0',
                                         zIndex: 10,
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                        boxShadow: dark ? '0 0 8px rgba(56,189,248,0.1)' : '0 1px 2px rgba(0,0,0,0.05)'
                                     }}
                                     className="nodrag nopan"
                                     title={item.expanded ? "Collapse" : "Expand"}
@@ -158,8 +182,8 @@ const YamlNode = ({ data, id }) => {
                                     style={{
                                         width: '10px',
                                         height: '10px',
-                                        background: '#cbd5e1',
-                                        border: '2px solid #fff',
+                                        background: dark ? '#1e293b' : '#cbd5e1',
+                                        border: `2px solid ${dark ? 'rgba(56,189,248,0.5)' : '#fff'}`,
                                         right: '-6px',
                                         top: '50%',
                                         transform: 'translateY(-50%)',
@@ -170,7 +194,7 @@ const YamlNode = ({ data, id }) => {
                         )}
                     </div>
                 )) : (
-                    <div style={{ padding: '8px 12px', color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Empty</div>
+                    <div style={{ padding: '8px 12px', color: dark ? '#64748b' : '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Empty</div>
                 )}
             </div>
         </div>
@@ -212,6 +236,7 @@ export default function SemanticYamlReactFlow({
 }) {
     const [nodes, setNodes, onNodesChangeCore] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const isDark = useIsDarkTheme();
 
     const onNodesChange = useCallback((changes) => {
         onNodesChangeCore(changes);
@@ -308,7 +333,8 @@ export default function SemanticYamlReactFlow({
 
         const assignCoordinates = (node, nodeCenterY) => {
             const yOffset = nodeCenterY - (node.ownHeight / 2);
-            const theme = COLORS[node.colorIndex % COLORS.length];
+            const palette = isDark ? DARK_COLORS : COLORS;
+            const theme = palette[node.colorIndex % palette.length];
 
             const position = { x: node.depth * X_OFFSET, y: yOffset };
 
@@ -325,8 +351,9 @@ export default function SemanticYamlReactFlow({
                     hasObjectChildren: node.hasObjectChildren,
                     allDirectExpanded: node.allDirectExpanded,
                     onToggleChild: onTogglePointer,
-                    onToggleAllChildren: (pointer) => onNodeDoubleClick(null, { id: pointer }), /* Wrap to match React Flow's node click signature */
-                    focus: selectedPointer === node.id
+                    onToggleAllChildren: (pointer) => onNodeDoubleClick(null, { id: pointer }),
+                    focus: selectedPointer === node.id,
+                    isDark
                 },
                 depth: node.depth
             });
@@ -339,8 +366,8 @@ export default function SemanticYamlReactFlow({
                     sourceHandle: node.sourceHandleId,
                     type: 'smoothstep',
                     animated: false,
-                    style: { stroke: '#cbd5e1', strokeWidth: 1.5, borderRadius: 0 },
-                    markerEnd: { type: MarkerType.ArrowClosed, color: '#ca8a04', width: 12, height: 12 }
+                    style: { stroke: isDark ? 'rgba(56,189,248,0.3)' : '#cbd5e1', strokeWidth: 1.5, borderRadius: 0 },
+                    markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#38bdf8' : '#ca8a04', width: 12, height: 12 }
                 });
             }
 
@@ -364,7 +391,7 @@ export default function SemanticYamlReactFlow({
         setNodes(newNodes);
         setEdges(newEdges);
 
-    }, [semanticTree, expandedPointers, onTogglePointer, selectedPointer]);
+    }, [semanticTree, expandedPointers, onTogglePointer, selectedPointer, isDark]);
 
     useEffect(() => {
         generateGraph(semanticTree);

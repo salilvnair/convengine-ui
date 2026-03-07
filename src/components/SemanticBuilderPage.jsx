@@ -1157,6 +1157,13 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
   };
 
+  const onCopyYamlToClipboard = (pointer) => {
+    const value = getAtPointer(semanticTree, pointer);
+    const yaml = stringifyYaml(value ?? {});
+    navigator.clipboard.writeText(yaml).catch(() => { });
+    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+  };
+
   const onDeleteSelectedSemanticNode = () => {
     if (!selectedSemanticNodeId || selectedSemanticNodeId === "/") return;
     setSemanticTree((prev) => deleteAtPointer(prev, selectedSemanticNodeId));
@@ -1790,60 +1797,100 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                           </div>
                         ) : null}
                         {nodeMenu.open ? (
-                          <div className="sbuilder-context-menu sbuilder-node-menu" style={{ left: nodeMenu.x, top: nodeMenu.y }}>
-                            <div className="sbuilder-context-title">{String(nodeMenu.pointer || "/").replace(/^\//, "") || "root"}</div>
-                            <button type="button" onClick={() => onFocusParent(nodeMenu.pointer)}>
-                              Focus Parent Node
-                            </button>
-                            <button type="button" onClick={() => setSelectedSemanticNodeId(nodeMenu.pointer)}>
-                              Edit Object
-                            </button>
-                            <button type="button" onClick={() => onCopyNode(nodeMenu.pointer)}>
-                              Copy Node
-                            </button>
-                            <button type="button" onClick={() => onOpenNodeInTab(nodeMenu.pointer)}>
-                              Open in New Tab
-                            </button>
-                            <button
-                              type="button"
-                              onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "inside" }))}
-                            >
-                              + Insert Inside
-                            </button>
-                            <button
-                              type="button"
-                              onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "before" }))}
-                            >
-                              + Insert Before
-                            </button>
-                            <button
-                              type="button"
-                              onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "after" }))}
-                            >
-                              + Insert After
-                            </button>
-                            {nodeMenu.pointer !== "/" ? (
-                              <button type="button" className="danger" onClick={() => onDeleteNodeAtPointer(nodeMenu.pointer)}>
-                                Delete
+                          <div
+                            className="sbuilder-ctx-wrapper"
+                            onMouseLeave={() => setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }))}
+                          >
+                            <div className="sbuilder-context-menu sbuilder-node-menu" style={{ left: nodeMenu.x, top: nodeMenu.y }}>
+                              <div className="sbuilder-context-title">{String(nodeMenu.pointer || "/").replace(/^\//, "") || "root"}</div>
+                              <button type="button" onClick={() => onFocusParent(nodeMenu.pointer)}>
+                                Focus Parent Node
                               </button>
-                            ) : null}
-                            {nodeMenu.subMenu ? (
-                              <div className="sbuilder-context-menu sbuilder-submenu" onMouseLeave={() => setNodeMenu((prev) => ({ ...prev, subMenu: "" }))}>
-                                <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
-                                  Object
-                                </button>
-                                {!(nodeMenu.subMenu === "inside" && nodeMenu.pointer === "/tables") && (
-                                  <>
-                                    <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "array") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "array")}>
-                                      Array
-                                    </button>
-                                    <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "value") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "value")}>
-                                      Value
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            ) : null}
+                              <button
+                                type="button"
+                                className="sbuilder-ctx-has-sub"
+                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "copy" }))}
+                              >
+                                Copy
+                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                              </button>
+                              <div className="sbuilder-ctx-divider" />
+                              <button type="button" onClick={() => onOpenNodeInTab(nodeMenu.pointer)}>
+                                Show Yaml in New Tab
+                              </button>
+                              <button type="button" onClick={() => onCopyYamlToClipboard(nodeMenu.pointer)}>
+                                Copy Yaml to Clipboard
+                              </button>
+                              <div className="sbuilder-ctx-divider" />
+                              <button
+                                type="button"
+                                className="sbuilder-ctx-has-sub"
+                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "inside" }))}
+                              >
+                                Insert Inside
+                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                              </button>
+                              <button
+                                type="button"
+                                className="sbuilder-ctx-has-sub"
+                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "before" }))}
+                              >
+                                Insert Before
+                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                              </button>
+                              <button
+                                type="button"
+                                className="sbuilder-ctx-has-sub"
+                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "after" }))}
+                              >
+                                Insert After
+                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                              </button>
+                              {nodeMenu.pointer !== "/" ? (
+                                <>
+                                  <div className="sbuilder-ctx-divider" />
+                                  <button type="button" className="danger" onClick={() => onDeleteNodeAtPointer(nodeMenu.pointer)}>
+                                    Delete
+                                  </button>
+                                </>
+                              ) : null}
+                              {nodeMenu.subMenu === "copy" ? (
+                                <div className="sbuilder-context-menu sbuilder-submenu">
+                                  <button type="button" onClick={() => {
+                                    navigator.clipboard.writeText(nodeMenu.pointer).catch(() => { });
+                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                  }}>Copy JSON Path</button>
+                                  <button type="button" onClick={() => {
+                                    const seg = nodeMenu.pointer.split("/").filter(Boolean).pop() || "";
+                                    navigator.clipboard.writeText(seg).catch(() => { });
+                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                  }}>Copy Key</button>
+                                  <button type="button" onClick={() => {
+                                    const val = getAtPointer(semanticTree, nodeMenu.pointer);
+                                    const str = typeof val === "object" ? JSON.stringify(val, null, 2) : String(val ?? "");
+                                    navigator.clipboard.writeText(str).catch(() => { });
+                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                  }}>Copy Value</button>
+                                </div>
+                              ) : null}
+                              {(nodeMenu.subMenu === "inside" || nodeMenu.subMenu === "before" || nodeMenu.subMenu === "after") ? (
+                                <div className="sbuilder-context-menu sbuilder-submenu">
+                                  <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
+                                    Object
+                                  </button>
+                                  {!(nodeMenu.subMenu === "inside" && nodeMenu.pointer === "/tables") && (
+                                    <>
+                                      <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "array") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "array")}>
+                                        Array
+                                      </button>
+                                      <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "value") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "value")}>
+                                        Value
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         ) : null}
                       </div>
