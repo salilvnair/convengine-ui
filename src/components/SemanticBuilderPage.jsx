@@ -378,6 +378,37 @@ function addChildAtPointer(root, pointer, kind = "value", keyName = "newKey") {
 }
 
 const COLUMN_SEMANTIC_PROPS = ["type", "description", "primary_key", "foreign_key"];
+const RELATIONSHIP_PROPS = ["name", "description", "from", "to", "type"];
+const RELATIONSHIP_DIRECTION_PROPS = ["table", "column"];
+const ENTITY_PROPS = ["description", "synonyms", "tables", "fields"];
+const ENTITY_TABLES_PROPS = ["primary", "related"];
+const ENTITY_FIELD_PROPS = ["column", "description", "type", "filterable", "searchable", "key", "aliases"];
+
+function buildDefaultEntityField(fieldName) {
+  return {
+    column: fieldName,
+    description: "",
+    type: "text",
+    filterable: true,
+    searchable: true,
+    key: false,
+    aliases: [],
+  };
+}
+
+function buildRelationshipFromJoin(join) {
+  const src = String(join.source_table || "");
+  const srcCol = String(join.source_column || "");
+  const tgt = String(join.target_table || "");
+  const tgtCol = String(join.target_column || "");
+  return {
+    name: `${src}_to_${tgt}`,
+    description: `${src} ${srcCol} to ${tgt} ${tgtCol}`,
+    from: { table: src, column: srcCol },
+    to: { table: tgt, column: tgtCol },
+    type: "one_to_many",
+  };
+}
 
 function buildColumnObjectFromSchema(columnName, tableName, columnsByTable, joins) {
   const cols = columnsByTable.get(tableName) || [];
@@ -635,6 +666,16 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     try {
       const parsedTree = parseYaml(semanticYaml || "{}") || {};
       const normalizedTree = typeof parsedTree === "object" && parsedTree !== null ? parsedTree : { value: parsedTree };
+      // Flatten tables: if a table entry has a nested "columns" object, promote its keys directly onto the table
+      if (isPlainObject(normalizedTree.tables)) {
+        for (const tbl of Object.keys(normalizedTree.tables)) {
+          const entry = normalizedTree.tables[tbl];
+          if (isPlainObject(entry) && isPlainObject(entry.columns)) {
+            const { columns, ...rest } = entry;
+            normalizedTree.tables[tbl] = { ...rest, ...columns };
+          }
+        }
+      }
       setSemanticTree(normalizedTree);
       const defaults = ensureExpandedDefaults(normalizedTree);
       setExpandedPointers((prev) => (prev.size <= 1 ? defaults : prev));
@@ -1031,7 +1072,12 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     setSemanticTree((prev) => {
       const root = isPlainObject(prev) ? structuredClone(prev) : {};
       if (!Object.prototype.hasOwnProperty.call(root, label)) {
-        root[label] = Object.prototype.hasOwnProperty.call(defaults, label) ? defaults[label] : {};
+        if (label === "relationships") {
+          const joins = effectivePayload?.joins || [];
+          root[label] = joins.map(j => buildRelationshipFromJoin(j));
+        } else {
+          root[label] = Object.prototype.hasOwnProperty.call(defaults, label) ? defaults[label] : {};
+        }
       }
       return root;
     });
@@ -1856,9 +1902,19 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                               <b>{k}</b>
                                               <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
                                             </div>
-                                            {childKind === "value" ? (
-                                              <input value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />
-                                            ) : (
+                                            {childKind === "value" ? (() => {
+                                              const parentParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                              const isEntityTablesPrimary = parentParts.length === 3 && parentParts[0] === "entities" && parentParts[2] === "tables" && k === "primary";
+                                              if (isEntityTablesPrimary) {
+                                                return (
+                                                  <select value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
+                                                    <option value="">-- select table --</option>
+                                                    {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                                  </select>
+                                                );
+                                              }
+                                              return <input value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
+                                            })() : (
                                               <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
                                                 setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
                                                 setSelectedSemanticNodeId(childPtr);
@@ -1893,7 +1949,22 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                               </select>
                                               <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
                                                 if (!nodeNewKeyDraft) return;
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "object", nodeNewKeyDraft));
+                                                const tableName = nodeNewKeyDraft;
+                                                const cols = columnsByTable.get(tableName) || [];
+                                                const tableObj = {};
+                                                cols.forEach(c => {
+                                                  const cn = String(c.column_name || "");
+                                                  if (!cn) return;
+                                                  tableObj[cn] = buildColumnObjectFromSchema(cn, tableName, columnsByTable, effectivePayload?.joins || []);
+                                                });
+                                                setSemanticTree((prev) => {
+                                                  const next = structuredClone(prev);
+                                                  const target = getAtPointer(next, selectedSemanticNodeId);
+                                                  if (isPlainObject(target)) {
+                                                    target[tableName] = tableObj;
+                                                  }
+                                                  return next;
+                                                });
                                               }}>Add</button>
                                             </div>
                                           </fieldset>
@@ -1966,6 +2037,165 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                         );
                                       }
 
+                                      // Relationship item: /relationships/0, /relationships/1 ...
+                                      const isRelationshipItem = ptrParts[0] === "relationships" && ptrParts.length === 2 && /^\d+$/.test(ptrParts[1]);
+                                      // Relationship from/to: /relationships/0/from, /relationships/0/to
+                                      const isRelationshipDirection = ptrParts[0] === "relationships" && ptrParts.length === 3 && /^\d+$/.test(ptrParts[1]) && (ptrParts[2] === "from" || ptrParts[2] === "to");
+
+                                      if (isRelationshipItem) {
+                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                        const availableProps = RELATIONSHIP_PROPS.filter(p => !existingKeys.includes(p));
+                                        if (availableProps.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Property</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select property --</option>
+                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                const kind = (nodeNewKeyDraft === "from" || nodeNewKeyDraft === "to") ? "object" : "value";
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      if (isRelationshipDirection) {
+                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                        const availableProps = RELATIONSHIP_DIRECTION_PROPS.filter(p => !existingKeys.includes(p));
+                                        if (availableProps.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Property</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select property --</option>
+                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "value", nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      // --- Entities hierarchy ---
+                                      const isEntitiesRoot = selectedSemanticNodeId === "/entities";
+                                      const isEntityChild = ptrParts[0] === "entities" && ptrParts.length === 2;
+                                      const isEntityTables = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "tables";
+                                      const isEntityFields = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "fields";
+                                      const isEntityFieldChild = ptrParts[0] === "entities" && ptrParts.length === 4 && ptrParts[2] === "fields";
+
+                                      if (isEntitiesRoot) {
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Entity</legend>
+                                            <div className="sbuilder-inline">
+                                              <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="entity name" style={{ flex: 1 }} />
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "object", nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      if (isEntityChild) {
+                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                        const availableProps = ENTITY_PROPS.filter(p => !existingKeys.includes(p));
+                                        if (availableProps.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Property</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select property --</option>
+                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                const kind = (nodeNewKeyDraft === "tables" || nodeNewKeyDraft === "fields") ? "object" : "value";
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      if (isEntityTables) {
+                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                        const availableProps = ENTITY_TABLES_PROPS.filter(p => !existingKeys.includes(p));
+                                        if (availableProps.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Property</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select property --</option>
+                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                const kind = nodeNewKeyDraft === "related" ? "array" : "value";
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      if (isEntityFields) {
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Field</legend>
+                                            <div className="sbuilder-inline">
+                                              <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="field name" style={{ flex: 1 }} />
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                const fieldObj = buildDefaultEntityField(nodeNewKeyDraft);
+                                                setSemanticTree((prev) => {
+                                                  const next = structuredClone(prev);
+                                                  const target = getAtPointer(next, selectedSemanticNodeId);
+                                                  if (isPlainObject(target)) {
+                                                    target[nodeNewKeyDraft] = fieldObj;
+                                                  }
+                                                  return next;
+                                                });
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
+                                      if (isEntityFieldChild) {
+                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                        const availableProps = ENTITY_FIELD_PROPS.filter(p => !existingKeys.includes(p));
+                                        if (availableProps.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Property</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select property --</option>
+                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                const kind = nodeNewKeyDraft === "aliases" ? "array" : "value";
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+
                                       return (
                                         <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
                                           <legend className="sbuilder-legend">Add Property</legend>
@@ -1999,9 +2229,19 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                               <b>[{idx}]</b>
                                               <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
                                             </div>
-                                            {childKind === "value" ? (
-                                              <input value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />
-                                            ) : (
+                                            {childKind === "value" ? (() => {
+                                              const arrParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                              const isEntityRelated = arrParts.length === 4 && arrParts[0] === "entities" && arrParts[2] === "tables" && arrParts[3] === "related";
+                                              if (isEntityRelated) {
+                                                return (
+                                                  <select value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
+                                                    <option value="">-- select table --</option>
+                                                    {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                                  </select>
+                                                );
+                                              }
+                                              return <input value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
+                                            })() : (
                                               <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
                                                 setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
                                                 setSelectedSemanticNodeId(childPtr);
@@ -2016,19 +2256,91 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                       })}
                                     </div>
                                     {/* Add Item Panel */}
-                                    <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                      <legend className="sbuilder-legend">Add Item</legend>
-                                      <div className="sbuilder-inline">
-                                        <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
-                                          <option value="value">value</option>
-                                          <option value="object">object</option>
-                                          <option value="array">array</option>
-                                        </select>
-                                        <button type="button" className="cache-analyze-load" onClick={() => {
-                                          setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft));
-                                        }}>Add</button>
-                                      </div>
-                                    </fieldset>
+                                    {(() => {
+                                      const isRelationshipsArray = selectedSemanticNodeId === "/relationships";
+                                      if (isRelationshipsArray) {
+                                        const joins = effectivePayload?.joins || [];
+                                        const existingItems = Array.isArray(selectedSemanticNodeValue) ? selectedSemanticNodeValue : [];
+                                        const existingNames = new Set(existingItems.map(r => String(r?.name || "")));
+                                        const availableJoins = joins.filter(j => {
+                                          const name = `${String(j.source_table || "")}_to_${String(j.target_table || "")}`;
+                                          return !existingNames.has(name);
+                                        });
+                                        if (availableJoins.length === 0) return null;
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Relationship</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select join --</option>
+                                                {availableJoins.map((j, i) => {
+                                                  const label = `${j.source_table}.${j.source_column} → ${j.target_table}.${j.target_column}`;
+                                                  return <option key={i} value={i}>{label}</option>;
+                                                })}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={nodeNewKeyDraft === ""} onClick={() => {
+                                                if (nodeNewKeyDraft === "") return;
+                                                const join = availableJoins[Number(nodeNewKeyDraft)];
+                                                if (!join) return;
+                                                const relObj = buildRelationshipFromJoin(join);
+                                                setSemanticTree((prev) => {
+                                                  const next = structuredClone(prev);
+                                                  const arr = getAtPointer(next, selectedSemanticNodeId);
+                                                  if (Array.isArray(arr)) {
+                                                    arr.push(relObj);
+                                                  }
+                                                  return next;
+                                                });
+                                                setNodeNewKeyDraft("");
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+                                      // Entity tables/related array: /entities/<name>/tables/related
+                                      const relatedParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                      const isEntityRelatedArray = relatedParts.length === 4 && relatedParts[0] === "entities" && relatedParts[2] === "tables" && relatedParts[3] === "related";
+                                      if (isEntityRelatedArray) {
+                                        return (
+                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                            <legend className="sbuilder-legend">Add Related Table</legend>
+                                            <div className="sbuilder-inline">
+                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                <option value="">-- select table --</option>
+                                                {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                              </select>
+                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                if (!nodeNewKeyDraft) return;
+                                                setSemanticTree((prev) => {
+                                                  const next = structuredClone(prev);
+                                                  const arr = getAtPointer(next, selectedSemanticNodeId);
+                                                  if (Array.isArray(arr)) {
+                                                    arr.push(nodeNewKeyDraft);
+                                                  }
+                                                  return next;
+                                                });
+                                                setNodeNewKeyDraft("");
+                                              }}>Add</button>
+                                            </div>
+                                          </fieldset>
+                                        );
+                                      }
+                                      return (
+                                        <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                          <legend className="sbuilder-legend">Add Item</legend>
+                                          <div className="sbuilder-inline">
+                                            <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
+                                              <option value="value">value</option>
+                                              <option value="object">object</option>
+                                              <option value="array">array</option>
+                                            </select>
+                                            <button type="button" className="cache-analyze-load" onClick={() => {
+                                              setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft));
+                                            }}>Add</button>
+                                          </div>
+                                        </fieldset>
+                                      );
+                                    })()}
                                   </>
                                 ) : null}
 
