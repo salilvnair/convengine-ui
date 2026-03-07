@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import  { useMemo, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import ReactFlow, { Background, Controls, Handle, Position, MarkerType, useNodesState, useEdgesState } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -104,7 +104,15 @@ const YamlNode = ({ data, id }) => {
 
             <div className="yaml-node-body" style={{ padding: '0', position: 'relative' }}>
                 {data.items && data.items.length > 0 ? data.items.map((item, index) => (
-                    <div key={item.key} style={{
+                    <div
+                        key={item.key}
+                        className="yaml-node-row"
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            data.onRowContextMenu?.(e, item.pointer);
+                        }}
+                        style={{
                         display: 'flex',
                         padding: '8px 24px 8px 12px', /* extra right padding for toggle button */
                         borderBottom: index < data.items.length - 1 ? `1px solid ${dark ? 'rgba(148,163,184,0.08)' : '#f1f5f9'}` : 'none',
@@ -226,6 +234,7 @@ export default function SemanticYamlReactFlow({
     expandedPointers,
     onTogglePointer,
     selectedPointer,
+    onRowContextMenu,
     onNodeContextMenu,
     onNodeClick,
     onPaneClick,
@@ -352,6 +361,7 @@ export default function SemanticYamlReactFlow({
                     allDirectExpanded: node.allDirectExpanded,
                     onToggleChild: onTogglePointer,
                     onToggleAllChildren: (pointer) => onNodeDoubleClick(null, { id: pointer }),
+                    onRowContextMenu: (event, pointer) => onRowContextMenu?.(event, pointer),
                     focus: selectedPointer === node.id,
                     isDark
                 },
@@ -391,7 +401,7 @@ export default function SemanticYamlReactFlow({
         setNodes(newNodes);
         setEdges(newEdges);
 
-    }, [semanticTree, expandedPointers, onTogglePointer, selectedPointer, isDark]);
+    }, [semanticTree, expandedPointers, onTogglePointer, onRowContextMenu, selectedPointer, isDark]);
 
     useEffect(() => {
         generateGraph(semanticTree);

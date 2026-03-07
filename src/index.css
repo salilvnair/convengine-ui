@@ -2343,8 +2343,8 @@ body {
 
 .sbuilder-submenu {
   left: calc(100% + 2px);
-  top: 56%;
-  transform: translateY(-50%);
+  top: 0;
+  transform: none;
   min-width: 110px;
   border-radius: 8px;
   padding: 4px;
@@ -2352,6 +2352,15 @@ body {
 }
 
 /* Per-row context menu on yaml node card */
+.yaml-node-row {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.yaml-node-row:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.16);
+}
+
 .yaml-node-row-ctx {
   position: absolute;
   z-index: 30;
@@ -2389,6 +2398,11 @@ body {
   background: linear-gradient(165deg, #0d1117, #131a24);
   border-color: rgba(56, 189, 248, 0.18);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme='dark'] .yaml-node-row:hover {
+  background: rgba(56, 189, 248, 0.1) !important;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.2);
 }
 
 [data-theme='dark'] .yaml-node-row-ctx button {

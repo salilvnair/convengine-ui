@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, { Background, Controls, Handle, MarkerType, Position, applyNodeChanges, useEdgesState, useNodesState } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -521,8 +521,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     y: 0,
     pointer: "/",
     subMenu: "",
+    subMenuTop: 0,
   });
   const [builderViewport, setBuilderViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const builderCanvasRef = useRef(null);
 
   const matchMode = String(query?.matchMode || "REGEX").toUpperCase();
   const matchText = String(query?.prefix || "").trim();
@@ -1055,7 +1057,6 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
   };
 
 
-
   const onAddPaletteNode = (label) => {
     const defaults = {
       settings: {},
@@ -1206,6 +1207,19 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
       setSelectedSemanticNodeId("/");
     }
   };
+
+  const getCanvasRelativePoint = useCallback((event) => {
+    const rect = builderCanvasRef.current?.getBoundingClientRect?.();
+    if (!rect) {
+      return { x: event.clientX, y: event.clientY };
+    }
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    return {
+      x: Math.max(0, Math.min(rect.width - 8, x)),
+      y: Math.max(0, Math.min(rect.height - 8, y)),
+    };
+  }, []);
 
   const scopedRows = useMemo(() => {
     const base = rowScope === "ALL"
@@ -1727,7 +1741,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                         </>
                       )}
 
-                      <div className="sbuilder-fullscreen">
+                      <div ref={builderCanvasRef} className="sbuilder-fullscreen">
                         <SemanticYamlReactFlow
                           semanticTree={semanticTree}
                           expandedPointers={expandedPointers}
@@ -1742,17 +1756,33 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                           selectedPointer={selectedSemanticNodeId}
                           viewport={builderViewport}
                           onViewportChange={(vp) => setBuilderViewport(vp)}
+                          onRowContextMenu={(event, pointer) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const point = getCanvasRelativePoint(event);
+                            setSelectedSemanticNodeId(pointer || "/");
+                            setBuilderMenu({ open: false, x: 0, y: 0 });
+                            setNodeMenu({
+                              open: true,
+                              x: point.x,
+                              y: point.y,
+                              pointer: pointer || "/",
+                              subMenu: "",
+                              subMenuTop: 0,
+                            });
+                          }}
                           onNodeContextMenu={(event, node) => {
                             event.preventDefault();
-                            const hostRect = event.currentTarget.getBoundingClientRect();
+                            const point = getCanvasRelativePoint(event);
                             const pointer = node?.data?.pointer || "/";
                             setSelectedSemanticNodeId(pointer);
                             setNodeMenu({
                               open: true,
-                              x: event.clientX - hostRect.left,
-                              y: event.clientY - hostRect.top,
+                              x: point.x,
+                              y: point.y,
                               pointer,
                               subMenu: "",
+                              subMenuTop: 0,
                             });
                           }}
                           onNodeClick={(_, node) => {
@@ -1772,11 +1802,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                           }}
                           onPaneContextMenu={(event) => {
                             event.preventDefault();
-                            const hostRect = event.currentTarget.getBoundingClientRect();
+                            const point = getCanvasRelativePoint(event);
                             setBuilderMenu({
                               open: true,
-                              x: event.clientX - hostRect.left,
-                              y: event.clientY - hostRect.top,
+                              x: point.x,
+                              y: point.y,
                             });
                             setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
                           }}
@@ -1809,7 +1839,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               <button
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
-                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "copy" }))}
+                                onMouseEnter={(e) => {
+                                  const top = e.currentTarget?.offsetTop ?? 0;
+                                  setNodeMenu((prev) => ({ ...prev, subMenu: "copy", subMenuTop: top }));
+                                }}
                               >
                                 Copy
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1825,7 +1858,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               <button
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
-                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "inside" }))}
+                                onMouseEnter={(e) => {
+                                  const top = e.currentTarget?.offsetTop ?? 0;
+                                  setNodeMenu((prev) => ({ ...prev, subMenu: "inside", subMenuTop: top }));
+                                }}
                               >
                                 Insert Inside
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1833,7 +1869,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               <button
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
-                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "before" }))}
+                                onMouseEnter={(e) => {
+                                  const top = e.currentTarget?.offsetTop ?? 0;
+                                  setNodeMenu((prev) => ({ ...prev, subMenu: "before", subMenuTop: top }));
+                                }}
                               >
                                 Insert Before
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1841,7 +1880,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               <button
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
-                                onMouseEnter={() => setNodeMenu((prev) => ({ ...prev, subMenu: "after" }))}
+                                onMouseEnter={(e) => {
+                                  const top = e.currentTarget?.offsetTop ?? 0;
+                                  setNodeMenu((prev) => ({ ...prev, subMenu: "after", subMenuTop: top }));
+                                }}
                               >
                                 Insert After
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1855,7 +1897,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 </>
                               ) : null}
                               {nodeMenu.subMenu === "copy" ? (
-                                <div className="sbuilder-context-menu sbuilder-submenu">
+                                <div className="sbuilder-context-menu sbuilder-submenu" style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}>
                                   <button type="button" onClick={() => {
                                     navigator.clipboard.writeText(nodeMenu.pointer).catch(() => { });
                                     setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
@@ -1874,7 +1916,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 </div>
                               ) : null}
                               {(nodeMenu.subMenu === "inside" || nodeMenu.subMenu === "before" || nodeMenu.subMenu === "after") ? (
-                                <div className="sbuilder-context-menu sbuilder-submenu">
+                                <div className="sbuilder-context-menu sbuilder-submenu" style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}>
                                   <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
                                     Object
                                   </button>
