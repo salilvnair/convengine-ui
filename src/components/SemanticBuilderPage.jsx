@@ -1243,10 +1243,34 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
   const onDeleteNodeAtPointer = (pointer) => {
     if (!pointer || pointer === "/") return;
-    setSemanticTree((prev) => deleteAtPointer(prev, pointer));
-    if (selectedSemanticNodeId === pointer) {
-      setSelectedSemanticNodeId("/");
+    const parts = String(pointer).split("/").slice(1);
+    const parentParts = parts.slice(0, -1);
+    const parentPointer = parentParts.length ? `/${parentParts.join("/")}` : "/";
+    const encodedLast = parts[parts.length - 1] || "";
+    const lastSegment = decodePointerSegment(encodedLast);
+
+    let nextFocus = parentPointer;
+    const parentValue = getAtPointer(semanticTree, parentPointer);
+
+    if (Array.isArray(parentValue)) {
+      const idx = Number(lastSegment);
+      if (Number.isInteger(idx) && idx >= 0 && idx + 1 < parentValue.length) {
+        nextFocus = joinPointer(parentPointer, idx + 1);
+      }
+    } else if (isPlainObject(parentValue)) {
+      const keys = Object.keys(parentValue);
+      const at = keys.indexOf(String(lastSegment));
+      if (at >= 0 && at + 1 < keys.length) {
+        nextFocus = joinPointer(parentPointer, keys[at + 1]);
+      }
     }
+
+    setSemanticTree((prev) => deleteAtPointer(prev, pointer));
+    if (selectedSemanticNodeId === pointer || String(selectedSemanticNodeId || "").startsWith(`${pointer}/`)) {
+      setSelectedSemanticNodeId(nextFocus || "/");
+    }
+    setActiveContextPointer("");
+    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
   };
 
   const getCanvasRelativePoint = useCallback((event) => {
@@ -1834,14 +1858,13 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                             activeContextPointer={activeContextPointer}
                             viewport={builderViewport}
                             onViewportChange={(vp) => setBuilderViewport(vp)}
-                            onRowContextMenu={(event, pointer) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              const point = getCanvasRelativePoint(event);
-                              setSelectedSemanticNodeId(pointer || "/");
-                              setActiveContextPointer(pointer || "");
-                              setBuilderMenu({ open: false, x: 0, y: 0 });
-                              setNodeMenu({
+                          onRowContextMenu={(event, pointer) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const point = getCanvasRelativePoint(event);
+                            setActiveContextPointer(pointer || "");
+                            setBuilderMenu({ open: false, x: 0, y: 0 });
+                            setNodeMenu({
                                 open: true,
                                 x: point.x,
                                 y: point.y,
@@ -1852,13 +1875,12 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 canvasHeight: point.canvasHeight,
                               });
                             }}
-                            onNodeContextMenu={(event, node) => {
-                              event.preventDefault();
-                              const point = getCanvasRelativePoint(event);
-                              const pointer = node?.data?.pointer || "/";
-                              setSelectedSemanticNodeId(pointer);
-                              setActiveContextPointer(pointer);
-                              setNodeMenu({
+                          onNodeContextMenu={(event, node) => {
+                            event.preventDefault();
+                            const point = getCanvasRelativePoint(event);
+                            const pointer = node?.data?.pointer || "/";
+                            setActiveContextPointer(pointer);
+                            setNodeMenu({
                                 open: true,
                                 x: point.x,
                                 y: point.y,
@@ -1922,7 +1944,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                         {nodeMenu.open ? (
                           <div
                             className="sbuilder-ctx-wrapper"
-                            onMouseLeave={() => setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }))}
+                            onMouseLeave={() => {
+                              setActiveContextPointer("");
+                              setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                            }}
                           >
                             <div className="sbuilder-context-menu sbuilder-node-menu" style={{
                               left: nodeMenu.x,
