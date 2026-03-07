@@ -2126,6 +2126,56 @@ body {
   background: radial-gradient(circle at 20% 20%, #f9fafb 0%, #eef2f7 48%, #e8edf4 100%);
 }
 
+.sbuilder-flow-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sbuilder-zoom-indicator {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 25;
+  pointer-events: auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text-secondary) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-default) 58%, transparent);
+  border-radius: 10px;
+  padding: 6px 8px;
+  backdrop-filter: blur(2px);
+  min-width: 92px;
+}
+
+.sbuilder-zoom-close {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sbuilder-zoom-close:hover {
+  background: rgba(220, 38, 38, 1);
+  border-color: rgba(248, 113, 113, 0.8);
+}
+
 .sbuilder-flow-fs-btn {
   position: absolute;
   top: 12px;
@@ -2488,6 +2538,17 @@ body {
 
 [data-theme='dark'] .sbuilder-fullscreen {
   background: radial-gradient(circle at 20% 20%, #0f1117 0%, #0b0e13 54%, #090c10 100%);
+}
+
+[data-theme='dark'] .sbuilder-zoom-indicator {
+  color: rgba(203, 213, 225, 0.92);
+  background: rgba(15, 23, 42, 0.36);
+  border-color: rgba(56, 189, 248, 0.24);
+}
+
+[data-theme='dark'] .sbuilder-zoom-close {
+  background: rgba(185, 28, 28, 0.96);
+  border-color: rgba(248, 113, 113, 0.75);
 }
 
 [data-theme='dark'] .sbuilder-flow-shell.is-fullscreen {

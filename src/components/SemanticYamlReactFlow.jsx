@@ -236,6 +236,7 @@ export default function SemanticYamlReactFlow({
     onToggleNodeChildren,
     selectedPointer,
     activeContextPointer,
+    defaultViewport,
     onRowContextMenu,
     onNodeContextMenu,
     onNodeClick,
@@ -251,6 +252,9 @@ export default function SemanticYamlReactFlow({
     const nodePositionsRef = useRef(new Map());
     const reactFlowInstanceRef = useRef(null);
     const lastAutoPanPointerRef = useRef("");
+    const hasCenteredInitialViewRef = useRef(false);
+    const initViewportAppliedRef = useRef(false);
+    const [showViewportBadge, setShowViewportBadge] = useState(true);
 
     const onNodesChange = useCallback((changes) => {
         changes.forEach((change) => {
@@ -424,11 +428,43 @@ export default function SemanticYamlReactFlow({
     }, [semanticTree, expandedPointers, generateGraph]);
 
     useEffect(() => {
+        hasCenteredInitialViewRef.current = false;
+        lastAutoPanPointerRef.current = "";
+        initViewportAppliedRef.current = false;
+    }, [semanticTree]);
+
+    useEffect(() => {
         setNodes((prev) => prev.map((n) => ({
             ...n,
             data: { ...n.data, focus: selectedPointer === n.id },
         })));
     }, [selectedPointer, setNodes]);
+
+    useEffect(() => {
+        if (hasCenteredInitialViewRef.current) {
+            return;
+        }
+        const instance = reactFlowInstanceRef.current;
+        if (!instance) {
+            return;
+        }
+        instance.setViewport(
+            {
+                x: Number(viewport?.x ?? defaultViewport?.x ?? 0),
+                y: Number(viewport?.y ?? defaultViewport?.y ?? 0),
+                zoom: Number(viewport?.zoom ?? defaultViewport?.zoom ?? 1),
+            },
+            { duration: 0 }
+        );
+        const applied = {
+            x: Number(viewport?.x ?? defaultViewport?.x ?? 0),
+            y: Number(viewport?.y ?? defaultViewport?.y ?? 0),
+            zoom: Number(viewport?.zoom ?? defaultViewport?.zoom ?? 1),
+        };
+        onViewportChange?.(applied);
+        initViewportAppliedRef.current = true;
+        hasCenteredInitialViewRef.current = true;
+    }, [nodes, viewport?.x, viewport?.y, viewport?.zoom, defaultViewport?.x, defaultViewport?.y, defaultViewport?.zoom, onViewportChange]);
 
     useEffect(() => {
         if (!selectedPointer || selectedPointer === "/") {
@@ -459,30 +495,62 @@ export default function SemanticYamlReactFlow({
     }, [selectedPointer, nodes, viewport?.zoom]);
 
     return (
-        <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onInit={(instance) => {
-                reactFlowInstanceRef.current = instance;
-            }}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            onNodeContextMenu={onNodeContextMenu}
-            onNodeClick={onNodeClick}
-            onNodeDoubleClick={onNodeDoubleClick}
-            onPaneClick={onPaneClick}
-            onPaneContextMenu={onPaneContextMenu}
-            onMove={(e, v) => onViewportChange?.(v)}
-            minZoom={0.01}
-            maxZoom={100}
-            translateExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
-            nodeExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
-            proOptions={{ hideAttribution: true }}
-            zoomOnDoubleClick={false}
-        >
-            <Background gap={22} size={1} />
-            <Controls showInteractive />
-        </ReactFlow>
+        <div className="sbuilder-flow-stage">
+            {showViewportBadge ? (
+                <div className="sbuilder-zoom-indicator">
+                    <button
+                        type="button"
+                        className="sbuilder-zoom-close"
+                        onClick={() => setShowViewportBadge(false)}
+                        aria-label="Hide viewport indicator"
+                        title="Hide"
+                    >
+                        ×
+                    </button>
+                    <div>{`Zoom: ${Math.max(1, Math.round(Number(viewport?.zoom || 1) * 100))}%`}</div>
+                    <div>{`X: ${Math.round(Number(viewport?.x || 0))}`}</div>
+                    <div>{`Y: ${Math.round(Number(viewport?.y || 0))}`}</div>
+                </div>
+            ) : null}
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onInit={(instance) => {
+                    reactFlowInstanceRef.current = instance;
+                    const applied = {
+                        x: Number(viewport?.x ?? defaultViewport?.x ?? 0),
+                        y: Number(viewport?.y ?? defaultViewport?.y ?? 0),
+                        zoom: Number(viewport?.zoom ?? defaultViewport?.zoom ?? 1),
+                    };
+                    instance.setViewport(
+                        applied,
+                        { duration: 0 }
+                    );
+                    onViewportChange?.(applied);
+                    initViewportAppliedRef.current = true;
+                }}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                nodeTypes={nodeTypes}
+                onNodeContextMenu={onNodeContextMenu}
+                onNodeClick={onNodeClick}
+                onNodeDoubleClick={onNodeDoubleClick}
+                onPaneClick={onPaneClick}
+                onPaneContextMenu={onPaneContextMenu}
+                onMove={(e, v) => {
+                    if (!initViewportAppliedRef.current) return;
+                    onViewportChange?.(v);
+                }}
+                minZoom={0.01}
+                maxZoom={100}
+                translateExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
+                nodeExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
+                proOptions={{ hideAttribution: true }}
+                zoomOnDoubleClick={false}
+            >
+                <Background gap={22} size={1} />
+                <Controls showInteractive />
+            </ReactFlow>
+        </div>
     );
 }

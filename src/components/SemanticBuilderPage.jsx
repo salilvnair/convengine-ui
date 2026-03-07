@@ -24,6 +24,12 @@ const SEMANTIC_PALETTE_TYPES = [
   "allowed_tables",
 ];
 
+const INITIAL_FLOW_VIEWPORT = {
+  x: 600,
+  y: 341,
+  zoom: 1,
+};
+
 const PALETTE_ICONS = {
   settings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
   entities: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18"></path><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="7" r="4"></circle></svg>,
@@ -526,7 +532,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     openUp: false,
     canvasHeight: 0,
   });
-  const [builderViewport, setBuilderViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [builderViewport, setBuilderViewport] = useState(INITIAL_FLOW_VIEWPORT);
   const builderCanvasRef = useRef(null);
   const flowFullscreenRef = useRef(null);
   const subMenuHideTimerRef = useRef(null);
@@ -657,7 +663,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
   useEffect(() => {
     if (studioMode === "builder") {
-      setBuilderViewport({ x: 0, y: 0, zoom: 1 });
+      setBuilderViewport(INITIAL_FLOW_VIEWPORT);
     }
   }, [studioMode]);
 
@@ -1254,14 +1260,14 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
     if (Array.isArray(parentValue)) {
       const idx = Number(lastSegment);
-      if (Number.isInteger(idx) && idx >= 0 && idx + 1 < parentValue.length) {
-        nextFocus = joinPointer(parentPointer, idx + 1);
+      const remainingLength = Number.isInteger(idx) ? parentValue.length - 1 : parentValue.length;
+      if (remainingLength > 0) {
+        nextFocus = joinPointer(parentPointer, remainingLength - 1);
       }
     } else if (isPlainObject(parentValue)) {
-      const keys = Object.keys(parentValue);
-      const at = keys.indexOf(String(lastSegment));
-      if (at >= 0 && at + 1 < keys.length) {
-        nextFocus = joinPointer(parentPointer, keys[at + 1]);
+      const keys = Object.keys(parentValue).filter((k) => k !== String(lastSegment));
+      if (keys.length > 0) {
+        nextFocus = joinPointer(parentPointer, keys[keys.length - 1]);
       }
     }
 
@@ -1856,40 +1862,41 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                             onToggleNodeChildren={handleToggleDirectChildren}
                             selectedPointer={selectedSemanticNodeId}
                             activeContextPointer={activeContextPointer}
+                            defaultViewport={INITIAL_FLOW_VIEWPORT}
                             viewport={builderViewport}
                             onViewportChange={(vp) => setBuilderViewport(vp)}
-                          onRowContextMenu={(event, pointer) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            const point = getCanvasRelativePoint(event);
-                            setActiveContextPointer(pointer || "");
-                            setBuilderMenu({ open: false, x: 0, y: 0 });
-                            setNodeMenu({
-                                open: true,
-                                x: point.x,
-                                y: point.y,
-                                pointer: pointer || "/",
-                                subMenu: "",
-                                subMenuTop: 0,
-                                openUp: point.openUp,
-                                canvasHeight: point.canvasHeight,
-                              });
+                            onRowContextMenu={(event, pointer) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const point = getCanvasRelativePoint(event);
+                              setActiveContextPointer(pointer || "");
+                              setBuilderMenu({ open: false, x: 0, y: 0 });
+                              setNodeMenu({
+                                  open: true,
+                                  x: point.x,
+                                  y: point.y,
+                                  pointer: pointer || "/",
+                                  subMenu: "",
+                                  subMenuTop: 0,
+                                  openUp: point.openUp,
+                                  canvasHeight: point.canvasHeight,
+                                });
                             }}
-                          onNodeContextMenu={(event, node) => {
-                            event.preventDefault();
-                            const point = getCanvasRelativePoint(event);
-                            const pointer = node?.data?.pointer || "/";
-                            setActiveContextPointer(pointer);
-                            setNodeMenu({
-                                open: true,
-                                x: point.x,
-                                y: point.y,
-                                pointer,
-                                subMenu: "",
-                                subMenuTop: 0,
-                                openUp: point.openUp,
-                                canvasHeight: point.canvasHeight,
-                              });
+                            onNodeContextMenu={(event, node) => {
+                              event.preventDefault();
+                              const point = getCanvasRelativePoint(event);
+                              const pointer = node?.data?.pointer || "/";
+                              setActiveContextPointer(pointer);
+                              setNodeMenu({
+                                  open: true,
+                                  x: point.x,
+                                  y: point.y,
+                                  pointer,
+                                  subMenu: "",
+                                  subMenuTop: 0,
+                                  openUp: point.openUp,
+                                  canvasHeight: point.canvasHeight,
+                                });
                             }}
                             onNodeClick={(_, node) => {
                               const pointer = node?.data?.pointer || "/";
