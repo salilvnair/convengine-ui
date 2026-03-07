@@ -249,6 +249,8 @@ export default function SemanticYamlReactFlow({
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const isDark = useIsDarkTheme();
     const nodePositionsRef = useRef(new Map());
+    const reactFlowInstanceRef = useRef(null);
+    const lastAutoPanPointerRef = useRef("");
 
     const onNodesChange = useCallback((changes) => {
         changes.forEach((change) => {
@@ -428,10 +430,41 @@ export default function SemanticYamlReactFlow({
         })));
     }, [selectedPointer, setNodes]);
 
+    useEffect(() => {
+        if (!selectedPointer || selectedPointer === "/") {
+            return;
+        }
+        if (lastAutoPanPointerRef.current === selectedPointer) {
+            return;
+        }
+        const instance = reactFlowInstanceRef.current;
+        if (!instance) {
+            return;
+        }
+        const node = nodes.find((n) => n.id === selectedPointer);
+        if (!node) {
+            return;
+        }
+
+        const width = Number(node?.measured?.width || node?.width || 240);
+        const height = Number(node?.measured?.height || node?.height || 120);
+        const centerX = Number(node.position?.x || 0) + width / 2;
+        const centerY = Number(node.position?.y || 0) + height / 2;
+
+        instance.setCenter(centerX, centerY, {
+            duration: 260,
+            zoom: Number(viewport?.zoom || 1),
+        });
+        lastAutoPanPointerRef.current = selectedPointer;
+    }, [selectedPointer, nodes, viewport?.zoom]);
+
     return (
         <ReactFlow
             nodes={nodes}
             edges={edges}
+            onInit={(instance) => {
+                reactFlowInstanceRef.current = instance;
+            }}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
