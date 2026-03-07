@@ -97,7 +97,7 @@ const YamlNode = ({ data, id }) => {
                         className="nodrag nopan sbuilder-node-expand-all"
                         title="Toggle all children"
                     >
-                        {data.allDirectExpanded ? '−' : '+'}
+                        {data.anyDirectExpanded ? '−' : '+'}
                     </button>
                 )}
             </div>
@@ -106,7 +106,7 @@ const YamlNode = ({ data, id }) => {
                 {data.items && data.items.length > 0 ? data.items.map((item, index) => (
                     <div
                         key={item.key}
-                        className="yaml-node-row"
+                        className={`yaml-node-row ${data.activeContextPointer === item.pointer ? "is-active" : ""} ${data.selectedPointer === item.pointer ? "is-linked" : ""}`}
                         onContextMenu={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -233,7 +233,9 @@ export default function SemanticYamlReactFlow({
     semanticTree,
     expandedPointers,
     onTogglePointer,
+    onToggleNodeChildren,
     selectedPointer,
+    activeContextPointer,
     onRowContextMenu,
     onNodeContextMenu,
     onNodeClick,
@@ -246,8 +248,14 @@ export default function SemanticYamlReactFlow({
     const [nodes, setNodes, onNodesChangeCore] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const isDark = useIsDarkTheme();
+    const nodePositionsRef = useRef(new Map());
 
     const onNodesChange = useCallback((changes) => {
+        changes.forEach((change) => {
+            if ((change.type === "position" || change.type === "dimensions") && change.position) {
+                nodePositionsRef.current.set(change.id, change.position);
+            }
+        });
         onNodesChangeCore(changes);
     }, [onNodesChangeCore]);
 
@@ -305,11 +313,13 @@ export default function SemanticYamlReactFlow({
             const ownHeight = items.length === 0 ? 80 : 40 + (items.length * 35) + 20;
             const hasObjectChildren = childrenToProcess.length > 0;
             let allDirectExpanded = hasObjectChildren;
+            let anyDirectExpanded = false;
             const childrenList = [];
             let childrenSubtreeHeight = 0;
 
             childrenToProcess.forEach(({ childObj, childKey, childPointer }, i) => {
                 if (expandedPointers.has(childPointer)) {
+                    anyDirectExpanded = true;
                     const childNode = buildLayoutTree(
                         childObj,
                         kind === "array" ? `${title}[${childKey}]` : childKey,
@@ -336,7 +346,7 @@ export default function SemanticYamlReactFlow({
 
             return {
                 id, title, pointer, depth, parentId, sourceHandleId, colorIndex,
-                items, hasObjectChildren, allDirectExpanded, ownHeight, subtreeHeight, childrenList
+                items, hasObjectChildren, allDirectExpanded, anyDirectExpanded, ownHeight, subtreeHeight, childrenList
             };
         };
 
@@ -346,11 +356,12 @@ export default function SemanticYamlReactFlow({
             const theme = palette[node.colorIndex % palette.length];
 
             const position = { x: node.depth * X_OFFSET, y: yOffset };
+            const persisted = nodePositionsRef.current.get(node.id);
 
             newNodes.push({
                 id: node.id,
                 type: 'yamlNode',
-                position,
+                position: persisted || position,
                 data: {
                     title: node.title,
                     items: node.items,
@@ -359,10 +370,13 @@ export default function SemanticYamlReactFlow({
                     pointer: node.pointer,
                     hasObjectChildren: node.hasObjectChildren,
                     allDirectExpanded: node.allDirectExpanded,
+                    anyDirectExpanded: node.anyDirectExpanded,
                     onToggleChild: onTogglePointer,
-                    onToggleAllChildren: (pointer) => onNodeDoubleClick(null, { id: pointer }),
+                    onToggleAllChildren: (pointer) => onToggleNodeChildren?.(pointer),
                     onRowContextMenu: (event, pointer) => onRowContextMenu?.(event, pointer),
                     focus: selectedPointer === node.id,
+                    selectedPointer,
+                    activeContextPointer,
                     isDark
                 },
                 depth: node.depth
@@ -401,11 +415,18 @@ export default function SemanticYamlReactFlow({
         setNodes(newNodes);
         setEdges(newEdges);
 
-    }, [semanticTree, expandedPointers, onTogglePointer, onRowContextMenu, selectedPointer, isDark]);
+    }, [semanticTree, expandedPointers, onTogglePointer, onToggleNodeChildren, onRowContextMenu, activeContextPointer, isDark]);
 
     useEffect(() => {
         generateGraph(semanticTree);
-    }, [semanticTree, expandedPointers, generateGraph, selectedPointer]);
+    }, [semanticTree, expandedPointers, generateGraph]);
+
+    useEffect(() => {
+        setNodes((prev) => prev.map((n) => ({
+            ...n,
+            data: { ...n.data, focus: selectedPointer === n.id },
+        })));
+    }, [selectedPointer, setNodes]);
 
     return (
         <ReactFlow
@@ -424,8 +445,6 @@ export default function SemanticYamlReactFlow({
             maxZoom={100}
             translateExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
             nodeExtent={[[-Infinity, -Infinity], [Infinity, Infinity]]}
-            fitView
-            fitViewOptions={{ padding: 0.2, includeHiddenNodes: false }}
             proOptions={{ hideAttribution: true }}
             zoomOnDoubleClick={false}
         >

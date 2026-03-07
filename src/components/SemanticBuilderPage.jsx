@@ -507,10 +507,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
   const [flowNodes, setFlowNodes, onFlowNodesChange] = useNodesState([]);
   const [flowEdges, setFlowEdges, onFlowEdgesChange] = useEdgesState([]);
   const [selectedSemanticNodeId, setSelectedSemanticNodeId] = useState("/");
+  const [activeContextPointer, setActiveContextPointer] = useState("");
   const [nodeEntryDraft, setNodeEntryDraft] = useState("");
   const [nodeNewKeyDraft, setNodeNewKeyDraft] = useState("newKey");
   const [nodeAddKindDraft, setNodeAddKindDraft] = useState("value");
-  const [builderMenu, setBuilderMenu] = useState({ open: false, x: 0, y: 0 });
+  const [builderMenu, setBuilderMenu] = useState({ open: false, x: 0, y: 0, openUp: false, canvasHeight: 0 });
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [leftPanelWidth, setLeftPanelWidth] = useState(60);
@@ -522,9 +523,39 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     pointer: "/",
     subMenu: "",
     subMenuTop: 0,
+    openUp: false,
+    canvasHeight: 0,
   });
   const [builderViewport, setBuilderViewport] = useState({ x: 0, y: 0, zoom: 1 });
   const builderCanvasRef = useRef(null);
+  const flowFullscreenRef = useRef(null);
+  const subMenuHideTimerRef = useRef(null);
+  const [isFlowFullscreen, setIsFlowFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!nodeMenu.open) {
+      setActiveContextPointer("");
+    }
+  }, [nodeMenu.open]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFlowFullscreen(document.fullscreenElement === flowFullscreenRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const toggleFlowFullscreen = useCallback(() => {
+    const el = flowFullscreenRef.current;
+    if (!el) return;
+    if (document.fullscreenElement === el) {
+      document.exitFullscreen?.().catch(() => { });
+      return;
+    }
+    setRightPanelOpen(true);
+    el.requestFullscreen?.().catch(() => { });
+  }, []);
 
   const matchMode = String(query?.matchMode || "REGEX").toUpperCase();
   const matchText = String(query?.prefix || "").trim();
@@ -1140,6 +1171,16 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     setSelectedSemanticNodeId(parent || "/");
     if (parent) {
       setExpandedPointers((prev) => new Set([...prev, parent]));
+      const parts = String(parent).split("/").filter(Boolean);
+      let chain = "";
+      setExpandedPointers((prev) => {
+        const next = new Set(prev);
+        parts.forEach((p) => {
+          chain = `${chain}/${p}`;
+          next.add(chain);
+        });
+        return next;
+      });
     }
     setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
   };
@@ -1211,15 +1252,32 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
   const getCanvasRelativePoint = useCallback((event) => {
     const rect = builderCanvasRef.current?.getBoundingClientRect?.();
     if (!rect) {
-      return { x: event.clientX, y: event.clientY };
+      return { x: event.clientX, y: event.clientY, openUp: false, canvasHeight: 0 };
     }
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+    const clampedY = Math.max(0, Math.min(rect.height - 8, y));
     return {
       x: Math.max(0, Math.min(rect.width - 8, x)),
-      y: Math.max(0, Math.min(rect.height - 8, y)),
+      y: clampedY,
+      openUp: clampedY > rect.height * 0.62,
+      canvasHeight: rect.height,
     };
   }, []);
+
+  const clearSubMenuHideTimer = useCallback(() => {
+    if (subMenuHideTimerRef.current) {
+      clearTimeout(subMenuHideTimerRef.current);
+      subMenuHideTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSubMenuHide = useCallback(() => {
+    clearSubMenuHideTimer();
+    subMenuHideTimerRef.current = setTimeout(() => {
+      setNodeMenu((prev) => ({ ...prev, subMenu: "" }));
+    }, 120);
+  }, [clearSubMenuHideTimer]);
 
   const scopedRows = useMemo(() => {
     const base = rowScope === "ALL"
@@ -1663,7 +1721,8 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
             ) : (
               <div className="sbuilder-layout sbuilder-layout-fullpage">
                 {(() => {
-                  const handleNodeDoubleClick = (pointer) => {
+                  const showRightPanel = rightPanelOpen || isFlowFullscreen;
+                  const handleToggleDirectChildren = (pointer) => {
                     let targetObj = semanticTree;
                     if (pointer !== "/") {
                       const parts = pointer.split("/").filter(Boolean);
@@ -1683,21 +1742,14 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
                       setExpandedPointers((prev) => {
                         const next = new Set(prev);
-                        let allDirectExpanded = true;
-
-                        directChildrenPointers.forEach(p => {
-                          if (!next.has(p)) {
-                            allDirectExpanded = false;
-                          }
-                        });
+                        const anyDirectExpanded = directChildrenPointers.some((p) => next.has(p));
 
                         if (directChildrenPointers.length === 0) return prev;
 
-                        if (allDirectExpanded) {
-                          const allPointers = getAllPointers(targetObj, pointer);
-                          allPointers.forEach(p => next.delete(p));
+                        if (anyDirectExpanded) {
+                          directChildrenPointers.forEach((p) => next.delete(p));
                         } else {
-                          directChildrenPointers.forEach(p => next.add(p));
+                          directChildrenPointers.forEach((p) => next.add(p));
                         }
 
                         return next;
@@ -1741,79 +1793,120 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                         </>
                       )}
 
-                      <div ref={builderCanvasRef} className="sbuilder-fullscreen">
-                        <SemanticYamlReactFlow
-                          semanticTree={semanticTree}
-                          expandedPointers={expandedPointers}
-                          onTogglePointer={(pointer) => {
-                            setExpandedPointers((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(pointer)) next.delete(pointer);
-                              else next.add(pointer);
-                              return next;
-                            });
-                          }}
-                          selectedPointer={selectedSemanticNodeId}
-                          viewport={builderViewport}
-                          onViewportChange={(vp) => setBuilderViewport(vp)}
-                          onRowContextMenu={(event, pointer) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            const point = getCanvasRelativePoint(event);
-                            setSelectedSemanticNodeId(pointer || "/");
-                            setBuilderMenu({ open: false, x: 0, y: 0 });
-                            setNodeMenu({
-                              open: true,
-                              x: point.x,
-                              y: point.y,
-                              pointer: pointer || "/",
-                              subMenu: "",
-                              subMenuTop: 0,
-                            });
-                          }}
-                          onNodeContextMenu={(event, node) => {
-                            event.preventDefault();
-                            const point = getCanvasRelativePoint(event);
-                            const pointer = node?.data?.pointer || "/";
-                            setSelectedSemanticNodeId(pointer);
-                            setNodeMenu({
-                              open: true,
-                              x: point.x,
-                              y: point.y,
-                              pointer,
-                              subMenu: "",
-                              subMenuTop: 0,
-                            });
-                          }}
-                          onNodeClick={(_, node) => {
-                            const pointer = node?.data?.pointer || "/";
-                            setSelectedSemanticNodeId(pointer);
-                            setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                          }}
-                          onNodeDoubleClick={(event, node) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            const pointer = node?.data?.pointer || "/";
-                            handleNodeDoubleClick(pointer);
-                          }}
-                          onPaneClick={() => {
-                            setBuilderMenu({ open: false, x: 0, y: 0 });
-                            setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                          }}
-                          onPaneContextMenu={(event) => {
-                            event.preventDefault();
-                            const point = getCanvasRelativePoint(event);
-                            setBuilderMenu({
-                              open: true,
-                              x: point.x,
-                              y: point.y,
-                            });
-                            setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                          }}
-                        />
+                      <div ref={flowFullscreenRef} className={`sbuilder-flow-shell ${isFlowFullscreen ? "is-fullscreen" : ""}`}>
+                        <div ref={builderCanvasRef} className="sbuilder-fullscreen">
+                          <button
+                            type="button"
+                            className="sbuilder-flow-fs-btn"
+                            onClick={toggleFlowFullscreen}
+                            title={isFlowFullscreen ? "Exit Fullscreen (Esc)" : "Open Fullscreen"}
+                            aria-label={isFlowFullscreen ? "Exit Fullscreen" : "Open Fullscreen"}
+                          >
+                            {isFlowFullscreen ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="9 3 3 3 3 9"></polyline>
+                                <polyline points="15 21 21 21 21 15"></polyline>
+                                <line x1="3" y1="3" x2="10" y2="10"></line>
+                                <line x1="21" y1="21" x2="14" y2="14"></line>
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <polyline points="9 21 3 21 3 15"></polyline>
+                                <line x1="21" y1="3" x2="14" y2="10"></line>
+                                <line x1="3" y1="21" x2="10" y2="14"></line>
+                              </svg>
+                            )}
+                          </button>
+                          <SemanticYamlReactFlow
+                            semanticTree={semanticTree}
+                            expandedPointers={expandedPointers}
+                            onTogglePointer={(pointer) => {
+                              setExpandedPointers((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(pointer)) next.delete(pointer);
+                                else next.add(pointer);
+                                return next;
+                              });
+                            }}
+                            onToggleNodeChildren={handleToggleDirectChildren}
+                            selectedPointer={selectedSemanticNodeId}
+                            activeContextPointer={activeContextPointer}
+                            viewport={builderViewport}
+                            onViewportChange={(vp) => setBuilderViewport(vp)}
+                            onRowContextMenu={(event, pointer) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const point = getCanvasRelativePoint(event);
+                              setSelectedSemanticNodeId(pointer || "/");
+                              setActiveContextPointer(pointer || "");
+                              setBuilderMenu({ open: false, x: 0, y: 0 });
+                              setNodeMenu({
+                                open: true,
+                                x: point.x,
+                                y: point.y,
+                                pointer: pointer || "/",
+                                subMenu: "",
+                                subMenuTop: 0,
+                                openUp: point.openUp,
+                                canvasHeight: point.canvasHeight,
+                              });
+                            }}
+                            onNodeContextMenu={(event, node) => {
+                              event.preventDefault();
+                              const point = getCanvasRelativePoint(event);
+                              const pointer = node?.data?.pointer || "/";
+                              setSelectedSemanticNodeId(pointer);
+                              setActiveContextPointer(pointer);
+                              setNodeMenu({
+                                open: true,
+                                x: point.x,
+                                y: point.y,
+                                pointer,
+                                subMenu: "",
+                                subMenuTop: 0,
+                                openUp: point.openUp,
+                                canvasHeight: point.canvasHeight,
+                              });
+                            }}
+                            onNodeClick={(_, node) => {
+                              const pointer = node?.data?.pointer || "/";
+                              setSelectedSemanticNodeId(pointer);
+                              setActiveContextPointer("");
+                              setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                            }}
+                            onNodeDoubleClick={(event, node) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const pointer = node?.data?.pointer || "/";
+                              handleToggleDirectChildren(pointer);
+                            }}
+                            onPaneClick={() => {
+                              setBuilderMenu({ open: false, x: 0, y: 0 });
+                              setActiveContextPointer("");
+                              setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                            }}
+                            onPaneContextMenu={(event) => {
+                              event.preventDefault();
+                              const point = getCanvasRelativePoint(event);
+                              setBuilderMenu({
+                                open: true,
+                                x: point.x,
+                                y: point.y,
+                                openUp: point.openUp,
+                                canvasHeight: point.canvasHeight,
+                              });
+                              setActiveContextPointer("");
+                              setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                            }}
+                          />
 
                         {builderMenu.open ? (
-                          <div className="sbuilder-context-menu" style={{ left: builderMenu.x, top: builderMenu.y }}>
+                          <div className="sbuilder-context-menu" style={{
+                            left: builderMenu.x,
+                            top: builderMenu.openUp ? "auto" : builderMenu.y,
+                            bottom: builderMenu.openUp ? Math.max(8, (builderMenu.canvasHeight || 0) - builderMenu.y) : "auto",
+                          }}>
                             <div className="sbuilder-context-title">Add Node</div>
                             {SEMANTIC_PALETTE_TYPES.map((nodeType) => (
                               <button
@@ -1831,7 +1924,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                             className="sbuilder-ctx-wrapper"
                             onMouseLeave={() => setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }))}
                           >
-                            <div className="sbuilder-context-menu sbuilder-node-menu" style={{ left: nodeMenu.x, top: nodeMenu.y }}>
+                            <div className="sbuilder-context-menu sbuilder-node-menu" style={{
+                              left: nodeMenu.x,
+                              top: nodeMenu.openUp ? "auto" : nodeMenu.y,
+                              bottom: nodeMenu.openUp ? Math.max(8, (nodeMenu.canvasHeight || 0) - nodeMenu.y) : "auto",
+                            }}>
                               <div className="sbuilder-context-title">{String(nodeMenu.pointer || "/").replace(/^\//, "") || "root"}</div>
                               <button type="button" onClick={() => onFocusParent(nodeMenu.pointer)}>
                                 Focus Parent Node
@@ -1840,9 +1937,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
                                 onMouseEnter={(e) => {
+                                  clearSubMenuHideTimer();
                                   const top = e.currentTarget?.offsetTop ?? 0;
                                   setNodeMenu((prev) => ({ ...prev, subMenu: "copy", subMenuTop: top }));
                                 }}
+                                onMouseLeave={scheduleSubMenuHide}
                               >
                                 Copy
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1859,9 +1958,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
                                 onMouseEnter={(e) => {
+                                  clearSubMenuHideTimer();
                                   const top = e.currentTarget?.offsetTop ?? 0;
                                   setNodeMenu((prev) => ({ ...prev, subMenu: "inside", subMenuTop: top }));
                                 }}
+                                onMouseLeave={scheduleSubMenuHide}
                               >
                                 Insert Inside
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1870,9 +1971,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
                                 onMouseEnter={(e) => {
+                                  clearSubMenuHideTimer();
                                   const top = e.currentTarget?.offsetTop ?? 0;
                                   setNodeMenu((prev) => ({ ...prev, subMenu: "before", subMenuTop: top }));
                                 }}
+                                onMouseLeave={scheduleSubMenuHide}
                               >
                                 Insert Before
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1881,9 +1984,11 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 type="button"
                                 className="sbuilder-ctx-has-sub"
                                 onMouseEnter={(e) => {
+                                  clearSubMenuHideTimer();
                                   const top = e.currentTarget?.offsetTop ?? 0;
                                   setNodeMenu((prev) => ({ ...prev, subMenu: "after", subMenuTop: top }));
                                 }}
+                                onMouseLeave={scheduleSubMenuHide}
                               >
                                 Insert After
                                 <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1897,7 +2002,12 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 </>
                               ) : null}
                               {nodeMenu.subMenu === "copy" ? (
-                                <div className="sbuilder-context-menu sbuilder-submenu" style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}>
+                                <div
+                                  className="sbuilder-context-menu sbuilder-submenu"
+                                  style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
+                                  onMouseEnter={clearSubMenuHideTimer}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
                                   <button type="button" onClick={() => {
                                     navigator.clipboard.writeText(nodeMenu.pointer).catch(() => { });
                                     setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
@@ -1916,7 +2026,12 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                                 </div>
                               ) : null}
                               {(nodeMenu.subMenu === "inside" || nodeMenu.subMenu === "before" || nodeMenu.subMenu === "after") ? (
-                                <div className="sbuilder-context-menu sbuilder-submenu" style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}>
+                                <div
+                                  className="sbuilder-context-menu sbuilder-submenu"
+                                  style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
+                                  onMouseEnter={clearSubMenuHideTimer}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
                                   <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
                                     Object
                                   </button>
@@ -1935,10 +2050,10 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                             </div>
                           </div>
                         ) : null}
-                      </div>
+                        </div>
 
-                      {rightPanelOpen && (
-                        <>
+                        {showRightPanel && (
+                          <>
                           <div
                             className="sbuilder-resizer sbuilder-resizer-vertical"
                             onMouseDown={(e) => {
@@ -2455,8 +2570,9 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               <div className="db-schema-meta-empty">Select a node from canvas to edit content.</div>
                             )}
                           </aside>
-                        </>
-                      )}
+                          </>
+                        )}
+                      </div>
 
                     </>
                   );
