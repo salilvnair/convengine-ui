@@ -3,6 +3,7 @@ import ChatPanel from "./components/ChatPanel";
 import AuditTimeline from "./components/AuditTimeline";
 import CacheAnalyzePage from "./components/CacheAnalyzePage";
 import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
+import SemanticBuilderPage from "./components/SemanticBuilderPage";
 import { fetchAudits, refreshCaches, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
@@ -61,6 +62,15 @@ function InspectDbIcon() {
       <rect x="3.5" y="13.7" width="10.8" height="6.1" rx="1.6" stroke="currentColor" strokeWidth="1.8" />
       <path d="M17 14.3L20.7 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       <circle cx="16.2" cy="13.5" r="2.2" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function SemanticLayerBuilderIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 20h4l10.6-10.6a1.8 1.8 0 0 0 0-2.6l-1.4-1.4a1.8 1.8 0 0 0-2.6 0L4 16v4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M13.8 6.2l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -186,7 +196,7 @@ export default function App() {
         const stage = resolveStage(event).toUpperCase();
         if (stage === "ASSISTANT_OUTPUT" || stage === "ENGINE_RETURN") clearProgressTextSmoothly();
       },
-      onError: () => {},
+      onError: () => { },
     });
 
     return () => {
@@ -297,6 +307,10 @@ export default function App() {
     setInspectOpen(true);
   };
 
+  const onOpenSemanticLayerBuilder = () => {
+    setActivePage("semantic_builder");
+  };
+
   const onRunInspect = () => {
     setInspectQuery({ prefix: inspectPrefix, schema: inspectSchema, matchMode: inspectMatchMode });
     setInspectOpen(false);
@@ -392,6 +406,15 @@ export default function App() {
                     >
                       <InspectDbIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-semantic ${activePage === "semantic_builder" ? "is-active" : ""}`}
+                      onClick={onOpenSemanticLayerBuilder}
+                      title="Semantic Builder Studio"
+                      aria-label="Semantic Builder Studio"
+                    >
+                      <SemanticLayerBuilderIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -407,7 +430,11 @@ export default function App() {
                 </>
               ) : (
                 <span className="hero-chip hero-chip-state">
-                  {activePage === "cache" ? "cache diagnostics" : "db schema inspect"}
+                  {activePage === "cache"
+                    ? "cache diagnostics"
+                    : activePage === "semantic_builder"
+                      ? "semantic builder studio"
+                      : "db schema inspect"}
                 </span>
               )}
               {cacheRefreshMessage ? <span className="hero-chip hero-chip-intent">{cacheRefreshMessage}</span> : null}
@@ -454,6 +481,11 @@ export default function App() {
             />
           ) : activePage === "cache" ? (
             <CacheAnalyzePage />
+          ) : activePage === "semantic_builder" ? (
+            <SemanticBuilderPage
+              query={inspectQuery}
+              onOpenRunDialog={onOpenInspectDialog}
+            />
           ) : (
             <DbSchemaInspectPage
               query={inspectQuery}

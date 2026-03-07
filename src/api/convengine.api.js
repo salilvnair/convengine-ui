@@ -185,6 +185,75 @@ export async function generateDbSchemaSeed(payload) {
   return res.json();
 }
 
+export async function generateSemanticModelDraft(payload) {
+  const res = await fetch(`${DB_BASE}/semantic-query/generate-model`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function validateSemanticModel(payload) {
+  const res = await fetch(`${DB_BASE}/semantic-query/validate-model`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function saveSemanticModel(payload) {
+  const res = await fetch(`${DB_BASE}/semantic-query/save-model`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function reloadSemanticModel(payload) {
+  const res = await fetch(`${DB_BASE}/semantic-query/reload-model`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchCurrentSemanticModelYaml() {
+  const res = await fetch(`${DB_BASE}/semantic-query/current-model-yaml`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
 export function subscribeConversationSse(conversationId, handlers = {}) {
   const streamUrl = `${API_BASE}/stream/${conversationId}`;
   const source = new EventSource(streamUrl);
