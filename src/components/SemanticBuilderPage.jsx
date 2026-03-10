@@ -573,7 +573,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
     const fetchPrefix = matchText;
 
-    inspectDbSchema(fetchPrefix, query?.schema || "")
+    inspectDbSchema(fetchPrefix, query?.schema || "", matchMode)
       .then((data) => {
         if (!active) return;
         setPayload(data);
@@ -1127,6 +1127,28 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
 
   const onInsertInside = (pointer, kind) => {
     if (!pointer) return;
+    // Special handling: inserting inside /relationships should add a relationship from the next available join
+    if (pointer === "/relationships") {
+      const joins = effectivePayload?.joins || [];
+      const existingItems = Array.isArray(getAtPointer(semanticTree, pointer)) ? getAtPointer(semanticTree, pointer) : [];
+      const existingNames = new Set(existingItems.map(r => String(r?.name || "")));
+      const nextJoin = joins.find(j => {
+        const name = `${String(j.source_table || "")}_to_${String(j.target_table || "")}`;
+        return !existingNames.has(name);
+      });
+      const relObj = nextJoin
+        ? buildRelationshipFromJoin(nextJoin)
+        : { name: "", description: "", from: { table: "", column: "" }, to: { table: "", column: "" }, type: "one_to_many" };
+      setSemanticTree((prev) => {
+        const next = structuredClone(prev);
+        const arr = getAtPointer(next, pointer);
+        if (Array.isArray(arr)) arr.push(relObj);
+        return next;
+      });
+      setExpandedPointers((prev) => new Set([...prev, pointer]));
+      setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+      return;
+    }
     setSemanticTree((prev) => addChildAtPointer(prev, pointer, kind, nodeNewKeyDraft || "newKey"));
     setExpandedPointers((prev) => new Set([...prev, pointer]));
     setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
@@ -1872,15 +1894,15 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               setActiveContextPointer(pointer || "");
                               setBuilderMenu({ open: false, x: 0, y: 0 });
                               setNodeMenu({
-                                  open: true,
-                                  x: point.x,
-                                  y: point.y,
-                                  pointer: pointer || "/",
-                                  subMenu: "",
-                                  subMenuTop: 0,
-                                  openUp: point.openUp,
-                                  canvasHeight: point.canvasHeight,
-                                });
+                                open: true,
+                                x: point.x,
+                                y: point.y,
+                                pointer: pointer || "/",
+                                subMenu: "",
+                                subMenuTop: 0,
+                                openUp: point.openUp,
+                                canvasHeight: point.canvasHeight,
+                              });
                             }}
                             onNodeContextMenu={(event, node) => {
                               event.preventDefault();
@@ -1888,15 +1910,15 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               const pointer = node?.data?.pointer || "/";
                               setActiveContextPointer(pointer);
                               setNodeMenu({
-                                  open: true,
-                                  x: point.x,
-                                  y: point.y,
-                                  pointer,
-                                  subMenu: "",
-                                  subMenuTop: 0,
-                                  openUp: point.openUp,
-                                  canvasHeight: point.canvasHeight,
-                                });
+                                open: true,
+                                x: point.x,
+                                y: point.y,
+                                pointer,
+                                subMenu: "",
+                                subMenuTop: 0,
+                                openUp: point.openUp,
+                                canvasHeight: point.canvasHeight,
+                              });
                             }}
                             onNodeClick={(_, node) => {
                               const pointer = node?.data?.pointer || "/";
@@ -1930,678 +1952,689 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                             }}
                           />
 
-                        {builderMenu.open ? (
-                          <div className="sbuilder-context-menu" style={{
-                            left: builderMenu.x,
-                            top: builderMenu.openUp ? "auto" : builderMenu.y,
-                            bottom: builderMenu.openUp ? Math.max(8, (builderMenu.canvasHeight || 0) - builderMenu.y) : "auto",
-                          }}>
-                            <div className="sbuilder-context-title">Add Node</div>
-                            {SEMANTIC_PALETTE_TYPES.map((nodeType) => (
-                              <button
-                                key={`ctx-${nodeType}`}
-                                type="button"
-                                onClick={() => onAddPaletteNode(nodeType)}
-                              >
-                                {nodeType}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                        {nodeMenu.open ? (
-                          <div
-                            className="sbuilder-ctx-wrapper"
-                            onMouseLeave={() => {
-                              setActiveContextPointer("");
-                              setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                            }}
-                          >
-                            <div className="sbuilder-context-menu sbuilder-node-menu" style={{
-                              left: nodeMenu.x,
-                              top: nodeMenu.openUp ? "auto" : nodeMenu.y,
-                              bottom: nodeMenu.openUp ? Math.max(8, (nodeMenu.canvasHeight || 0) - nodeMenu.y) : "auto",
+                          {builderMenu.open ? (
+                            <div className="sbuilder-context-menu" style={{
+                              left: builderMenu.x,
+                              top: builderMenu.openUp ? "auto" : builderMenu.y,
+                              bottom: builderMenu.openUp ? Math.max(8, (builderMenu.canvasHeight || 0) - builderMenu.y) : "auto",
                             }}>
-                              <div className="sbuilder-context-title">{String(nodeMenu.pointer || "/").replace(/^\//, "") || "root"}</div>
-                              <button type="button" onClick={() => onFocusParent(nodeMenu.pointer)}>
-                                Focus Parent Node
-                              </button>
-                              <button
-                                type="button"
-                                className="sbuilder-ctx-has-sub"
-                                onMouseEnter={(e) => {
-                                  clearSubMenuHideTimer();
-                                  const top = e.currentTarget?.offsetTop ?? 0;
-                                  setNodeMenu((prev) => ({ ...prev, subMenu: "copy", subMenuTop: top }));
-                                }}
-                                onMouseLeave={scheduleSubMenuHide}
-                              >
-                                Copy
-                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                              </button>
-                              <div className="sbuilder-ctx-divider" />
-                              <button type="button" onClick={() => onOpenNodeInTab(nodeMenu.pointer)}>
-                                Show Yaml in New Tab
-                              </button>
-                              <button type="button" onClick={() => onCopyYamlToClipboard(nodeMenu.pointer)}>
-                                Copy Yaml to Clipboard
-                              </button>
-                              <div className="sbuilder-ctx-divider" />
-                              <button
-                                type="button"
-                                className="sbuilder-ctx-has-sub"
-                                onMouseEnter={(e) => {
-                                  clearSubMenuHideTimer();
-                                  const top = e.currentTarget?.offsetTop ?? 0;
-                                  setNodeMenu((prev) => ({ ...prev, subMenu: "inside", subMenuTop: top }));
-                                }}
-                                onMouseLeave={scheduleSubMenuHide}
-                              >
-                                Insert Inside
-                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                              </button>
-                              <button
-                                type="button"
-                                className="sbuilder-ctx-has-sub"
-                                onMouseEnter={(e) => {
-                                  clearSubMenuHideTimer();
-                                  const top = e.currentTarget?.offsetTop ?? 0;
-                                  setNodeMenu((prev) => ({ ...prev, subMenu: "before", subMenuTop: top }));
-                                }}
-                                onMouseLeave={scheduleSubMenuHide}
-                              >
-                                Insert Before
-                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                              </button>
-                              <button
-                                type="button"
-                                className="sbuilder-ctx-has-sub"
-                                onMouseEnter={(e) => {
-                                  clearSubMenuHideTimer();
-                                  const top = e.currentTarget?.offsetTop ?? 0;
-                                  setNodeMenu((prev) => ({ ...prev, subMenu: "after", subMenuTop: top }));
-                                }}
-                                onMouseLeave={scheduleSubMenuHide}
-                              >
-                                Insert After
-                                <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                              </button>
-                              {nodeMenu.pointer !== "/" ? (
-                                <>
-                                  <div className="sbuilder-ctx-divider" />
-                                  <button type="button" className="danger" onClick={() => onDeleteNodeAtPointer(nodeMenu.pointer)}>
-                                    Delete
-                                  </button>
-                                </>
-                              ) : null}
-                              {nodeMenu.subMenu === "copy" ? (
-                                <div
-                                  className="sbuilder-context-menu sbuilder-submenu"
-                                  style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
-                                  onMouseEnter={clearSubMenuHideTimer}
-                                  onMouseLeave={scheduleSubMenuHide}
+                              <div className="sbuilder-context-title">Add Node</div>
+                              {SEMANTIC_PALETTE_TYPES.map((nodeType) => (
+                                <button
+                                  key={`ctx-${nodeType}`}
+                                  type="button"
+                                  onClick={() => onAddPaletteNode(nodeType)}
                                 >
-                                  <button type="button" onClick={() => {
-                                    navigator.clipboard.writeText(nodeMenu.pointer).catch(() => { });
-                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                                  }}>Copy JSON Path</button>
-                                  <button type="button" onClick={() => {
-                                    const seg = nodeMenu.pointer.split("/").filter(Boolean).pop() || "";
-                                    navigator.clipboard.writeText(seg).catch(() => { });
-                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                                  }}>Copy Key</button>
-                                  <button type="button" onClick={() => {
-                                    const val = getAtPointer(semanticTree, nodeMenu.pointer);
-                                    const str = typeof val === "object" ? JSON.stringify(val, null, 2) : String(val ?? "");
-                                    navigator.clipboard.writeText(str).catch(() => { });
-                                    setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
-                                  }}>Copy Value</button>
-                                </div>
-                              ) : null}
-                              {(nodeMenu.subMenu === "inside" || nodeMenu.subMenu === "before" || nodeMenu.subMenu === "after") ? (
-                                <div
-                                  className="sbuilder-context-menu sbuilder-submenu"
-                                  style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
-                                  onMouseEnter={clearSubMenuHideTimer}
-                                  onMouseLeave={scheduleSubMenuHide}
-                                >
-                                  <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
-                                    Object
-                                  </button>
-                                  {!(nodeMenu.subMenu === "inside" && nodeMenu.pointer === "/tables") && (
-                                    <>
-                                      <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "array") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "array")}>
-                                        Array
-                                      </button>
-                                      <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "value") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "value")}>
-                                        Value
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              ) : null}
+                                  {nodeType}
+                                </button>
+                              ))}
                             </div>
-                          </div>
-                        ) : null}
+                          ) : null}
+                          {nodeMenu.open ? (
+                            <div
+                              className="sbuilder-ctx-wrapper"
+                              onMouseLeave={() => {
+                                setActiveContextPointer("");
+                                setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                              }}
+                            >
+                              <div className="sbuilder-context-menu sbuilder-node-menu" style={{
+                                left: nodeMenu.x,
+                                top: nodeMenu.openUp ? "auto" : nodeMenu.y,
+                                bottom: nodeMenu.openUp ? Math.max(8, (nodeMenu.canvasHeight || 0) - nodeMenu.y) : "auto",
+                              }}>
+                                <div className="sbuilder-context-title">{String(nodeMenu.pointer || "/").replace(/^\//, "") || "root"}</div>
+                                <button type="button" onClick={() => onFocusParent(nodeMenu.pointer)}>
+                                  Focus Parent Node
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sbuilder-ctx-has-sub"
+                                  onMouseEnter={(e) => {
+                                    clearSubMenuHideTimer();
+                                    const top = e.currentTarget?.offsetTop ?? 0;
+                                    setNodeMenu((prev) => ({ ...prev, subMenu: "copy", subMenuTop: top }));
+                                  }}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
+                                  Copy
+                                  <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                                <div className="sbuilder-ctx-divider" />
+                                <button type="button" onClick={() => onOpenNodeInTab(nodeMenu.pointer)}>
+                                  Show Yaml in New Tab
+                                </button>
+                                <button type="button" onClick={() => onCopyYamlToClipboard(nodeMenu.pointer)}>
+                                  Copy Yaml to Clipboard
+                                </button>
+                                <div className="sbuilder-ctx-divider" />
+                                <button
+                                  type="button"
+                                  className="sbuilder-ctx-has-sub"
+                                  onMouseEnter={(e) => {
+                                    clearSubMenuHideTimer();
+                                    const top = e.currentTarget?.offsetTop ?? 0;
+                                    setNodeMenu((prev) => ({ ...prev, subMenu: "inside", subMenuTop: top }));
+                                  }}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
+                                  Insert Inside
+                                  <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sbuilder-ctx-has-sub"
+                                  onMouseEnter={(e) => {
+                                    clearSubMenuHideTimer();
+                                    const top = e.currentTarget?.offsetTop ?? 0;
+                                    setNodeMenu((prev) => ({ ...prev, subMenu: "before", subMenuTop: top }));
+                                  }}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
+                                  Insert Before
+                                  <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sbuilder-ctx-has-sub"
+                                  onMouseEnter={(e) => {
+                                    clearSubMenuHideTimer();
+                                    const top = e.currentTarget?.offsetTop ?? 0;
+                                    setNodeMenu((prev) => ({ ...prev, subMenu: "after", subMenuTop: top }));
+                                  }}
+                                  onMouseLeave={scheduleSubMenuHide}
+                                >
+                                  Insert After
+                                  <svg className="sbuilder-ctx-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                                {nodeMenu.pointer !== "/" ? (
+                                  <>
+                                    <div className="sbuilder-ctx-divider" />
+                                    <button type="button" className="danger" onClick={() => onDeleteNodeAtPointer(nodeMenu.pointer)}>
+                                      Delete
+                                    </button>
+                                  </>
+                                ) : null}
+                                {nodeMenu.subMenu === "copy" ? (
+                                  <div
+                                    className="sbuilder-context-menu sbuilder-submenu"
+                                    style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
+                                    onMouseEnter={clearSubMenuHideTimer}
+                                    onMouseLeave={scheduleSubMenuHide}
+                                  >
+                                    <button type="button" onClick={() => {
+                                      navigator.clipboard.writeText(nodeMenu.pointer).catch(() => { });
+                                      setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                    }}>Copy JSON Path</button>
+                                    <button type="button" onClick={() => {
+                                      const seg = nodeMenu.pointer.split("/").filter(Boolean).pop() || "";
+                                      navigator.clipboard.writeText(seg).catch(() => { });
+                                      setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                    }}>Copy Key</button>
+                                    <button type="button" onClick={() => {
+                                      const val = getAtPointer(semanticTree, nodeMenu.pointer);
+                                      const str = typeof val === "object" ? JSON.stringify(val, null, 2) : String(val ?? "");
+                                      navigator.clipboard.writeText(str).catch(() => { });
+                                      setNodeMenu((prev) => ({ ...prev, open: false, subMenu: "" }));
+                                    }}>Copy Value</button>
+                                  </div>
+                                ) : null}
+                                {(nodeMenu.subMenu === "inside" || nodeMenu.subMenu === "before" || nodeMenu.subMenu === "after") ? (
+                                  <div
+                                    className="sbuilder-context-menu sbuilder-submenu"
+                                    style={{ top: `${Math.max(0, Number(nodeMenu.subMenuTop || 0) - 4)}px` }}
+                                    onMouseEnter={clearSubMenuHideTimer}
+                                    onMouseLeave={scheduleSubMenuHide}
+                                  >
+                                    <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "object") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "object")}>
+                                      Object
+                                    </button>
+                                    {!(nodeMenu.subMenu === "inside" && nodeMenu.pointer === "/tables") && (
+                                      <>
+                                        <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "array") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "array")}>
+                                          Array
+                                        </button>
+                                        <button type="button" onClick={() => nodeMenu.subMenu === "inside" ? onInsertInside(nodeMenu.pointer, "value") : onInsertSibling(nodeMenu.pointer, nodeMenu.subMenu, "value")}>
+                                          Value
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
 
                         {showRightPanel && (
                           <>
-                          <div
-                            className="sbuilder-resizer sbuilder-resizer-vertical"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              const startX = e.clientX;
-                              const startWidth = rightPanelWidth;
-                              const onMouseMove = (moveEvent) => {
-                                requestAnimationFrame(() => {
-                                  setRightPanelWidth(Math.max(200, Math.min(600, startWidth - (moveEvent.clientX - startX))));
-                                });
-                              };
-                              const onMouseUp = () => {
-                                document.removeEventListener("mousemove", onMouseMove);
-                                document.removeEventListener("mouseup", onMouseUp);
-                              };
-                              document.addEventListener("mousemove", onMouseMove);
-                              document.addEventListener("mouseup", onMouseUp);
-                            }}
-                          />
-                          <aside className="sbuilder-inspector" style={{ width: rightPanelWidth }}>
-                            {selectedSemanticNodeId ? (
-                              <>
-                                <fieldset className="sbuilder-fieldset">
-                                  <legend className="sbuilder-legend">Node Type</legend>
-                                  <input value={selectedSemanticNodeId} disabled style={{ marginBottom: "8px" }} />
-                                  <label className="sbuilder-label">Type</label>
-                                  <input value={selectedSemanticNodeKind} disabled />
-
-                                  {selectedSemanticNodeKind === "value" ? (
-                                    <div style={{ marginTop: "12px" }}>
-                                      <label className="sbuilder-label">Value</label>
-                                      <input
-                                        value={String(selectedSemanticNodeValue ?? "")}
-                                        onChange={(e) => onUpdateNodeValue(selectedSemanticNodeId, e.target.value)}
-                                      />
-                                    </div>
-                                  ) : null}
-                                </fieldset>
-
-                                {selectedSemanticNodeKind === "object" ? (
+                            <div
+                              className="sbuilder-resizer sbuilder-resizer-vertical"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startWidth = rightPanelWidth;
+                                const onMouseMove = (moveEvent) => {
+                                  requestAnimationFrame(() => {
+                                    setRightPanelWidth(Math.max(200, Math.min(600, startWidth - (moveEvent.clientX - startX))));
+                                  });
+                                };
+                                const onMouseUp = () => {
+                                  document.removeEventListener("mousemove", onMouseMove);
+                                  document.removeEventListener("mouseup", onMouseUp);
+                                };
+                                document.addEventListener("mousemove", onMouseMove);
+                                document.addEventListener("mouseup", onMouseUp);
+                              }}
+                            />
+                            <aside className="sbuilder-inspector" style={{ width: rightPanelWidth }}>
+                              {selectedSemanticNodeId ? (
+                                <>
                                   <fieldset className="sbuilder-fieldset">
-                                    <legend className="sbuilder-legend">Properties</legend>
-                                    <div className="sbuilder-join-list">
-                                      {Object.entries(selectedSemanticNodeValue || {}).map(([k, v]) => {
-                                        const childPtr = joinPointer(selectedSemanticNodeId, k);
-                                        const childKind = typeOfNode(v);
-                                        return (
-                                          <div key={`obj-${childPtr}`} className="sbuilder-join-row">
-                                            <div className="sbuilder-join-head">
-                                              <b>{k}</b>
-                                              <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
-                                            </div>
-                                            {childKind === "value" ? (() => {
-                                              const parentParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
-                                              const isEntityTablesPrimary = parentParts.length === 3 && parentParts[0] === "entities" && parentParts[2] === "tables" && k === "primary";
-                                              if (isEntityTablesPrimary) {
-                                                return (
-                                                  <select value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
-                                                    <option value="">-- select table --</option>
-                                                    {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
-                                                  </select>
-                                                );
-                                              }
-                                              return <input value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
-                                            })() : (
-                                              <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
-                                                setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
-                                                setSelectedSemanticNodeId(childPtr);
-                                              }}>
-                                                {childKind === 'array' ? <span className="sbuilder-neon-icon">[ ]</span> : <span className="sbuilder-neon-icon">{"{ }"}</span>}
-                                                Open {childKind}
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                              </button>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    {(() => {
-                                      const ptrParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
-                                      const isTablesRoot = selectedSemanticNodeId === "/tables";
-                                      const isTableChild = ptrParts.length === 2 && ptrParts[0] === "tables";
-                                      const isColumnChild = ptrParts.length === 3 && ptrParts[0] === "tables";
-                                      const parentTableName = isTableChild ? ptrParts[1] : isColumnChild ? ptrParts[1] : null;
+                                    <legend className="sbuilder-legend">Node Type</legend>
+                                    <input value={selectedSemanticNodeId} disabled style={{ marginBottom: "8px" }} />
+                                    <label className="sbuilder-label">Type</label>
+                                    <input value={selectedSemanticNodeKind} disabled />
 
-                                      if (isTablesRoot) {
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select table --</option>
-                                                {tableNames.filter(t => {
-                                                  const existing = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                                  return !existing.includes(t);
-                                                }).map(t => <option key={t} value={t}>{t}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const tableName = nodeNewKeyDraft;
-                                                const cols = columnsByTable.get(tableName) || [];
-                                                const tableObj = {};
-                                                cols.forEach(c => {
-                                                  const cn = String(c.column_name || "");
-                                                  if (!cn) return;
-                                                  tableObj[cn] = buildColumnObjectFromSchema(cn, tableName, columnsByTable, effectivePayload?.joins || []);
-                                                });
-                                                setSemanticTree((prev) => {
-                                                  const next = structuredClone(prev);
-                                                  const target = getAtPointer(next, selectedSemanticNodeId);
-                                                  if (isPlainObject(target)) {
-                                                    target[tableName] = tableObj;
-                                                  }
-                                                  return next;
-                                                });
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
+                                    {selectedSemanticNodeKind === "value" ? (
+                                      <div style={{ marginTop: "12px" }}>
+                                        <label className="sbuilder-label">Value</label>
+                                        <input
+                                          value={String(selectedSemanticNodeValue ?? "")}
+                                          onChange={(e) => onUpdateNodeValue(selectedSemanticNodeId, e.target.value)}
+                                        />
+                                      </div>
+                                    ) : null}
+                                  </fieldset>
 
-                                      if (isTableChild) {
-                                        const tableCols = columnsByTable.get(parentTableName) || [];
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableCols = tableCols.filter(c => !existingKeys.includes(String(c.column_name || "")));
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Column</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select column --</option>
-                                                {availableCols.map(c => {
-                                                  const cn = String(c.column_name || "");
-                                                  return <option key={cn} value={cn}>{cn}</option>;
-                                                })}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const colObj = buildColumnObjectFromSchema(
-                                                  nodeNewKeyDraft,
-                                                  parentTableName,
-                                                  columnsByTable,
-                                                  effectivePayload?.joins || []
-                                                );
-                                                setSemanticTree((prev) => {
-                                                  const next = structuredClone(prev);
-                                                  const target = getAtPointer(next, selectedSemanticNodeId);
-                                                  if (isPlainObject(target)) {
-                                                    target[nodeNewKeyDraft] = colObj;
-                                                  }
-                                                  return next;
-                                                });
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-
-                                      if (isColumnChild) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = COLUMN_SEMANTIC_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                let defaultVal = "";
-                                                if (nodeNewKeyDraft === "primary_key") defaultVal = "false";
-                                                if (nodeNewKeyDraft === "type") defaultVal = "text";
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "value", nodeNewKeyDraft));
-                                                if (defaultVal) {
-                                                  setTimeout(() => {
-                                                    onUpdateNodeValue(joinPointer(selectedSemanticNodeId, nodeNewKeyDraft), defaultVal);
-                                                  }, 0);
+                                  {selectedSemanticNodeKind === "object" ? (
+                                    <fieldset className="sbuilder-fieldset">
+                                      <legend className="sbuilder-legend">Properties</legend>
+                                      <div className="sbuilder-join-list">
+                                        {Object.entries(selectedSemanticNodeValue || {}).map(([k, v]) => {
+                                          const childPtr = joinPointer(selectedSemanticNodeId, k);
+                                          const childKind = typeOfNode(v);
+                                          return (
+                                            <div key={`obj-${childPtr}`} className="sbuilder-join-row">
+                                              <div className="sbuilder-join-head">
+                                                <b>{k}</b>
+                                                <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
+                                              </div>
+                                              {childKind === "value" ? (() => {
+                                                const parentParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                                const isEntityTablesPrimary = parentParts.length === 3 && parentParts[0] === "entities" && parentParts[2] === "tables" && k === "primary";
+                                                if (isEntityTablesPrimary) {
+                                                  return (
+                                                    <select value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
+                                                      <option value="">-- select table --</option>
+                                                      {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </select>
+                                                  );
                                                 }
-                                              }}>Add</button>
+                                                return <input value={String(v ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
+                                              })() : (
+                                                <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
+                                                  setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
+                                                  setSelectedSemanticNodeId(childPtr);
+                                                }}>
+                                                  {childKind === 'array' ? <span className="sbuilder-neon-icon">[ ]</span> : <span className="sbuilder-neon-icon">{"{ }"}</span>}
+                                                  Open {childKind}
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                </button>
+                                              )}
                                             </div>
-                                          </fieldset>
-                                        );
-                                      }
+                                          );
+                                        })}
+                                      </div>
+                                      {(() => {
+                                        const ptrParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                        const isTablesRoot = selectedSemanticNodeId === "/tables";
+                                        const isTableChild = ptrParts.length === 2 && ptrParts[0] === "tables";
+                                        const isColumnChild = ptrParts.length === 3 && ptrParts[0] === "tables";
+                                        const parentTableName = isTableChild ? ptrParts[1] : isColumnChild ? ptrParts[1] : null;
 
-                                      // Relationship item: /relationships/0, /relationships/1 ...
-                                      const isRelationshipItem = ptrParts[0] === "relationships" && ptrParts.length === 2 && /^\d+$/.test(ptrParts[1]);
-                                      // Relationship from/to: /relationships/0/from, /relationships/0/to
-                                      const isRelationshipDirection = ptrParts[0] === "relationships" && ptrParts.length === 3 && /^\d+$/.test(ptrParts[1]) && (ptrParts[2] === "from" || ptrParts[2] === "to");
+                                        if (isTablesRoot) {
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select table --</option>
+                                                  {tableNames.filter(t => {
+                                                    const existing = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                                    return !existing.includes(t);
+                                                  }).map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const tableName = nodeNewKeyDraft;
+                                                  const cols = columnsByTable.get(tableName) || [];
+                                                  const tableObj = {};
+                                                  cols.forEach(c => {
+                                                    const cn = String(c.column_name || "");
+                                                    if (!cn) return;
+                                                    tableObj[cn] = buildColumnObjectFromSchema(cn, tableName, columnsByTable, effectivePayload?.joins || []);
+                                                  });
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const target = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (isPlainObject(target)) {
+                                                      target[tableName] = tableObj;
+                                                    }
+                                                    return next;
+                                                  });
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
 
-                                      if (isRelationshipItem) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = RELATIONSHIP_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const kind = (nodeNewKeyDraft === "from" || nodeNewKeyDraft === "to") ? "object" : "value";
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
+                                        if (isTableChild) {
+                                          const tableCols = columnsByTable.get(parentTableName) || [];
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableCols = tableCols.filter(c => !existingKeys.includes(String(c.column_name || "")));
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Column</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select column --</option>
+                                                  {availableCols.map(c => {
+                                                    const cn = String(c.column_name || "");
+                                                    return <option key={cn} value={cn}>{cn}</option>;
+                                                  })}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const colObj = buildColumnObjectFromSchema(
+                                                    nodeNewKeyDraft,
+                                                    parentTableName,
+                                                    columnsByTable,
+                                                    effectivePayload?.joins || []
+                                                  );
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const target = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (isPlainObject(target)) {
+                                                      target[nodeNewKeyDraft] = colObj;
+                                                    }
+                                                    return next;
+                                                  });
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
 
-                                      if (isRelationshipDirection) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = RELATIONSHIP_DIRECTION_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "value", nodeNewKeyDraft));
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-
-                                      // --- Entities hierarchy ---
-                                      const isEntitiesRoot = selectedSemanticNodeId === "/entities";
-                                      const isEntityChild = ptrParts[0] === "entities" && ptrParts.length === 2;
-                                      const isEntityTables = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "tables";
-                                      const isEntityFields = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "fields";
-                                      const isEntityFieldChild = ptrParts[0] === "entities" && ptrParts.length === 4 && ptrParts[2] === "fields";
-
-                                      if (isEntitiesRoot) {
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Entity</legend>
-                                            <div className="sbuilder-inline">
-                                              <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="entity name" style={{ flex: 1 }} />
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "object", nodeNewKeyDraft));
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-
-                                      if (isEntityChild) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = ENTITY_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const kind = (nodeNewKeyDraft === "tables" || nodeNewKeyDraft === "fields") ? "object" : "value";
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-
-                                      if (isEntityTables) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = ENTITY_TABLES_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Property</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const kind = nodeNewKeyDraft === "related" ? "array" : "value";
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-
-                                      if (isEntityFields) {
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Field</legend>
-                                            <div className="sbuilder-inline">
-                                              <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="field name" style={{ flex: 1 }} />
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const fieldObj = buildDefaultEntityField(nodeNewKeyDraft);
-                                                setSemanticTree((prev) => {
-                                                  const next = structuredClone(prev);
-                                                  const target = getAtPointer(next, selectedSemanticNodeId);
-                                                  if (isPlainObject(target)) {
-                                                    target[nodeNewKeyDraft] = fieldObj;
+                                        if (isColumnChild) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = COLUMN_SEMANTIC_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  let defaultVal = "";
+                                                  if (nodeNewKeyDraft === "primary_key") defaultVal = "false";
+                                                  if (nodeNewKeyDraft === "type") defaultVal = "text";
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "value", nodeNewKeyDraft));
+                                                  if (defaultVal) {
+                                                    setTimeout(() => {
+                                                      onUpdateNodeValue(joinPointer(selectedSemanticNodeId, nodeNewKeyDraft), defaultVal);
+                                                    }, 0);
                                                   }
-                                                  return next;
-                                                });
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
 
-                                      if (isEntityFieldChild) {
-                                        const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
-                                        const availableProps = ENTITY_FIELD_PROPS.filter(p => !existingKeys.includes(p));
-                                        if (availableProps.length === 0) return null;
+                                        // Relationship item: /relationships/0, /relationships/1 ...
+                                        const isRelationshipItem = ptrParts[0] === "relationships" && ptrParts.length === 2 && /^\d+$/.test(ptrParts[1]);
+                                        // Relationship from/to: /relationships/0/from, /relationships/0/to
+                                        const isRelationshipDirection = ptrParts[0] === "relationships" && ptrParts.length === 3 && /^\d+$/.test(ptrParts[1]) && (ptrParts[2] === "from" || ptrParts[2] === "to");
+
+                                        if (isRelationshipItem) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = RELATIONSHIP_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const kind = (nodeNewKeyDraft === "from" || nodeNewKeyDraft === "to") ? "object" : "value";
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        if (isRelationshipDirection) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = RELATIONSHIP_DIRECTION_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "value", nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        // --- Entities hierarchy ---
+                                        const isEntitiesRoot = selectedSemanticNodeId === "/entities";
+                                        const isEntityChild = ptrParts[0] === "entities" && ptrParts.length === 2;
+                                        const isEntityTables = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "tables";
+                                        const isEntityFields = ptrParts[0] === "entities" && ptrParts.length === 3 && ptrParts[2] === "fields";
+                                        const isEntityFieldChild = ptrParts[0] === "entities" && ptrParts.length === 4 && ptrParts[2] === "fields";
+
+                                        if (isEntitiesRoot) {
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Entity</legend>
+                                              <div className="sbuilder-inline">
+                                                <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="entity name" style={{ flex: 1 }} />
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, "object", nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        if (isEntityChild) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = ENTITY_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const kind = (nodeNewKeyDraft === "tables" || nodeNewKeyDraft === "fields") ? "object" : "value";
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        if (isEntityTables) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = ENTITY_TABLES_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const kind = nodeNewKeyDraft === "related" ? "array" : "value";
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        if (isEntityFields) {
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Field</legend>
+                                              <div className="sbuilder-inline">
+                                                <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="field name" style={{ flex: 1 }} />
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const fieldObj = buildDefaultEntityField(nodeNewKeyDraft);
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const target = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (isPlainObject(target)) {
+                                                      target[nodeNewKeyDraft] = fieldObj;
+                                                    }
+                                                    return next;
+                                                  });
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
+                                        if (isEntityFieldChild) {
+                                          const existingKeys = selectedSemanticNodeValue ? Object.keys(selectedSemanticNodeValue) : [];
+                                          const availableProps = ENTITY_FIELD_PROPS.filter(p => !existingKeys.includes(p));
+                                          if (availableProps.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Property</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select property --</option>
+                                                  {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  const kind = nodeNewKeyDraft === "aliases" ? "array" : "value";
+                                                  setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+
                                         return (
                                           <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
                                             <legend className="sbuilder-legend">Add Property</legend>
                                             <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select property --</option>
-                                                {availableProps.map(p => <option key={p} value={p}>{p}</option>)}
+                                              <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="new key" />
+                                              <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
+                                                <option value="value">value</option>
+                                                <option value="object">object</option>
+                                                <option value="array">array</option>
                                               </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                const kind = nodeNewKeyDraft === "aliases" ? "array" : "value";
-                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, kind, nodeNewKeyDraft));
+                                              <button type="button" className="cache-analyze-load" onClick={() => {
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft, nodeNewKeyDraft || "newKey"));
                                               }}>Add</button>
                                             </div>
                                           </fieldset>
                                         );
-                                      }
+                                      })()}
+                                    </fieldset>
+                                  ) : null}
 
-                                      return (
-                                        <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                          <legend className="sbuilder-legend">Add Property</legend>
-                                          <div className="sbuilder-inline">
-                                            <input value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} placeholder="new key" />
-                                            <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
-                                              <option value="value">value</option>
-                                              <option value="object">object</option>
-                                              <option value="array">array</option>
-                                            </select>
-                                            <button type="button" className="cache-analyze-load" onClick={() => {
-                                              setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft, nodeNewKeyDraft || "newKey"));
-                                            }}>Add</button>
-                                          </div>
-                                        </fieldset>
-                                      );
-                                    })()}
-                                  </fieldset>
-                                ) : null}
-
-                                {selectedSemanticNodeKind === "array" ? (
-                                  <>
-                                    <label className="sbuilder-label">Items</label>
-                                    <div className="sbuilder-join-list">
-                                      {(selectedSemanticNodeValue || []).map((item, idx) => {
-                                        const childPtr = joinPointer(selectedSemanticNodeId, idx);
-                                        const childKind = typeOfNode(item);
-                                        return (
-                                          <div key={`arr-${childPtr}`} className="sbuilder-join-row">
-                                            <div className="sbuilder-join-head">
-                                              <b>[{idx}]</b>
-                                              <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
+                                  {selectedSemanticNodeKind === "array" ? (
+                                    <>
+                                      <label className="sbuilder-label">Items</label>
+                                      <div className="sbuilder-join-list">
+                                        {(selectedSemanticNodeValue || []).map((item, idx) => {
+                                          const childPtr = joinPointer(selectedSemanticNodeId, idx);
+                                          const childKind = typeOfNode(item);
+                                          return (
+                                            <div key={`arr-${childPtr}`} className="sbuilder-join-row">
+                                              <div className="sbuilder-join-head">
+                                                <b>[{idx}]</b>
+                                                <button type="button" onClick={() => onDeleteNodeAtPointer(childPtr)}>Delete</button>
+                                              </div>
+                                              {childKind === "value" ? (() => {
+                                                const arrParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                                const isEntityRelated = arrParts.length === 4 && arrParts[0] === "entities" && arrParts[2] === "tables" && arrParts[3] === "related";
+                                                if (isEntityRelated) {
+                                                  return (
+                                                    <select value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
+                                                      <option value="">-- select table --</option>
+                                                      {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </select>
+                                                  );
+                                                }
+                                                return <input value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
+                                              })() : (
+                                                <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
+                                                  setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
+                                                  setSelectedSemanticNodeId(childPtr);
+                                                }}>
+                                                  {childKind === 'array' ? <span className="sbuilder-neon-icon">[ ]</span> : <span className="sbuilder-neon-icon">{"{ }"}</span>}
+                                                  Open {childKind}
+                                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                </button>
+                                              )}
                                             </div>
-                                            {childKind === "value" ? (() => {
-                                              const arrParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
-                                              const isEntityRelated = arrParts.length === 4 && arrParts[0] === "entities" && arrParts[2] === "tables" && arrParts[3] === "related";
-                                              if (isEntityRelated) {
-                                                return (
-                                                  <select value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} style={{ width: "100%" }}>
-                                                    <option value="">-- select table --</option>
-                                                    {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
-                                                  </select>
-                                                );
-                                              }
-                                              return <input value={String(item ?? "")} onChange={(e) => onUpdateNodeValue(childPtr, e.target.value)} />;
-                                            })() : (
-                                              <button type="button" className={`sbuilder-neon-chip sbuilder-neon-${childKind}`} onClick={() => {
-                                                setExpandedPointers((prev) => new Set([...prev, selectedSemanticNodeId, childPtr]));
-                                                setSelectedSemanticNodeId(childPtr);
-                                              }}>
-                                                {childKind === 'array' ? <span className="sbuilder-neon-icon">[ ]</span> : <span className="sbuilder-neon-icon">{"{ }"}</span>}
-                                                Open {childKind}
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "4px" }}><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                              </button>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    {/* Add Item Panel */}
-                                    {(() => {
-                                      const isRelationshipsArray = selectedSemanticNodeId === "/relationships";
-                                      if (isRelationshipsArray) {
-                                        const joins = effectivePayload?.joins || [];
-                                        const existingItems = Array.isArray(selectedSemanticNodeValue) ? selectedSemanticNodeValue : [];
-                                        const existingNames = new Set(existingItems.map(r => String(r?.name || "")));
-                                        const availableJoins = joins.filter(j => {
-                                          const name = `${String(j.source_table || "")}_to_${String(j.target_table || "")}`;
-                                          return !existingNames.has(name);
-                                        });
-                                        if (availableJoins.length === 0) return null;
+                                          );
+                                        })}
+                                      </div>
+                                      {/* Add Item Panel */}
+                                      {(() => {
+                                        const isRelationshipsArray = selectedSemanticNodeId === "/relationships";
+                                        if (isRelationshipsArray) {
+                                          const joins = effectivePayload?.joins || [];
+                                          const existingItems = Array.isArray(selectedSemanticNodeValue) ? selectedSemanticNodeValue : [];
+                                          const existingNames = new Set(existingItems.map(r => String(r?.name || "")));
+                                          const availableJoins = joins.filter(j => {
+                                            const name = `${String(j.source_table || "")}_to_${String(j.target_table || "")}`;
+                                            return !existingNames.has(name);
+                                          });
+                                          if (availableJoins.length === 0) return null;
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Relationship</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select join --</option>
+                                                  {availableJoins.map((j, i) => {
+                                                    const label = `${j.source_table}.${j.source_column} → ${j.target_table}.${j.target_column}`;
+                                                    return <option key={i} value={i}>{label}</option>;
+                                                  })}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={nodeNewKeyDraft === ""} onClick={() => {
+                                                  if (nodeNewKeyDraft === "") return;
+                                                  const join = availableJoins[Number(nodeNewKeyDraft)];
+                                                  if (!join) return;
+                                                  const relObj = buildRelationshipFromJoin(join);
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const arr = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (Array.isArray(arr)) {
+                                                      arr.push(relObj);
+                                                    }
+                                                    return next;
+                                                  });
+                                                  setNodeNewKeyDraft("");
+                                                }}>Add</button>
+                                                <button type="button" className="cache-analyze-load" style={{ marginLeft: "4px" }} onClick={() => {
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const arr = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (Array.isArray(arr)) {
+                                                      availableJoins.forEach(j => arr.push(buildRelationshipFromJoin(j)));
+                                                    }
+                                                    return next;
+                                                  });
+                                                  setNodeNewKeyDraft("");
+                                                }}>Add All ({availableJoins.length})</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
+                                        // Entity tables/related array: /entities/<name>/tables/related
+                                        const relatedParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
+                                        const isEntityRelatedArray = relatedParts.length === 4 && relatedParts[0] === "entities" && relatedParts[2] === "tables" && relatedParts[3] === "related";
+                                        if (isEntityRelatedArray) {
+                                          return (
+                                            <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                              <legend className="sbuilder-legend">Add Related Table</legend>
+                                              <div className="sbuilder-inline">
+                                                <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
+                                                  <option value="">-- select table --</option>
+                                                  {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                                <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
+                                                  if (!nodeNewKeyDraft) return;
+                                                  setSemanticTree((prev) => {
+                                                    const next = structuredClone(prev);
+                                                    const arr = getAtPointer(next, selectedSemanticNodeId);
+                                                    if (Array.isArray(arr)) {
+                                                      arr.push(nodeNewKeyDraft);
+                                                    }
+                                                    return next;
+                                                  });
+                                                  setNodeNewKeyDraft("");
+                                                }}>Add</button>
+                                              </div>
+                                            </fieldset>
+                                          );
+                                        }
                                         return (
                                           <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Relationship</legend>
+                                            <legend className="sbuilder-legend">Add Item</legend>
                                             <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select join --</option>
-                                                {availableJoins.map((j, i) => {
-                                                  const label = `${j.source_table}.${j.source_column} → ${j.target_table}.${j.target_column}`;
-                                                  return <option key={i} value={i}>{label}</option>;
-                                                })}
+                                              <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
+                                                <option value="value">value</option>
+                                                <option value="object">object</option>
+                                                <option value="array">array</option>
                                               </select>
-                                              <button type="button" className="cache-analyze-load" disabled={nodeNewKeyDraft === ""} onClick={() => {
-                                                if (nodeNewKeyDraft === "") return;
-                                                const join = availableJoins[Number(nodeNewKeyDraft)];
-                                                if (!join) return;
-                                                const relObj = buildRelationshipFromJoin(join);
-                                                setSemanticTree((prev) => {
-                                                  const next = structuredClone(prev);
-                                                  const arr = getAtPointer(next, selectedSemanticNodeId);
-                                                  if (Array.isArray(arr)) {
-                                                    arr.push(relObj);
-                                                  }
-                                                  return next;
-                                                });
-                                                setNodeNewKeyDraft("");
+                                              <button type="button" className="cache-analyze-load" onClick={() => {
+                                                setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft));
                                               }}>Add</button>
                                             </div>
                                           </fieldset>
                                         );
-                                      }
-                                      // Entity tables/related array: /entities/<name>/tables/related
-                                      const relatedParts = (selectedSemanticNodeId || "").split("/").filter(Boolean);
-                                      const isEntityRelatedArray = relatedParts.length === 4 && relatedParts[0] === "entities" && relatedParts[2] === "tables" && relatedParts[3] === "related";
-                                      if (isEntityRelatedArray) {
-                                        return (
-                                          <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                            <legend className="sbuilder-legend">Add Related Table</legend>
-                                            <div className="sbuilder-inline">
-                                              <select value={nodeNewKeyDraft} onChange={(e) => setNodeNewKeyDraft(e.target.value)} style={{ flex: 1 }}>
-                                                <option value="">-- select table --</option>
-                                                {tableNames.map(t => <option key={t} value={t}>{t}</option>)}
-                                              </select>
-                                              <button type="button" className="cache-analyze-load" disabled={!nodeNewKeyDraft} onClick={() => {
-                                                if (!nodeNewKeyDraft) return;
-                                                setSemanticTree((prev) => {
-                                                  const next = structuredClone(prev);
-                                                  const arr = getAtPointer(next, selectedSemanticNodeId);
-                                                  if (Array.isArray(arr)) {
-                                                    arr.push(nodeNewKeyDraft);
-                                                  }
-                                                  return next;
-                                                });
-                                                setNodeNewKeyDraft("");
-                                              }}>Add</button>
-                                            </div>
-                                          </fieldset>
-                                        );
-                                      }
-                                      return (
-                                        <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                          <legend className="sbuilder-legend">Add Item</legend>
-                                          <div className="sbuilder-inline">
-                                            <select value={nodeAddKindDraft} onChange={(e) => setNodeAddKindDraft(e.target.value)}>
-                                              <option value="value">value</option>
-                                              <option value="object">object</option>
-                                              <option value="array">array</option>
-                                            </select>
-                                            <button type="button" className="cache-analyze-load" onClick={() => {
-                                              setSemanticTree((prev) => addChildAtPointer(prev, selectedSemanticNodeId, nodeAddKindDraft));
-                                            }}>Add</button>
-                                          </div>
-                                        </fieldset>
-                                      );
-                                    })()}
-                                  </>
-                                ) : null}
+                                      })()}
+                                    </>
+                                  ) : null}
 
-                                {selectedSemanticNodeId !== "/" ? (
-                                  <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
-                                    <legend className="sbuilder-legend">Actions</legend>
-                                    <button
-                                      type="button"
-                                      className="sbuilder-neon-chip"
-                                      style={{ width: "100%", justifyContent: "center", color: "#fca5a5", borderColor: "rgba(239, 68, 68, 0.5)", boxShadow: "0 0 8px rgba(239, 68, 68, 0.2)", background: "#3f1c1c" }}
-                                      onClick={() => {
-                                        onDeleteNodeAtPointer(selectedSemanticNodeId);
-                                        setSelectedSemanticNodeId("/");
-                                      }}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                      Delete Node
-                                    </button>
-                                  </fieldset>
-                                ) : null}
-                              </>
-                            ) : (
-                              <div className="db-schema-meta-empty">Select a node from canvas to edit content.</div>
-                            )}
-                          </aside>
+                                  {selectedSemanticNodeId !== "/" ? (
+                                    <fieldset className="sbuilder-fieldset" style={{ marginTop: "12px" }}>
+                                      <legend className="sbuilder-legend">Actions</legend>
+                                      <button
+                                        type="button"
+                                        className="sbuilder-neon-chip"
+                                        style={{ width: "100%", justifyContent: "center", color: "#fca5a5", borderColor: "rgba(239, 68, 68, 0.5)", boxShadow: "0 0 8px rgba(239, 68, 68, 0.2)", background: "#3f1c1c" }}
+                                        onClick={() => {
+                                          onDeleteNodeAtPointer(selectedSemanticNodeId);
+                                          setSelectedSemanticNodeId("/");
+                                        }}
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                        Delete Node
+                                      </button>
+                                    </fieldset>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <div className="db-schema-meta-empty">Select a node from canvas to edit content.</div>
+                              )}
+                            </aside>
                           </>
                         )}
                       </div>

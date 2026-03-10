@@ -4,6 +4,7 @@ import AuditTimeline from "./components/AuditTimeline";
 import CacheAnalyzePage from "./components/CacheAnalyzePage";
 import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
 import SemanticBuilderPage from "./components/SemanticBuilderPage";
+import SemanticQueryDebugPage from "./components/SemanticQueryDebugPage";
 import { fetchAudits, refreshCaches, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
@@ -75,6 +76,18 @@ function SemanticLayerBuilderIcon() {
   );
 }
 
+function SemanticDebugIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="7.8" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 8.2v4.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="15.9" r="1.2" fill="currentColor" />
+      <path d="M5.3 6.2l2.2 1.2M18.7 6.2l-2.2 1.2M5.3 17.8l2.2-1.2M18.7 17.8l-2.2-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M20.2 3.8l-2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function App() {
   const [conversationId] = useState(crypto.randomUUID());
   const [auditVersion, setAuditVersion] = useState(0);
@@ -91,6 +104,7 @@ export default function App() {
   const [inspectSchema, setInspectSchema] = useState("");
   const [inspectMatchMode, setInspectMatchMode] = useState("REGEX");
   const [inspectQuery, setInspectQuery] = useState({ prefix: "", schema: "", matchMode: "REGEX" });
+  const [inspectTargetPage, setInspectTargetPage] = useState("schema");
   const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
   const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
   const [liveProgressText, setLiveProgressText] = useState("");
@@ -304,17 +318,23 @@ export default function App() {
   };
 
   const onOpenInspectDialog = () => {
+    setInspectTargetPage("schema");
     setInspectOpen(true);
   };
 
   const onOpenSemanticLayerBuilder = () => {
-    setActivePage("semantic_builder");
+    setInspectTargetPage("semantic_builder");
+    setInspectOpen(true);
+  };
+
+  const onOpenSemanticDebug = () => {
+    setActivePage("semantic_debug");
   };
 
   const onRunInspect = () => {
     setInspectQuery({ prefix: inspectPrefix, schema: inspectSchema, matchMode: inspectMatchMode });
     setInspectOpen(false);
-    setActivePage("schema");
+    setActivePage(inspectTargetPage === "semantic_builder" ? "semantic_builder" : "schema");
   };
 
   const onTurnTimingUpdate = (elapsedMs) => {
@@ -415,6 +435,15 @@ export default function App() {
                     >
                       <SemanticLayerBuilderIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-semantic ${activePage === "semantic_debug" ? "is-active" : ""}`}
+                      onClick={onOpenSemanticDebug}
+                      title="Semantic Query Debug"
+                      aria-label="Semantic Query Debug"
+                    >
+                      <SemanticDebugIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -434,6 +463,8 @@ export default function App() {
                     ? "cache diagnostics"
                     : activePage === "semantic_builder"
                       ? "semantic builder studio"
+                      : activePage === "semantic_debug"
+                        ? "semantic query debug"
                       : "db schema inspect"}
                 </span>
               )}
@@ -486,6 +517,8 @@ export default function App() {
               query={inspectQuery}
               onOpenRunDialog={onOpenInspectDialog}
             />
+          ) : activePage === "semantic_debug" ? (
+            <SemanticQueryDebugPage />
           ) : (
             <DbSchemaInspectPage
               query={inspectQuery}
@@ -516,7 +549,9 @@ export default function App() {
               <input value={inspectSchema} onChange={(e) => setInspectSchema(e.target.value)} placeholder="(optional) uses convengine.schema.active" />
             </label>
             <div className="ce-modal-actions">
-              <button type="button" className="cache-analyze-load" onClick={onRunInspect}>Run</button>
+              <button type="button" className="cache-analyze-load" onClick={onRunInspect}>
+                {inspectTargetPage === "semantic_builder" ? "Build" : "Run"}
+              </button>
               <button type="button" className="cache-analyze-load cache-analyze-secondary" onClick={() => setInspectOpen(false)}>Cancel</button>
             </div>
           </div>

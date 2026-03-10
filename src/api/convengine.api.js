@@ -153,9 +153,10 @@ export async function analyzeCaches(warmup = true) {
   return res.json();
 }
 
-export async function inspectDbSchema(prefix = "", schema = "") {
+export async function inspectDbSchema(prefix = "", schema = "", matchMode = "REGEX") {
   const q = new URLSearchParams();
   q.set("prefix", prefix || "");
+  q.set("matchMode", String(matchMode || "REGEX").toUpperCase());
   if (schema && String(schema).trim()) {
     q.set("schema", String(schema).trim());
   }
@@ -252,6 +253,93 @@ export async function fetchCurrentSemanticModelYaml() {
     throw new Error(`Backend error: ${res.status}`);
   }
   return res.json();
+}
+
+export async function analyzeSemanticQueryDebug(payload) {
+  const res = await fetch(`${DB_BASE}/semantic-query/debug-analyze`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export function analyzeSemanticQueryDebugStream(question, handlers = {}, options = {}) {
+  const qs = new URLSearchParams();
+  qs.set("question", String(question || ""));
+  if (options && Object.prototype.hasOwnProperty.call(options, "includeRetrieval")) {
+    qs.set("includeRetrieval", String(Boolean(options.includeRetrieval)));
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, "includeJsonPath")) {
+    qs.set("includeJsonPath", String(Boolean(options.includeJsonPath)));
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, "includeAst")) {
+    qs.set("includeAst", String(Boolean(options.includeAst)));
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, "includeSqlGeneration")) {
+    qs.set("includeSqlGeneration", String(Boolean(options.includeSqlGeneration)));
+  }
+  if (options && Object.prototype.hasOwnProperty.call(options, "includeSqlExecution")) {
+    qs.set("includeSqlExecution", String(Boolean(options.includeSqlExecution)));
+  }
+  const source = new EventSource(`${DB_BASE}/semantic-query/debug-analyze/stream?${qs.toString()}`);
+  let closed = false;
+
+  const safeClose = () => {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    source.close();
+    handlers.onClosed?.();
+  };
+
+  source.onopen = () => handlers.onConnected?.();
+
+  source.addEventListener("DEBUG_EVENT", (event) => {
+    try {
+      handlers.onEvent?.(event.data ? JSON.parse(event.data) : {});
+    } catch {
+      handlers.onEvent?.({});
+    }
+  });
+
+  source.addEventListener("DEBUG_COMPLETE", (event) => {
+    try {
+      const parsed = event.data ? JSON.parse(event.data) : {};
+      handlers.onComplete?.(parsed?.response || null);
+    } catch {
+      handlers.onComplete?.(null);
+    } finally {
+      safeClose();
+    }
+  });
+
+  source.addEventListener("DEBUG_ERROR", (event) => {
+    try {
+      const parsed = event.data ? JSON.parse(event.data) : {};
+      handlers.onError?.(new Error(parsed?.message || "Debug stream failed."));
+    } catch {
+      handlers.onError?.(new Error("Debug stream failed."));
+    }
+  });
+
+  source.onerror = () => {
+    if (!closed) {
+      handlers.onError?.(new Error("Debug stream connection error."));
+    }
+  };
+
+  return {
+    close() {
+      safeClose();
+    },
+  };
 }
 
 export function subscribeConversationSse(conversationId, handlers = {}) {

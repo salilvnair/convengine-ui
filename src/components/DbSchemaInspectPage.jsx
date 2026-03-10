@@ -109,7 +109,7 @@ export default function DbSchemaInspectPage({ query, onOpenRunDialog }) {
 
     const fetchPrefix = matchText;
 
-    inspectDbSchema(fetchPrefix, query?.schema || "")
+    inspectDbSchema(fetchPrefix, query?.schema || "", matchMode)
       .then((data) => {
         if (!active) return;
         setPayload(data);
