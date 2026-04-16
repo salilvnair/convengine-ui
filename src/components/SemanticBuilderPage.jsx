@@ -3,6 +3,7 @@ import ReactFlow, { Background, Controls, Handle, MarkerType, Position, applyNod
 import "reactflow/dist/style.css";
 import {
   fetchCurrentSemanticModelYaml,
+  fetchSemanticModelStudioConfig,
   generateSemanticModelDraft,
   inspectDbSchema,
   saveSemanticModel,
@@ -12,17 +13,16 @@ import CodeBlockToggle from "./convengine/CodeBlockToggle";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import SemanticYamlReactFlow from "./SemanticYamlReactFlow";
 
-const SEMANTIC_PALETTE_TYPES = [
+const DEFAULT_SEMANTIC_PALETTE_TYPES = [
   "settings",
   "entities",
   "tables",
   "relationships",
-  "metrics",
-  "value_patterns",
-  "intent_rules",
-  "join_hints",
+  "synonyms",
+  "rules",
   "allowed_tables",
 ];
+const DB_MANAGED_SEMANTIC_SECTIONS = ["metrics", "intent_rules", "join_hints", "value_patterns"];
 
 const INITIAL_FLOW_VIEWPORT = {
   x: 600,
@@ -35,6 +35,8 @@ const PALETTE_ICONS = {
   entities: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18"></path><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="7" r="4"></circle></svg>,
   tables: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>,
   relationships: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"></path><line x1="16" y1="12" x2="21" y2="12"></line></svg>,
+  synonyms: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10"></path><path d="M7 12h10"></path><path d="M7 17h6"></path><path d="M17 15l2 2-2 2"></path></svg>,
+  rules: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M7 12h10"></path><path d="M10 18h4"></path></svg>,
   metrics: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>,
   value_patterns: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>,
   intent_rules: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
@@ -121,109 +123,6 @@ function SemanticYamlCodeBlock({ yaml }) {
       {String(yaml || "")}
     </CodeBlockToggle>
   );
-}
-
-function parseAllowedTablesFromYaml(yamlText) {
-  const text = String(yamlText || "");
-  const rulesMatch = text.match(/^rules:\n([\s\S]*?)(?=^[A-Za-z0-9_-]+:\s*|\Z)/m);
-  if (!rulesMatch) return [];
-  const allowedBlock = rulesMatch[1].match(/^\s{2}allowed_tables:\n((?:\s{4}- .*\n?)*)/m);
-  if (!allowedBlock) return [];
-  return Array.from(new Set(
-    allowedBlock[1]
-      .split("\n")
-      .map((line) => line.match(/^\s{4}-\s+(.+?)\s*$/)?.[1] || "")
-      .filter(Boolean)
-  ));
-}
-
-function parseJoinHintsFromYaml(yamlText) {
-  const text = String(yamlText || "");
-  const rootMatch = text.match(/^join_hints:\n([\s\S]*?)(?=^[A-Za-z0-9_-]+:\s*|\Z)/m);
-  if (!rootMatch) return [];
-  const lines = rootMatch[1].split("\n");
-  const out = [];
-  let current = null;
-  for (const raw of lines) {
-    const line = raw || "";
-    const tableMatch = line.match(/^\s{2}([A-Za-z0-9_]+):\s*$/);
-    if (tableMatch) {
-      if (current) out.push(current);
-      current = { table: tableMatch[1], commonlyJoinedWith: [] };
-      continue;
-    }
-    const joinMatch = line.match(/^\s{6}-\s+(.+?)\s*$/);
-    if (joinMatch && current) {
-      current.commonlyJoinedWith.push(joinMatch[1]);
-    }
-  }
-  if (current) out.push(current);
-  return out;
-}
-
-
-function extractRulesDefaults(yamlText) {
-  const text = String(yamlText || "");
-  const rulesMatch = text.match(/^rules:\n([\s\S]*?)(?=^[A-Za-z0-9_-]+:\s*|\Z)/m);
-  const fallback = { denyOps: ["DELETE", "UPDATE", "DROP"], maxResultLimit: 500 };
-  if (!rulesMatch) return fallback;
-  const rulesBody = rulesMatch[1];
-  const denyBlock = rulesBody.match(/^\s{2}deny_operations:\n((?:\s{4}- .*\n?)*)/m);
-  const denyOps = denyBlock
-    ? denyBlock[1]
-      .split("\n")
-      .map((line) => line.match(/^\s{4}-\s+(.+?)\s*$/)?.[1] || "")
-      .filter(Boolean)
-    : fallback.denyOps;
-  const maxMatch = rulesBody.match(/^\s{2}max_result_limit:\s*(\d+)\s*$/m);
-  const maxResultLimit = maxMatch ? Number(maxMatch[1]) : fallback.maxResultLimit;
-  return {
-    denyOps: denyOps.length ? denyOps : fallback.denyOps,
-    maxResultLimit: Number.isFinite(maxResultLimit) ? maxResultLimit : fallback.maxResultLimit,
-  };
-}
-
-function renderJoinHintsSection(joinHints) {
-  if (!joinHints.length) {
-    return "join_hints: {}";
-  }
-  const lines = ["join_hints:"];
-  joinHints.forEach((hint) => {
-    lines.push(`  ${hint.table}:`);
-    lines.push("    commonly_joined_with:");
-    (hint.commonlyJoinedWith || []).forEach((table) => lines.push(`      - ${table}`));
-  });
-  return lines.join("\n");
-}
-
-function renderRulesSection(allowedTables, denyOps, maxResultLimit) {
-  const lines = ["rules:", "  allowed_tables:"];
-  allowedTables.forEach((table) => lines.push(`    - ${table}`));
-  lines.push("  deny_operations:");
-  (denyOps || []).forEach((op) => lines.push(`    - ${op}`));
-  lines.push(`  max_result_limit: ${maxResultLimit}`);
-  return lines.join("\n");
-}
-
-function replaceTopLevelSection(yamlText, sectionName, sectionBody) {
-  const text = String(yamlText || "");
-  const block = `${sectionBody}\n`;
-  const regex = new RegExp(`^${sectionName}:\\n[\\s\\S]*?(?=^[A-Za-z0-9_-]+:\\s*|\\Z)`, "m");
-  if (regex.test(text)) {
-    return text.replace(regex, block.trimEnd());
-  }
-  const base = text.trimEnd();
-  return base ? `${base}\n\n${block}` : `${block}`;
-}
-
-function applyBuilderSectionsToYaml(yamlText, allowedTables, joinHints) {
-  const base = String(yamlText || "").trim();
-  const seed = base || "version: 1\ndatabase: v2\n";
-  const defaults = extractRulesDefaults(seed);
-  const rulesSection = renderRulesSection(allowedTables, defaults.denyOps, defaults.maxResultLimit);
-  const joinHintsSection = renderJoinHintsSection(joinHints);
-  const withJoinHints = replaceTopLevelSection(seed, "join_hints", joinHintsSection);
-  return replaceTopLevelSection(withJoinHints, "rules", rulesSection);
 }
 
 function isPlainObject(value) {
@@ -503,11 +402,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
   const [yamlBusy, setYamlBusy] = useState(false);
   const [yamlMessage, setYamlMessage] = useState("");
   const [selectedTable, setSelectedTable] = useState("");
-  const [allowedTablesBuilder, setAllowedTablesBuilder] = useState([]);
-  const [allowedTablePick, setAllowedTablePick] = useState("");
-  const [joinHintsBuilder, setJoinHintsBuilder] = useState([]);
-  const [joinHintTablePick, setJoinHintTablePick] = useState("");
-  const [joinHintJoinPick, setJoinHintJoinPick] = useState({});
+  const [paletteTypes, setPaletteTypes] = useState(DEFAULT_SEMANTIC_PALETTE_TYPES);
   const [semanticTree, setSemanticTree] = useState({});
   const [expandedPointers, setExpandedPointers] = useState(new Set());
   const [flowNodes, setFlowNodes, onFlowNodesChange] = useNodesState([]);
@@ -684,6 +579,32 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     };
   }, [semanticYaml]);
 
+  useEffect(() => {
+    let active = true;
+    fetchSemanticModelStudioConfig()
+      .then((res) => {
+        if (!active) return;
+        const editable = Array.isArray(res?.editableSections) ? res.editableSections : DEFAULT_SEMANTIC_PALETTE_TYPES;
+        const dbManaged = new Set(
+          Array.isArray(res?.dbManagedSections) && res.dbManagedSections.length
+            ? res.dbManagedSections
+            : DB_MANAGED_SEMANTIC_SECTIONS
+        );
+        const filtered = editable
+          .map((x) => String(x || "").trim())
+          .filter(Boolean)
+          .filter((x) => !dbManaged.has(x));
+        setPaletteTypes(filtered.length ? filtered : DEFAULT_SEMANTIC_PALETTE_TYPES);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPaletteTypes(DEFAULT_SEMANTIC_PALETTE_TYPES.filter((x) => !DB_MANAGED_SEMANTIC_SECTIONS.includes(x)));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const columnsByTable = useMemo(() => groupColumnsByTable(effectivePayload?.columns || []), [effectivePayload]);
   const tableNames = useMemo(() => {
     const fromTables = (effectivePayload?.tables || []).map((t) => String(t.table_name || "")).filter(Boolean);
@@ -692,16 +613,6 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
   }, [effectivePayload, columnsByTable]);
 
   useEffect(() => {
-    const parsedAllowed = parseAllowedTablesFromYaml(semanticYaml);
-    if (parsedAllowed.length) {
-      setAllowedTablesBuilder(parsedAllowed);
-    } else if (tableNames.length && allowedTablesBuilder.length === 0) {
-      setAllowedTablesBuilder([]);
-    }
-    const parsedHints = parseJoinHintsFromYaml(semanticYaml);
-    if (parsedHints.length) {
-      setJoinHintsBuilder(parsedHints);
-    }
     try {
       const parsedTree = parseYaml(semanticYaml || "{}") || {};
       const normalizedTree = typeof parsedTree === "object" && parsedTree !== null ? parsedTree : { value: parsedTree };
@@ -1035,65 +946,6 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
     });
   };
 
-  const onAddAllowedTable = () => {
-    const value = String(allowedTablePick || "").trim();
-    if (!value) return;
-    setAllowedTablesBuilder((prev) => Array.from(new Set([...prev, value])));
-  };
-
-  const onRemoveAllowedTable = (table) => {
-    setAllowedTablesBuilder((prev) => prev.filter((x) => x !== table));
-  };
-
-  const onAddJoinHintTable = () => {
-    const value = String(joinHintTablePick || "").trim();
-    if (!value) return;
-    setJoinHintsBuilder((prev) => {
-      if (prev.some((p) => p.table === value)) return prev;
-      return [...prev, { table: value, commonlyJoinedWith: [] }];
-    });
-  };
-
-  const onRemoveJoinHintTable = (table) => {
-    setJoinHintsBuilder((prev) => prev.filter((h) => h.table !== table));
-    setJoinHintJoinPick((prev) => {
-      const next = { ...prev };
-      delete next[table];
-      return next;
-    });
-  };
-
-  const onAddJoinHintTarget = (table) => {
-    const picked = String(joinHintJoinPick[table] || "").trim();
-    if (!picked) return;
-    setJoinHintsBuilder((prev) => prev.map((h) => {
-      if (h.table !== table) return h;
-      const next = Array.from(new Set([...(h.commonlyJoinedWith || []), picked]));
-      return { ...h, commonlyJoinedWith: next };
-    }));
-  };
-
-  const onRemoveJoinHintTarget = (table, target) => {
-    setJoinHintsBuilder((prev) => prev.map((h) => {
-      if (h.table !== table) return h;
-      return { ...h, commonlyJoinedWith: (h.commonlyJoinedWith || []).filter((x) => x !== target) };
-    }));
-  };
-
-  const onApplyBuildersToYaml = () => {
-    const allowed = allowedTablesBuilder.filter(Boolean);
-    const hints = joinHintsBuilder
-      .filter((h) => String(h?.table || "").trim())
-      .map((h) => ({
-        table: String(h.table).trim(),
-        commonlyJoinedWith: Array.from(new Set((h.commonlyJoinedWith || []).filter(Boolean))),
-      }));
-    const nextYaml = applyBuilderSectionsToYaml(semanticYaml, allowed, hints);
-    setSemanticYaml(nextYaml);
-    setYamlMessage("Applied join_hints and rules.allowed_tables into YAML editor.");
-  };
-
-
   const onAddPaletteNode = (label) => {
     const defaults = {
       settings: {},
@@ -1101,10 +953,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
       tables: {},
       relationships: [],
       synonyms: {},
-      join_hints: {},
-      metrics: {},
-      value_patterns: [],
-      intent_rules: {},
+      rules: {},
       allowed_tables: [],
     };
     setSemanticTree((prev) => {
@@ -1816,7 +1665,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                           <aside className="sbuilder-palette sbuilder-palette-grid" style={{ width: leftPanelWidth }}>
                             <div className="sbuilder-panel-title">Tools</div>
                             <div className="sbuilder-palette-icons">
-                              {SEMANTIC_PALETTE_TYPES.map((nodeType) => (
+                              {paletteTypes.map((nodeType) => (
                                 <button key={nodeType} type="button" className="sbuilder-glyph-btn" onClick={() => onAddPaletteNode(nodeType)} title={`Add ${nodeType}`}>
                                   {PALETTE_ICONS[nodeType] || <span className="sbuilder-fallback-icon">+</span>}
                                 </button>
@@ -1959,7 +1808,7 @@ export default function SemanticBuilderPage({ query, onOpenRunDialog }) {
                               bottom: builderMenu.openUp ? Math.max(8, (builderMenu.canvasHeight || 0) - builderMenu.y) : "auto",
                             }}>
                               <div className="sbuilder-context-title">Add Node</div>
-                              {SEMANTIC_PALETTE_TYPES.map((nodeType) => (
+                              {paletteTypes.map((nodeType) => (
                                 <button
                                   key={`ctx-${nodeType}`}
                                   type="button"

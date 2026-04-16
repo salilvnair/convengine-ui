@@ -5,7 +5,8 @@ import CacheAnalyzePage from "./components/CacheAnalyzePage";
 import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
 import SemanticBuilderPage from "./components/SemanticBuilderPage";
 import SemanticQueryDebugPage from "./components/SemanticQueryDebugPage";
-import { fetchAudits, refreshCaches, subscribeConversation } from "./api/convengine.api.js";
+import PdfExtractPage from "./components/PdfExtractPage";
+import { fetchAudits, refreshCaches, refreshSemanticEmbeddingCatalog, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
 const MIN_PROGRESS_VISIBLE_MS = 9000;
@@ -84,6 +85,16 @@ function SemanticDebugIcon() {
       <circle cx="12" cy="15.9" r="1.2" fill="currentColor" />
       <path d="M5.3 6.2l2.2 1.2M18.7 6.2l-2.2 1.2M5.3 17.8l2.2-1.2M18.7 17.8l-2.2-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <path d="M20.2 3.8l-2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PdfExtractIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 3.8h7.8L19.5 8v12.2H7V3.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M14.8 3.8V8h4.7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9.3 12.1h7.1M9.3 15.3h7.1M9.3 18.5h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -303,8 +314,27 @@ export default function App() {
     setCacheRefreshLoading(true);
     setCacheRefreshMessage("");
     try {
-      const message = await refreshCaches();
-      setCacheRefreshMessage(message || "Cache refresh completed");
+      const [cacheResult, embeddingResult] = await Promise.allSettled([
+        refreshCaches(),
+        refreshSemanticEmbeddingCatalog({ onlyMissing: true, limit: 300 }),
+      ]);
+
+      const parts = [];
+      if (cacheResult.status === "fulfilled") {
+        parts.push(cacheResult.value || "Cache refresh completed");
+      } else {
+        parts.push(cacheResult.reason instanceof Error ? cacheResult.reason.message : "Cache refresh failed");
+      }
+
+      if (embeddingResult.status === "fulfilled") {
+        const stats = embeddingResult.value || {};
+        parts.push(
+          `Embedding catalog refreshed (candidates=${stats.candidateCount ?? 0}, indexed=${stats.indexedCount ?? 0}, failed=${stats.failedCount ?? 0})`
+        );
+      } else {
+        parts.push(embeddingResult.reason instanceof Error ? embeddingResult.reason.message : "Embedding catalog refresh failed");
+      }
+      setCacheRefreshMessage(parts.join(" | "));
     } catch (err) {
       setCacheRefreshMessage(err instanceof Error ? err.message : "Cache refresh failed");
     } finally {
@@ -329,6 +359,10 @@ export default function App() {
 
   const onOpenSemanticDebug = () => {
     setActivePage("semantic_debug");
+  };
+
+  const onOpenPdfExtract = () => {
+    setActivePage("pdf_extract");
   };
 
   const onRunInspect = () => {
@@ -444,6 +478,15 @@ export default function App() {
                     >
                       <SemanticDebugIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-pdf ${activePage === "pdf_extract" ? "is-active" : ""}`}
+                      onClick={onOpenPdfExtract}
+                      title="PDF Extract Studio"
+                      aria-label="PDF Extract Studio"
+                    >
+                      <PdfExtractIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -463,8 +506,10 @@ export default function App() {
                     ? "cache diagnostics"
                     : activePage === "semantic_builder"
                       ? "semantic builder studio"
-                      : activePage === "semantic_debug"
+                    : activePage === "semantic_debug"
                         ? "semantic query debug"
+                      : activePage === "pdf_extract"
+                        ? "pdf extract studio"
                       : "db schema inspect"}
                 </span>
               )}
@@ -519,6 +564,8 @@ export default function App() {
             />
           ) : activePage === "semantic_debug" ? (
             <SemanticQueryDebugPage />
+          ) : activePage === "pdf_extract" ? (
+            <PdfExtractPage />
           ) : (
             <DbSchemaInspectPage
               query={inspectQuery}

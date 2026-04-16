@@ -138,6 +138,22 @@ export async function refreshCaches() {
   return res.text();
 }
 
+export async function refreshSemanticEmbeddingCatalog(payload = {}) {
+  const res = await fetch(`${DB_BASE}/semantic/embeddings/catalog/rebuild`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 export async function analyzeCaches(warmup = true) {
   const res = await fetch(`${CACHE_BASE}/analyze?warmup=${warmup ? "true" : "false"}`, {
     method: "GET",
@@ -242,8 +258,53 @@ export async function reloadSemanticModel(payload) {
   return res.json();
 }
 
+export async function extractPdfWithPapermind(file) {
+  if (!(file instanceof File)) {
+    throw new Error("A valid PDF file is required.");
+  }
+  const base = String(import.meta.env.VITE_PAPERMIND_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+  const endpoint = `${base}/extract/pdf`;
+  const formData = new FormData();
+  formData.append("file", file, file.name || "document.pdf");
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    body: formData,
+  });
+
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!res.ok) {
+    const message =
+      payload?.error?.message ||
+      payload?.message ||
+      `PDF extraction failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
 export async function fetchCurrentSemanticModelYaml() {
   const res = await fetch(`${DB_BASE}/semantic-query/current-model-yaml`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Backend error: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchSemanticModelStudioConfig() {
+  const res = await fetch(`${DB_BASE}/semantic-query/studio-config`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
