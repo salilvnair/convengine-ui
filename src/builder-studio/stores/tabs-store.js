@@ -47,7 +47,18 @@ export const useTabsStore = create((set, get) => ({
   renameTab(id, title) {
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, title } : t)) }))
   },
+
+  /** Focus (or open) the singleton Settings tab. */
+  openSettings() {
+    const existing = get().tabs.find((t) => t.id === SETTINGS_TAB_ID)
+    if (existing) { set({ activeId: SETTINGS_TAB_ID }); return }
+    set((s) => ({
+      tabs: [...s.tabs, { id: SETTINGS_TAB_ID, kind: 'settings', title: 'Settings' }],
+      activeId: SETTINGS_TAB_ID,
+    }))
+  },
 }))
 
+export const SETTINGS_TAB_ID = 'settings'
 export function agentTabId(agentId) { return `agent:${agentId}` }
 export function skillTabId(skillId) { return `skill:${skillId}` }

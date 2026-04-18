@@ -18,6 +18,7 @@
  * outputs.
  */
 import { runAgent } from '../api/run-client'
+import { callTool as callMcpTool } from '../mcp/mcp-client'
 
 export async function executeGraph({ workflow, inputs, onProgress }) {
   const { nodes = [], edges = [], subBlockValues = {} } = workflow
@@ -109,6 +110,8 @@ async function runNode({ node, values, input, outputs }) {
       return interpolate(values.data ?? '', outputs, input)
     case 'agent':
       return await runAgentNode({ node, values, input })
+    case 'mcp':
+      return await runMcpNode({ values, input })
     case 'function':
       return runFunctionNode({ values, input })
     case 'if_else':
@@ -143,6 +146,40 @@ async function runAgentNode({ node, values, input }) {
   }
   const res = await runAgent({ agent, input: inputStr })
   return res.output
+}
+
+/**
+ * Invoke an MCP tool via the convengine backend.
+ *
+ * The `mcp` block has three subBlock values:
+ *   - `server`     — server id selected in the dropdown (from /api/v1/mcp/servers)
+ *   - `tool`       — tool name on that server
+ *   - `arguments`  — JSON-string (from the JsonEditor) matching the tool's
+ *                    inputSchema; we also substitute `{{input}}` with the
+ *                    upstream output so a preceding block's text can flow into
+ *                    a tool call.
+ *
+ * Returns whatever the server returns under `result` (typically an MCP
+ * content array like `[{ type: 'text', text: '...' }, ...]`).
+ */
+async function runMcpNode({ values, input }) {
+  const serverId = values.server
+  const tool = values.tool
+  if (!serverId) throw new Error('MCP block: no server selected')
+  if (!tool) throw new Error('MCP block: no tool selected')
+
+  let args = values.arguments
+  if (typeof args === 'string') {
+    // Pre-substitute {{input}} so tool args can reference upstream output.
+    const inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? '')
+    args = args.replace(/\{\{\s*input\s*\}\}/g, inputStr.replace(/"/g, '\\"'))
+    try { args = args.trim() ? JSON.parse(args) : {} }
+    catch (e) { throw new Error(`MCP block: arguments is not valid JSON — ${e.message}`) }
+  }
+  args = args || {}
+
+  const resp = await callMcpTool(serverId, tool, args)
+  return resp?.result
 }
 
 function runFunctionNode({ values, input }) {

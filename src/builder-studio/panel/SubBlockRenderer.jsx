@@ -6,9 +6,10 @@
  * fall back to a short-input so the field is still editable; the shape is
  * preserved so serialization stays compatible with sim's tool runners.
  */
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
+import { useMcpStore } from '../mcp/mcp-store'
 
 export default function SubBlockRenderer({ sub, value, onChange, blockValues }) {
   const set = useCallback((v) => onChange(sub.id, v), [onChange, sub.id])
@@ -34,8 +35,6 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues }) 
     case 'document-selector':
     case 'workflow-selector':
     case 'table-selector':
-    case 'mcp-server-selector':
-    case 'mcp-tool-selector':
       return (
         <input
           type={sub.password ? 'password' : 'text'}
@@ -44,6 +43,19 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues }) 
           value={defaultValue ?? ''}
           readOnly={sub.readOnly}
           onChange={(e) => set(e.target.value)}
+        />
+      )
+
+    case 'mcp-server-selector':
+      return <McpServerSelector value={defaultValue} onChange={set} placeholder={sub.placeholder} />
+
+    case 'mcp-tool-selector':
+      return (
+        <McpToolSelector
+          value={defaultValue}
+          onChange={set}
+          placeholder={sub.placeholder}
+          serverId={blockValues?.server}
         />
       )
 
@@ -73,8 +85,17 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues }) 
         />
       )
 
-    case 'code':
     case 'mcp-dynamic-args':
+      return (
+        <McpArgsEditor
+          value={defaultValue}
+          onChange={set}
+          serverId={blockValues?.server}
+          toolName={blockValues?.tool}
+        />
+      )
+
+    case 'code':
     case 'input-format':
     case 'filter-builder':
     case 'sort-builder':
@@ -245,4 +266,177 @@ function safeCall(fn) {
   } catch {
     return []
   }
+}
+
+/* ------------------------------------------------------------------------- */
+/* MCP selectors — backed by the live convengine MCP registry via useMcpStore */
+/* ------------------------------------------------------------------------- */
+
+function McpServerSelector({ value, onChange, placeholder }) {
+  const servers = useMcpStore((s) => s.servers)
+  const loading = useMcpStore((s) => s.loading)
+  const ensureLoaded = useMcpStore((s) => s.ensureLoaded)
+
+  useEffect(() => { ensureLoaded() }, [ensureLoaded])
+
+  return (
+    <select
+      className="bs-input"
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{loading ? 'Loading…' : (placeholder || 'Select an MCP server')}</option>
+      {servers.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name || s.id} {s.transport ? `(${s.transport.toLowerCase()})` : ''}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/**
+ * Dynamic arguments editor for an MCP tool call.
+ *
+ * When a server + tool are selected we look up the tool's {@code inputSchema}
+ * from the store and:
+ *   1. render a read-only hint summarizing the expected parameters (so the
+ *      user doesn't have to guess shapes);
+ *   2. if the field is currently empty, prefill it with a skeleton object
+ *      containing each required property keyed to a type-appropriate default.
+ *
+ * Editing happens in the JSON tree editor (same as `response-format`), so
+ * structure mistakes are caught at author time.
+ */
+function McpArgsEditor({ value, onChange, serverId, toolName }) {
+  const tools = useMcpStore((s) => (serverId ? s.toolsByServer[serverId] : null))
+  const loadTools = useMcpStore((s) => s.loadTools)
+
+  useEffect(() => {
+    if (serverId && !tools) loadTools(serverId)
+  }, [serverId, tools, loadTools])
+
+  const tool = (tools || []).find((t) => t.name === toolName)
+  const schema = tool?.inputSchema
+
+  // Seed an empty value from the schema the first time a tool is picked so the
+  // tree editor has something to chew on. We only auto-fill if the field is
+  // empty/null — never clobber user edits.
+  useEffect(() => {
+    if (!schema) return
+    const isEmpty = value == null || value === '' || value === '{}'
+    if (!isEmpty) return
+    const skeleton = skeletonFromSchema(schema)
+    if (skeleton && Object.keys(skeleton).length > 0) {
+      onChange(JSON.stringify(skeleton, null, 2))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema, toolName])
+
+  return (
+    <div className="bs-mcp-args">
+      {!serverId || !toolName ? (
+        <div className="bs-hint">Pick a server and tool first.</div>
+      ) : (
+        <>
+          {schema && <McpSchemaHint schema={schema} />}
+          <JsonEditor
+            value={value}
+            onChange={onChange}
+            defaultMode="tree"
+            height="240px"
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+function McpSchemaHint({ schema }) {
+  const props = schema?.properties || {}
+  const required = new Set(schema?.required || [])
+  const entries = Object.entries(props)
+  if (entries.length === 0) return null
+  return (
+    <div className="bs-mcp-schema-hint">
+      <div className="bs-mcp-schema-title">Expected arguments</div>
+      <table className="bs-mcp-schema-table">
+        <tbody>
+          {entries.map(([name, spec]) => (
+            <tr key={name}>
+              <td className="bs-mcp-schema-key">
+                <code>{name}</code>{required.has(name) && <span className="bs-mcp-req">*</span>}
+              </td>
+              <td className="bs-mcp-schema-type"><code>{spec?.type || 'any'}</code></td>
+              <td className="bs-mcp-schema-desc">{spec?.description || ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** Build a plausible default object from a JSON Schema's `required` list. */
+function skeletonFromSchema(schema) {
+  const out = {}
+  const props = schema?.properties || {}
+  const required = schema?.required || []
+  for (const name of required) {
+    const spec = props[name] || {}
+    out[name] = defaultForType(spec)
+  }
+  return out
+}
+function defaultForType(spec) {
+  if (spec.default !== undefined) return spec.default
+  switch (spec.type) {
+    case 'string':  return ''
+    case 'number':
+    case 'integer': return 0
+    case 'boolean': return false
+    case 'array':   return []
+    case 'object':  return {}
+    default:        return null
+  }
+}
+
+function McpToolSelector({ value, onChange, placeholder, serverId }) {
+  const tools = useMcpStore((s) => (serverId ? s.toolsByServer[serverId] : null))
+  const loadTools = useMcpStore((s) => s.loadTools)
+
+  useEffect(() => {
+    if (!serverId) return
+    if (!tools) loadTools(serverId)
+  }, [serverId, tools, loadTools])
+
+  if (!serverId) {
+    return <div className="bs-hint">Pick an MCP server first.</div>
+  }
+
+  const list = tools || []
+  return (
+    <div className="bs-mcp-tool-picker">
+      <select
+        className="bs-input"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">{tools == null ? 'Loading tools…' : (placeholder || 'Select a tool')}</option>
+        {list.map((t) => (
+          <option key={t.name} value={t.name} title={t.description || ''}>
+            {t.name}{t.description ? ` — ${t.description.slice(0, 60)}` : ''}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="bs-btn-ghost bs-mcp-refresh"
+        title="Re-fetch tool list"
+        onClick={() => loadTools(serverId, { refresh: true })}
+      >
+        ⟳
+      </button>
+    </div>
+  )
 }

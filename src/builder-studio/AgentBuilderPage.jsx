@@ -19,7 +19,8 @@ import Inspector from './panel/Inspector'
 import RunModal from './run/RunModal'
 import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
-import { PlayIcon, PanelRightIcon } from './components/icons'
+import { useTabsStore } from './stores/tabs-store'
+import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
 import './builder-studio.css'
 
 const R_MIN = 280
@@ -36,6 +37,7 @@ export default function AgentBuilderPage() {
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
   const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
+  const openSettings = useTabsStore((s) => s.openSettings)
 
   const [rOpen, setROpen] = useState(true)
   const [rWidth, setRWidth] = useState(R_DEFAULT)
@@ -82,12 +84,24 @@ export default function AgentBuilderPage() {
   }, [])
 
   useEffect(() => {
+    function isEditable(t) {
+      if (!t) return false
+      const tag = (t.tagName || '').toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
+      return !!t.isContentEditable
+    }
     function onKey(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key === '.') { e.preventDefault(); setROpen((o) => !o) }
+      const meta = e.metaKey || e.ctrlKey
+      // ⌘. — toggle inspector
+      if (meta && e.key === '.') { e.preventDefault(); setROpen((o) => !o); return }
+      // ⌘, — open Settings tab
+      if (meta && e.key === ',') { e.preventDefault(); openSettings(); return }
+      // ? — open Settings (only when not typing)
+      if (e.key === '?' && !isEditable(e.target)) { e.preventDefault(); openSettings() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [openSettings])
 
   const active = workflows.find((w) => w.id === activeWorkflowId)
   const liveWorkflow = active ? { ...active, nodes, edges, subBlockValues } : null
@@ -126,6 +140,13 @@ export default function AgentBuilderPage() {
             onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }) }}
           >
             Save
+          </button>
+          <button
+            className="bs-btn-ghost bs-topbar-toggle"
+            onClick={() => openSettings()}
+            title="Settings & shortcuts (⌘,)"
+          >
+            <SettingsIcon className="bs-ico-sm" />
           </button>
           <button
             className={`bs-btn-ghost bs-topbar-toggle ${rOpen ? 'is-on' : ''}`}

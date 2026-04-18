@@ -41,6 +41,8 @@ function CanvasInner() {
   const removeNode = useWorkflowStore((s) => s.removeNode)
   const removeEdge = useWorkflowStore((s) => s.removeEdge)
   const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
+  const beginRename = useWorkflowStore((s) => s.beginRename)
+  const moveNodeBy = useWorkflowStore((s) => s.moveNodeBy)
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
 
   const onDragOver = useCallback((e) => {
@@ -76,7 +78,7 @@ function CanvasInner() {
       if (isEditableTarget(e.target)) return
       const meta = e.metaKey || e.ctrlKey
 
-      // Duplicate
+      // ⌘D — Duplicate
       if (meta && (e.key === 'd' || e.key === 'D')) {
         if (!selectedNodeId) return
         e.preventDefault()
@@ -84,16 +86,43 @@ function CanvasInner() {
         return
       }
 
-      // Delete selected node
+      // Delete / Backspace — remove selected node
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!selectedNodeId) return
         e.preventDefault()
         removeNode(selectedNodeId)
+        return
+      }
+
+      // F2 / Enter — begin inline rename
+      if (e.key === 'F2' || e.key === 'Enter') {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        beginRename(selectedNodeId)
+        return
+      }
+
+      // Escape — deselect
+      if (e.key === 'Escape') {
+        if (selectedNodeId) { e.preventDefault(); selectNode(null) }
+        return
+      }
+
+      // Arrow keys — nudge position (10px; 50px with Shift)
+      if (e.key.startsWith('Arrow')) {
+        if (!selectedNodeId) return
+        const step = e.shiftKey ? 50 : 10
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        if (dx || dy) {
+          e.preventDefault()
+          moveNodeBy(selectedNodeId, dx, dy)
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedNodeId, removeNode, duplicateNode])
+  }, [selectedNodeId, removeNode, duplicateNode, beginRename, moveNodeBy, selectNode])
 
   const memoNodeTypes = useMemo(() => nodeTypes, [])
 

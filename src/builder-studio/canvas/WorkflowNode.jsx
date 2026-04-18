@@ -7,11 +7,16 @@
  *   - hover         → reveals a "×" delete button in the header
  *   - right-click   → ContextMenu (Open, Rename, Duplicate, Disconnect, Copy ID, Delete)
  *
+ * Inline editors on the card body:
+ *   - `switch`                → iOS-style toggle
+ *   - `dropdown`/`combobox`   → compact <select>
+ *   - anything else           → read-only value preview
+ *
  * Renders a colored icon square + title + type badge in the header, then
  * each subBlock as a label→value row. Handles are centered on the sides
  * (left = target, right = source).
  */
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
@@ -23,12 +28,19 @@ import {
   XIcon,
 } from '../components/icons'
 
+// subBlock types we allow editing inline on the card; everything else is
+// read-only preview (use the Inspector for full editing).
+const INLINE_EDITABLE = new Set(['switch', 'dropdown', 'combobox'])
+
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
   const removeNode = useWorkflowStore((s) => s.removeNode)
   const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
   const disconnectNode = useWorkflowStore((s) => s.disconnectNode)
   const renameNode = useWorkflowStore((s) => s.renameNode)
+  const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
+  const renamingNodeId = useWorkflowStore((s) => s.renamingNodeId)
+  const endRename = useWorkflowStore((s) => s.endRename)
   const values = useWorkflowStore((s) => s.subBlockValues[id])
   const cfg = getBlock(data.blockType)
   const Icon = data.icon || cfg?.icon
@@ -36,15 +48,21 @@ function WorkflowNode({ id, data, selected }) {
   const [menu, setMenu] = useState(null)       // { x, y } in screen coords
   const [editing, setEditing] = useState(false) // inline-rename
 
+  // Keyboard-driven rename (F2/Enter on the canvas) flips us into edit mode.
+  useEffect(() => {
+    if (renamingNodeId === id) setEditing(true)
+  }, [renamingNodeId, id])
+
   const isContainer = data.blockType === 'loop' || data.blockType === 'parallel'
   const isTrigger = data.category === 'triggers' || cfg?.category === 'triggers'
 
   const previewRows = useMemo(() => {
     if (!cfg) return []
     return (cfg.subBlocks || [])
-      .filter((sb) => !sb.hidden && sb.type !== 'oauth-input')
+      .filter((sb) => !sb.hidden && sb.type !== 'oauth-input' && sb.mode !== 'advanced')
       .slice(0, 8)
       .map((sb) => ({
+        sb,
         id: sb.id,
         label: sb.title || sb.id,
         value: values?.[sb.id] ?? sb.defaultValue,
@@ -59,6 +77,19 @@ function WorkflowNode({ id, data, selected }) {
 
   function copyId() {
     try { navigator.clipboard?.writeText(id) } catch { /* ignore */ }
+  }
+
+  function finishRename() {
+    setEditing(false)
+    if (renamingNodeId === id) endRename()
+  }
+
+  // Stops clicks inside an inline control from bubbling to the node's
+  // onClick (which would select the node and potentially steal focus).
+  const stopPointer = {
+    onClick: (e) => e.stopPropagation(),
+    onMouseDown: (e) => e.stopPropagation(),
+    onPointerDown: (e) => e.stopPropagation(),
   }
 
   return (
@@ -88,11 +119,11 @@ function WorkflowNode({ id, data, selected }) {
               onBlur={(e) => {
                 const v = e.target.value.trim()
                 if (v && v !== data.title) renameNode(id, v)
-                setEditing(false)
+                finishRename()
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.currentTarget.blur()
-                if (e.key === 'Escape') setEditing(false)
+                if (e.key === 'Escape') finishRename()
               }}
             />
           ) : (
@@ -115,12 +146,21 @@ function WorkflowNode({ id, data, selected }) {
 
         {previewRows.length > 0 && (
           <div className="bs-node-body">
-            {previewRows.map((row) => (
-              <div key={row.id} className="bs-node-row">
-                <span className="bs-node-row-label">{row.label}</span>
-                <span className="bs-node-row-value">{formatPreview(row.value)}</span>
-              </div>
-            ))}
+            {previewRows.map((row) => {
+              const editable = INLINE_EDITABLE.has(row.sb.type)
+              return (
+                <div key={row.id} className="bs-node-row">
+                  <span className="bs-node-row-label">{row.label}</span>
+                  {editable ? (
+                    <span className="bs-node-row-edit" {...stopPointer}>
+                      {renderInlineEditor(row.sb, row.value, (v) => setSubBlockValue(id, row.id, v))}
+                    </span>
+                  ) : (
+                    <span className="bs-node-row-value">{formatPreview(row.value)}</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -134,7 +174,7 @@ function WorkflowNode({ id, data, selected }) {
           onClose={() => setMenu(null)}
           items={[
             { id: 'open', label: 'Open in Inspector', icon: LinkIcon, onSelect: () => selectNode(id) },
-            { id: 'rename', label: 'Rename', onSelect: () => setEditing(true) },
+            { id: 'rename', label: 'Rename', shortcut: 'F2', onSelect: () => setEditing(true) },
             { id: 'dup', label: 'Duplicate', icon: PlusIcon, shortcut: '⌘D', onSelect: () => duplicateNode(id) },
             { id: 'disc', label: 'Disconnect edges', onSelect: () => disconnectNode(id) },
             { id: 'copy', label: 'Copy node ID', onSelect: copyId },
@@ -145,6 +185,41 @@ function WorkflowNode({ id, data, selected }) {
       )}
     </>
   )
+}
+
+function renderInlineEditor(sb, value, onChange) {
+  if (sb.type === 'switch') {
+    return (
+      <label className="bs-switch bs-switch-sm">
+        <input
+          type="checkbox"
+          checked={Boolean(value)}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span />
+      </label>
+    )
+  }
+  if (sb.type === 'dropdown' || sb.type === 'combobox') {
+    const options = typeof sb.options === 'function' ? safeCall(sb.options) : (sb.options || [])
+    return (
+      <select
+        className="bs-node-select"
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {!value && <option value="">{sb.placeholder || 'Select…'}</option>}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    )
+  }
+  return null
+}
+
+function safeCall(fn) {
+  try { return fn() } catch { return [] }
 }
 
 function formatPreview(value) {

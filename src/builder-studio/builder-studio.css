@@ -760,6 +760,260 @@
 }
 .bs-node-rename:focus { border-color: #6366f1; }
 
+/* Inline editors on the card body (switch, dropdown). Sit on the right
+   side of the row where `.bs-node-row-value` would normally live. */
+.bs-node-row-edit {
+  display: inline-flex; align-items: center; justify-content: flex-end;
+  max-width: 55%;
+}
+.bs-node-select {
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-primary, #e5e7eb);
+  background: var(--bg-secondary, #111827);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 4px;
+  padding: 2px 6px;
+  max-width: 100%;
+  cursor: pointer;
+}
+.bs-node-select:focus { outline: none; border-color: #6366f1; }
+/* Smaller toggle variant for on-card editing */
+.bs-switch-sm { transform: scale(0.78); transform-origin: right center; }
+
+/* ---------- Settings tab ---------- */
+.bs-settings-section-head {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 10px;
+}
+.bs-settings-h3 {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+  margin: 0;
+}
+.bs-settings-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+.bs-settings-group-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 6px;
+}
+.bs-kbd-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bs-kbd-table tr + tr td { border-top: 1px solid rgba(148,163,184,0.08); }
+.bs-kbd-cell { padding: 6px 8px 6px 0; white-space: nowrap; }
+.bs-kbd-desc { padding: 6px 0; color: var(--text-primary, #e5e7eb); }
+.bs-kbd-combo { display: inline-flex; align-items: center; gap: 4px; }
+.bs-kbd-or { margin: 0 6px; font-size: 11px; color: var(--text-secondary, #94a3b8); }
+.bs-kbd-plus { font-size: 11px; color: var(--text-secondary, #94a3b8); }
+.bs-kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-primary, #e5e7eb);
+  background: var(--bg-secondary, #111827);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  min-width: 18px;
+  display: inline-block;
+  text-align: center;
+}
+/* ---- Tips list (Settings tab) ---- */
+.bs-tips {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bs-tip {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.bs-tip:hover { border-color: rgba(99,102,241,0.35); transform: translateX(2px); }
+.bs-tip-badge {
+  justify-self: start;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.bs-tip-badge-input { color: #fbbf24; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35); }
+.bs-tip-badge-json  { color: #34d399; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.35); }
+.bs-tip-badge-menu  { color: #60a5fa; background: rgba(96,165,250,0.12); border: 1px solid rgba(96,165,250,0.35); }
+.bs-tip-badge-ux    { color: #f472b6; background: rgba(244,114,182,0.12); border: 1px solid rgba(244,114,182,0.35); }
+.bs-tip-badge-mcp   { color: #a78bfa; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.35); }
+
+.bs-tip-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary, #e5e7eb);
+}
+.bs-tip-text b { color: #fff; font-weight: 600; }
+.bs-tip-text i { color: var(--text-secondary, #94a3b8); font-style: normal; }
+.bs-tip-text code {
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+  font-size: 11.5px;
+  padding: 1px 6px;
+  background: var(--bg-secondary, #111827);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 4px;
+  color: #a78bfa;
+}
+
+/* ---------- MCP tool picker (Inspector) ---------- */
+.bs-mcp-tool-picker { display: flex; gap: 6px; align-items: center; }
+.bs-mcp-tool-picker .bs-input { flex: 1; min-width: 0; }
+.bs-mcp-refresh {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.bs-mcp-args { display: flex; flex-direction: column; gap: 8px; }
+.bs-mcp-schema-hint {
+  background: var(--bg-secondary, #111827);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.bs-mcp-schema-title {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 6px;
+}
+.bs-mcp-schema-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bs-mcp-schema-table td { padding: 3px 6px 3px 0; vertical-align: top; }
+.bs-mcp-schema-key code { font-weight: 600; color: var(--text-primary, #e5e7eb); }
+.bs-mcp-schema-type code { color: #a78bfa; font-size: 11px; }
+.bs-mcp-schema-desc { color: var(--text-secondary, #94a3b8); }
+.bs-mcp-req { color: #ef4444; font-weight: 700; margin-left: 2px; }
+
+/* ---------- MCP servers panel (Settings) ---------- */
+.bs-mcp-panel { display: flex; flex-direction: column; gap: 12px; }
+.bs-mcp-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 2px;
+}
+.bs-mcp-panel-head .bs-settings-h3 { flex: 1; }
+.bs-mcp-panel-actions { display: flex; gap: 6px; align-items: center; }
+
+/* Generic icon-only button (refresh, etc.) */
+.bs-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  padding: 0;
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 6px;
+  background: var(--bg-secondary, #111827);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.bs-icon-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: var(--text-primary, #e5e7eb);
+  background: rgba(99,102,241,0.08);
+}
+.bs-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-refresh-glyph { font-size: 15px; line-height: 1; display: inline-block; }
+.bs-refresh-glyph.is-spinning { animation: bs-spin 800ms linear infinite; }
+@keyframes bs-spin { to { transform: rotate(360deg); } }
+
+/* Make sure any button with icon+label lays out inline — the base .bs-btn
+   rule above doesn't enforce a display, which was causing "+" and "Add
+   server" to stack on narrow lines. */
+.bs-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; }
+.bs-btn-accent {
+  border-color: rgba(99,102,241,0.5);
+  color: #c7d2fe;
+  background: rgba(99,102,241,0.1);
+}
+.bs-btn-accent:hover { border-color: #6366f1; background: rgba(99,102,241,0.2); color: #fff; }
+.bs-mcp-error {
+  color: #fca5a5;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+.bs-mcp-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.bs-mcp-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 6px;
+  background: var(--bg-secondary, #111827);
+}
+.bs-mcp-row-main { min-width: 0; }
+.bs-mcp-row-name { font-size: 13px; font-weight: 600; color: var(--text-primary, #e5e7eb); }
+.bs-mcp-row-meta { display: flex; gap: 8px; align-items: center; margin-top: 3px; min-width: 0; }
+.bs-mcp-row-endpoint {
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 420px;
+}
+.bs-mcp-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: #a78bfa;
+  background: rgba(167,139,250,0.1);
+  border: 1px solid rgba(167,139,250,0.3);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.bs-mcp-row-actions { display: flex; gap: 4px; }
+.bs-mcp-row-actions .bs-danger:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+.bs-mcp-tools {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--ce-border, #1f2937);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.bs-mcp-tools-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.bs-mcp-tools-list li { font-size: 12px; color: var(--text-primary, #e5e7eb); }
+.bs-mcp-tools-list code { color: #a78bfa; }
+.bs-mcp-tool-desc { color: var(--text-secondary, #94a3b8); }
+
+.bs-mcp-form {
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 6px;
+  padding: 14px;
+  background: var(--bg-secondary, #111827);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.bs-mcp-form-title { font-size: 13px; font-weight: 600; color: var(--text-primary, #e5e7eb); margin-bottom: 4px; }
+.bs-mcp-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.bs-field { display: flex; flex-direction: column; gap: 4px; }
+
 .bs-node-body { display: flex; flex-direction: column; padding: 2px 0; }
 .bs-node-row {
   display: flex; align-items: center; justify-content: space-between;

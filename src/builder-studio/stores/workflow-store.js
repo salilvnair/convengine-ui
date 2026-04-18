@@ -17,6 +17,9 @@ const initialState = {
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  /** Node currently in inline-rename mode. Set by keyboard (F2/Enter) or the
+   *  context menu; `WorkflowNode` observes this to enter edit state. */
+  renamingNodeId: null,
   /** Map<nodeId, Record<subBlockId, unknown>> — values per block instance. */
   subBlockValues: {},
 }
@@ -110,6 +113,22 @@ export const useWorkflowStore = create()(
       renameNode(id, title) {
         set((s) => ({
           nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, title } } : n)),
+        }))
+      },
+
+      /** Start/stop inline-rename mode on a node. Used by keyboard shortcuts
+       *  and the context menu; the actual <input> lives in WorkflowNode. */
+      beginRename(id) { set({ renamingNodeId: id }) },
+      endRename() { set({ renamingNodeId: null }) },
+
+      /** Nudge a node's position by (dx,dy) px. Used by arrow-key shortcuts. */
+      moveNodeBy(id, dx, dy) {
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === id
+              ? { ...n, position: { x: (n.position?.x || 0) + dx, y: (n.position?.y || 0) + dy } }
+              : n
+          ),
         }))
       },
 
