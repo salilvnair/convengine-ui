@@ -16,7 +16,7 @@
  * each subBlock as a label→value row. Handles are centered on the sides
  * (left = target, right = source).
  */
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
@@ -67,14 +67,67 @@ function WorkflowNode({ id, data, selected }) {
   const activeNodeId = useWorkflowStore((s) => s.activeNodeId)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
   const errorNodeId = useWorkflowStore((s) => s.errorNodeId)
-  // Subscribe to the last payload this node received/produced — drives the
-  // Save To Files preview body and the per-card status badge.
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
+  const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
   const isError = errorNodeId === id
   const cfg = getBlock(data.blockType)
   const Icon = data.icon || cfg?.icon
+
+  // --- Dimensions: per-node persisted > block default > CSS default ---
+  const DEFAULT_W = cfg?.defaultWidth || 280
+  const DEFAULT_H = cfg?.defaultHeight || undefined // auto if not set
+  const MIN_W = 200
+  const MIN_H = 80
+
+  const [nodeW, setNodeW] = useState(data.width || DEFAULT_W)
+  const [nodeH, setNodeH] = useState(data.height || DEFAULT_H)
+  const [resizing, setResizing] = useState(false)
+
+  // Sync if data changes externally (e.g. undo, load)
+  useEffect(() => {
+    if (data.width) setNodeW(data.width)
+    if (data.height) setNodeH(data.height)
+  }, [data.width, data.height])
+
+  /**
+   * Generic resize handler. `edges` indicates which edges are being dragged:
+   * any combo of 'n', 's', 'e', 'w'.
+   */
+  const onResizeStart = useCallback((e, edges) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setResizing(true)
+    const startX = e.clientX
+    const startY = e.clientY
+    const startW = nodeW || DEFAULT_W
+    const startH = nodeH || 200
+
+    function onMove(ev) {
+      ev.preventDefault()
+      const dx = ev.clientX - startX
+      const dy = ev.clientY - startY
+      let w = startW
+      let h = startH
+      if (edges.includes('e')) w = Math.max(MIN_W, startW + dx)
+      if (edges.includes('w')) w = Math.max(MIN_W, startW - dx)
+      if (edges.includes('s')) h = Math.max(MIN_H, startH + dy)
+      if (edges.includes('n')) h = Math.max(MIN_H, startH - dy)
+      setNodeW(w)
+      setNodeH(h)
+    }
+
+    function onUp() {
+      setResizing(false)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      // Persist to store
+      setNodeW((w) => { setNodeH((h) => { resizeNodeStore(id, w, h); return h }); return w })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [nodeW, nodeH, id, resizeNodeStore, DEFAULT_W])
 
   /**
    * Output handles — for most blocks this is a single centered pin on the
@@ -141,6 +194,13 @@ function WorkflowNode({ id, data, selected }) {
     onPointerDown: (e) => e.stopPropagation(),
   }
 
+  // Cards with json-preview subBlocks should auto-grow to fit content,
+  // so use minHeight instead of fixed height for them.
+  const hasJsonPreview = useMemo(
+    () => cfg?.subBlocks?.some((sb) => sb.type === 'json-preview'),
+    [cfg]
+  )
+
   return (
     <>
       <div
@@ -152,11 +212,28 @@ function WorkflowNode({ id, data, selected }) {
           isDone ? 'bs-node-done' : '',
           isError ? 'bs-node-error' : '',
           outputHandles.length > 1 ? 'bs-node-multi-out' : '',
+          resizing ? 'bs-node-resizing' : '',
         ].filter(Boolean).join(' ')}
+        style={{
+          width: nodeW || undefined,
+          ...(hasJsonPreview
+            ? { minHeight: nodeH || undefined, height: 'auto' }
+            : { height: nodeH || undefined }),
+        }}
         onClick={() => selectNode(id)}
         onContextMenu={openMenu}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
       >
+        {/* Resize handles — edges and corners */}
+        <div className="bs-resize bs-resize-n" onPointerDown={(e) => onResizeStart(e, 'n')} />
+        <div className="bs-resize bs-resize-s" onPointerDown={(e) => onResizeStart(e, 's')} />
+        <div className="bs-resize bs-resize-e" onPointerDown={(e) => onResizeStart(e, 'e')} />
+        <div className="bs-resize bs-resize-w" onPointerDown={(e) => onResizeStart(e, 'w')} />
+        <div className="bs-resize bs-resize-nw" onPointerDown={(e) => onResizeStart(e, 'nw')} />
+        <div className="bs-resize bs-resize-ne" onPointerDown={(e) => onResizeStart(e, 'ne')} />
+        <div className="bs-resize bs-resize-sw" onPointerDown={(e) => onResizeStart(e, 'sw')} />
+        <div className="bs-resize bs-resize-se" onPointerDown={(e) => onResizeStart(e, 'se')} />
+
         {!isTrigger && (
           <Handle type="target" position={Position.Left} className="bs-handle" id="in" />
         )}
@@ -208,7 +285,7 @@ function WorkflowNode({ id, data, selected }) {
               // card shows the latest payload it received (Postman-style).
               if (row.sb.type === 'json-preview') {
                 return (
-                  <div key={row.id} className="bs-node-jsonpreview" onClick={(e) => e.stopPropagation()}>
+                  <div key={row.id} className="bs-node-jsonpreview" onClick={(e) => { e.stopPropagation(); selectNode(id) }}>
                     <div className="bs-node-jsonpreview-head">{row.label}</div>
                     <div className="bs-node-jsonpreview-body">
                       {lastOutput == null

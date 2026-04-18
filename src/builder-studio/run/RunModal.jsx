@@ -18,17 +18,22 @@ import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, XIcon } from '../components/icons'
 import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
+import { collectInputNodes } from './input-registry'
 import RunPanel from './panels/run-panel'
 import DebugPanel from './panels/debug-panel'
 import TracePanel from './panels/trace-panel'
+import ProblemsPanel from './panels/problems-panel'
+import TodoPanel from './panels/todo-panel'
 
 // Register the core panels once. Keeps the registry populated even if no
 // extension files exist.
 registerRunPanel(RunPanel)
 registerRunPanel(DebugPanel)
 registerRunPanel(TracePanel)
+registerRunPanel(ProblemsPanel)
+registerRunPanel(TodoPanel)
 
-export default function RunModal({ workflow, onClose }) {
+export default function RunModal({ workflow, onClose, activeTab: activeTabProp, onTabChange, visible = true }) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
   const [values, setValues] = useState(() =>
     Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue || '']))
@@ -40,7 +45,8 @@ export default function RunModal({ workflow, onClose }) {
   const [expanded, setExpanded] = useState({})
   const [height, setHeight] = useState(340)
   const [panels, setPanels] = useState(() => getRunPanels())
-  const [activeTab, setActiveTab] = useState(() => getRunPanels()[0]?.id || 'run')
+  const activeTab = activeTabProp || 'run'
+  const setActiveTab = onTabChange || (() => {})
 
   const startRun = useWorkflowStore((s) => s.startRun)
   const markNodeRunning = useWorkflowStore((s) => s.markNodeRunning)
@@ -60,11 +66,8 @@ export default function RunModal({ workflow, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [busy, onClose])
 
-  // Auto-run ONCE on mount if every input is satisfied.
-  useEffect(() => {
-    if (canAutoRun && !busy && !result && !error) doRun()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // No auto-run — opening the dock just shows the panel.
+  // The user clicks the Run button inside the Run tab to execute.
 
   const onResizePointerDown = useCallback((e) => {
     e.preventDefault()
@@ -129,7 +132,7 @@ export default function RunModal({ workflow, onClose }) {
   const activePanel = panels.find((p) => p.id === activeTab) || panels[0]
 
   return (
-    <div className="bs-run-dock" style={{ height }}>
+    <div className="bs-run-dock" style={{ height, display: visible ? undefined : 'none' }}>
       <div className="bs-run-dock-resize" onPointerDown={onResizePointerDown} title="Drag to resize" />
 
       <header className="bs-run-dock-head">
@@ -176,22 +179,4 @@ export default function RunModal({ workflow, onClose }) {
       </div>
     </div>
   )
-}
-
-function collectInputNodes(workflow) {
-  if (!workflow) return []
-  const nodes = workflow.nodes || []
-  return nodes
-    .filter((n) => n.data?.blockType === 'user_input')
-    .map((n) => {
-      const v = workflow.subBlockValues?.[n.id] || {}
-      return {
-        id: n.id,
-        label: v.label || n.data?.title || 'Input',
-        kind: v.kind || 'short-text',
-        placeholder: v.placeholder || '',
-        defaultValue: v.defaultValue || '',
-        required: v.required !== false,
-      }
-    })
 }

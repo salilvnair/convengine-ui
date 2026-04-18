@@ -8,6 +8,14 @@
  */
 import JsonView from '../JsonView'
 
+function exportJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 const TracePanel = {
   id: 'trace',
   label: 'Trace',
@@ -20,6 +28,16 @@ const TracePanel = {
     }
     return (
       <div className="bs-run-tab">
+        <div className="bs-run-tab-toolbar">
+          <button
+            className="bs-btn-ghost bs-btn-sm"
+            onClick={() => exportJson({ trace, result: ctx.result }, `trace-${Date.now()}.json`)}
+            title="Export trace as JSON"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export JSON
+          </button>
+        </div>
         <div className="bs-run-trace-grid">
           <div className="bs-run-trace-head">
             <span /> <span>Node</span><span>Output</span><span>ms</span>

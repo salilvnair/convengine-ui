@@ -11,8 +11,10 @@ import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
 import { useMcpStore } from '../mcp/mcp-store'
+import { useWorkflowStore } from '../stores/workflow-store'
+import JsonView from '../run/JsonView'
 
-export default function SubBlockRenderer({ sub, value, onChange, blockValues }) {
+export default function SubBlockRenderer({ sub, value, onChange, blockValues, nodeId }) {
   const set = useCallback((v) => onChange(sub.id, v), [onChange, sub.id])
   const defaultValue =
     value !== undefined && value !== null
@@ -260,9 +262,28 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues }) 
         />
       )
 
+    case 'json-preview':
+      return <JsonPreviewInspector nodeId={nodeId} />
+
     default:
       return <div className="bs-hint">Unsupported subBlock type: {sub.type}</div>
   }
+}
+
+function JsonPreviewInspector({ nodeId }) {
+  const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[nodeId])
+  if (lastOutput == null) {
+    return (
+      <div className="bs-json-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120 }}>
+        <span style={{ color: '#475569', fontSize: 12, fontStyle: 'italic' }}>No run output yet. Run the workflow to see the preview.</span>
+      </div>
+    )
+  }
+  return (
+    <div className="bs-json-wrap bs-json-wrap-wordwrap" style={{ flex: '1 1 auto' }}>
+      <JsonView value={lastOutput} />
+    </div>
+  )
 }
 
 function safeCall(fn) {

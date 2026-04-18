@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 import { useMcpStore } from '../mcp/mcp-store'
 import { McpIcon, PlusIcon, TrashIcon } from '../components/icons'
+import ConfirmModal from '../components/ConfirmModal'
 
 const EMPTY = {
   id: '',
@@ -34,6 +35,7 @@ export default function McpServersPanel() {
   const [editing, setEditing] = useState(null) // form state or null
   const [busy, setBusy] = useState(false)
   const [toolsFor, setToolsFor] = useState(null) // expanded server id
+  const [pendingDelete, setPendingDelete] = useState(null) // server id awaiting confirm
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -50,7 +52,12 @@ export default function McpServersPanel() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this MCP server?')) return
+    setPendingDelete(id)
+  }
+
+  async function confirmDelete() {
+    const id = pendingDelete
+    setPendingDelete(null)
     try { await remove(id) } catch (e) { alert(e.message) }
   }
 
@@ -145,6 +152,16 @@ export default function McpServersPanel() {
           onSave={handleSave}
           onCancel={() => setEditing(null)}
           busy={busy}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete MCP server?"
+          message="This server and its configuration will be removed. This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </div>

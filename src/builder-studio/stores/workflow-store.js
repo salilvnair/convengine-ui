@@ -144,6 +144,17 @@ export const useWorkflowStore = create()(
         }))
       },
 
+      /** Resize a node. Stores width/height in node.data so it persists on save. */
+      resizeNode(id, width, height) {
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === id
+              ? { ...n, data: { ...n.data, width, height } }
+              : n
+          ),
+        }))
+      },
+
       /** Remove a single edge by id. */
       removeEdge(id) {
         set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }))

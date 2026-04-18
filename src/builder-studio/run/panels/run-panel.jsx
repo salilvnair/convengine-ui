@@ -1,13 +1,13 @@
 /**
- * Built-in "Run" panel — every user_input is listed here (not hidden the
- * moment it has a value), plus the final output after a successful run.
+ * Built-in "Run" panel — every user_input is listed here with its
+ * configured `kind` driving the input widget via the input registry.
  *
- * The earlier bug: once you pasted a value, `missing` went empty and the
- * whole body disappeared. Now inputs always render; filled fields simply
- * show green check state and the Run button stays available.
+ * Supported kinds out of the box: short-text, long-text, number, url, dropdown.
+ * Extensions can register custom kinds via `registerRunInputKind(kind, renderer)`.
  */
 import { PlayIcon } from '../../components/icons'
 import JsonView from '../JsonView'
+import { getRunInputRenderer } from '../input-registry'
 
 const RunPanel = {
   id: 'run',
@@ -31,24 +31,12 @@ const RunPanel = {
                     {n.label}
                     {n.required && <span className="bs-required">*</span>}
                   </label>
-                  {n.kind === 'long-text' ? (
-                    <textarea
-                      className="bs-textarea" rows={3}
-                      value={v}
-                      placeholder={n.placeholder}
-                      disabled={busy}
-                      onChange={(e) => setValues((s) => ({ ...s, [n.id]: e.target.value }))}
-                    />
-                  ) : (
-                    <input
-                      className="bs-input"
-                      type={n.kind === 'number' ? 'number' : n.kind === 'url' ? 'url' : 'text'}
-                      value={v}
-                      placeholder={n.placeholder}
-                      disabled={busy}
-                      onChange={(e) => setValues((s) => ({ ...s, [n.id]: e.target.value }))}
-                    />
-                  )}
+                  <RunInput
+                    node={n}
+                    value={v}
+                    disabled={busy}
+                    onChange={(val) => setValues((s) => ({ ...s, [n.id]: val }))}
+                  />
                 </div>
               )
             })}
@@ -65,7 +53,7 @@ const RunPanel = {
         {result ? (
           <div className="bs-run-result">
             <div className="bs-panel-subtitle">Final output</div>
-            <div className="bs-json-wrap">
+            <div className="bs-json-wrap bs-json-wrap-wordwrap">
               <JsonView value={result.output} />
             </div>
           </div>
@@ -77,6 +65,91 @@ const RunPanel = {
       </div>
     )
   },
+}
+
+/**
+ * Renders the appropriate input widget based on the node's `kind`.
+ * First checks the registry for a custom renderer, then falls back to
+ * built-in kinds.
+ */
+function RunInput({ node, value, disabled, onChange }) {
+  // Check for a custom registered renderer
+  const custom = getRunInputRenderer(node.kind)
+  if (custom) {
+    return custom.render({
+      value,
+      onChange,
+      placeholder: node.placeholder,
+      disabled,
+      options: node.options,
+      label: node.label,
+    })
+  }
+
+  // Built-in kinds
+  switch (node.kind) {
+    case 'long-text':
+      return (
+        <textarea
+          className="bs-textarea" rows={3}
+          value={value}
+          placeholder={node.placeholder}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )
+
+    case 'dropdown':
+      return (
+        <select
+          className="bs-input"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">{node.placeholder || 'Select…'}</option>
+          {(node.options || []).map((opt) => {
+            const label = typeof opt === 'object' ? opt.label : opt
+            const val = typeof opt === 'object' ? (opt.value ?? opt.label) : opt
+            return <option key={val} value={val}>{label}</option>
+          })}
+        </select>
+      )
+
+    case 'number':
+      return (
+        <input
+          className="bs-input" type="number"
+          value={value}
+          placeholder={node.placeholder}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )
+
+    case 'url':
+      return (
+        <input
+          className="bs-input" type="url"
+          value={value}
+          placeholder={node.placeholder || 'https://...'}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )
+
+    case 'short-text':
+    default:
+      return (
+        <input
+          className="bs-input" type="text"
+          value={value}
+          placeholder={node.placeholder}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )
+  }
 }
 
 export default RunPanel

@@ -97,7 +97,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       const upstream = (incoming[n.id] || []).map((e) => outputs[e.source])
       const input = upstream.length <= 1 ? upstream[0] : upstream
       const values = subBlockValues[n.id] || {}
-      onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title })
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
       try {
         const ran = await runNode({ node: n, values, input, outputs })
         // runNode may return either a raw value or `{ __meta, value }` so that
@@ -130,7 +130,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         })
         onProgress?.({
           type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
-          output, meta, ms: Math.round(performance.now() - t0),
+          output, meta, values, ms: Math.round(performance.now() - t0),
         })
       } catch (err) {
         trace.push({
@@ -223,6 +223,16 @@ async function runAgentNode({ node, values, input }) {
    * "No URL provided."
    */
   const bag = looksLikeUrl(inputStr) ? { url: inputStr, input: inputStr } : { input: inputStr }
+  // When the upstream output is a JSON object string, merge its keys into
+  // the bag so that templates like {{title}}, {{text}}, etc. resolve.
+  // This is what lets the Summarizer's `{{title}}` and `{{text}}` pick up
+  // fields from the Extractor's JSON output.
+  try {
+    const parsed = JSON.parse(inputStr)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      for (const [k, v] of Object.entries(parsed)) bag[k] = v
+    }
+  } catch { /* not JSON — that's fine, bag already has `input` */ }
   if (skillIds.length > 0) {
     const skills = useWorkspaceStore.getState().skills || []
     for (const sid of skillIds) {

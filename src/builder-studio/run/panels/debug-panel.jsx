@@ -11,6 +11,14 @@
  */
 import JsonView from '../JsonView'
 
+function exportJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 const DebugPanel = {
   id: 'debug',
   label: 'Debug',
@@ -31,6 +39,16 @@ const DebugPanel = {
     // `expanded` map doesn't collide with Debug rows.
     return (
       <div className="bs-run-tab">
+        <div className="bs-run-tab-toolbar">
+          <button
+            className="bs-btn-ghost bs-btn-sm"
+            onClick={() => exportJson(progress, `debug-${Date.now()}.json`)}
+            title="Export debug log as JSON"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export JSON
+          </button>
+        </div>
         <div className="bs-run-log">
           {progress.map((p, i) => {
             const key = `dbg:${i}`
@@ -69,12 +87,12 @@ const DebugPanel = {
  * this file.
  */
 function DebugDetails({ event, deltaMs }) {
-  const { type, nodeId, blockType, title, output, error, meta, ms } = event
+  const { type, nodeId, blockType, title, output, error, meta, ms, values } = event
   return (
     <div className="bs-run-log-expand">
       <div className="bs-run-log-kv">
         <KV k="Event" v={type} />
-        <KV k="Node" v={title || nodeId} />
+        <KV k="Card" v={<strong>{title || nodeId}</strong>} />
         <KV k="Node ID" v={<code>{nodeId}</code>} />
         <KV k="Block type" v={<code>{blockType || '—'}</code>} />
         <KV k="At" v={`+${deltaMs}ms from run start`} />
@@ -85,6 +103,20 @@ function DebugDetails({ event, deltaMs }) {
           <KV k="Skills" v={meta.skillIds.join(', ')} />
         )}
       </div>
+
+      {/* Sub-block metadata (label, kind, placeholder, etc.) */}
+      {values && Object.keys(values).length > 0 && (
+        <>
+          <div className="bs-panel-subtitle">Card fields</div>
+          <div className="bs-run-log-kv bs-run-log-kv-fields">
+            {Object.entries(values).map(([k, v]) => {
+              if (v === '' || v == null || k.startsWith('__')) return null
+              const display = typeof v === 'object' ? JSON.stringify(v) : String(v)
+              return <KV key={k} k={k} v={<code>{display}</code>} />
+            })}
+          </div>
+        </>
+      )}
 
       {error && (
         <>

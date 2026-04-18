@@ -17,6 +17,7 @@ import SideNav from './sidenav/SideNav'
 import CenterPane from './tabs/CenterPane'
 import Inspector from './panel/Inspector'
 import RunModal from './run/RunModal'
+import BottomToolbar from './run/BottomToolbar'
 import CreateWorkflowModal from './components/CreateWorkflowModal'
 import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
@@ -48,6 +49,7 @@ export default function AgentBuilderPage() {
   const [rTip, setRTip] = useState(false)
   const dragRef = useRef({ active: false, startX: 0, startW: R_DEFAULT, moved: false })
   const [runOpen, setRunOpen] = useState(false)
+  const [dockTab, setDockTab] = useState('run')
   const [newWorkflowOpen, setNewWorkflowOpen] = useState(false)
 
   useEffect(() => {
@@ -161,7 +163,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-btn bs-btn-run"
             disabled={!active}
-            onClick={() => setRunOpen(true)}
+            onClick={() => { setDockTab('run'); setRunOpen(true) }}
             title="Run this workflow"
           >
             <PlayIcon className="bs-ico-sm" />
@@ -198,9 +200,27 @@ export default function AgentBuilderPage() {
         <SideNav />
         <div className="bs-center-wrap">
           <CenterPane />
-          {runOpen && liveWorkflow && (
-            <RunModal workflow={liveWorkflow} onClose={() => setRunOpen(false)} />
+          {liveWorkflow && (
+            <RunModal
+              workflow={liveWorkflow}
+              onClose={() => setRunOpen(false)}
+              activeTab={dockTab}
+              onTabChange={setDockTab}
+              visible={runOpen}
+            />
           )}
+          <BottomToolbar
+            activeTab={dockTab}
+            dockOpen={runOpen}
+            onTabClick={(tabId) => {
+              if (runOpen && dockTab === tabId) {
+                setRunOpen(false)
+              } else {
+                setDockTab(tabId)
+                setRunOpen(true)
+              }
+            }}
+          />
         </div>
 
         <div
