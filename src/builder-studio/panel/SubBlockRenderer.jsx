@@ -9,6 +9,7 @@
 import { useCallback, useEffect } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
+import FullscreenWrapper from '../components/FullscreenWrapper'
 import { useMcpStore } from '../mcp/mcp-store'
 
 export default function SubBlockRenderer({ sub, value, onChange, blockValues }) {
@@ -73,16 +74,20 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues }) 
       )
 
     case 'response-format':
-      // JSON-schema authoring → tree editor with text fallback. Edits stay
+      // JSON-schema authoring → tree editor with text fallback. Wrapped in
+      // FullscreenWrapper so large schemas can be edited against the full
+      // viewport without fighting the narrow Inspector column. Edits stay
       // as a stringified JSON in subBlockValues so the backend contract is
       // unchanged.
       return (
-        <JsonEditor
-          value={defaultValue}
-          onChange={(text) => set(text)}
-          defaultMode="tree"
-          height="260px"
-        />
+        <FullscreenWrapper label={sub.title || 'Response format'}>
+          <JsonEditor
+            value={defaultValue}
+            onChange={(text) => set(text)}
+            defaultMode="tree"
+            height="260px"
+          />
+        </FullscreenWrapper>
       )
 
     case 'mcp-dynamic-args':

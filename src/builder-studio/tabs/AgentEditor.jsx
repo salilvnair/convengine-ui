@@ -7,6 +7,7 @@ import { useMemo } from 'react'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { AgentsIcon, SkillsIcon } from '../components/icons'
 import JsonEditor from '../components/JsonEditor'
+import FullscreenWrapper from '../components/FullscreenWrapper'
 
 const MODELS = [
   'gpt-4o-mini',
@@ -96,15 +97,19 @@ export default function AgentEditor({ agentId }) {
 
       <section className="bs-editor-section">
         <label className="bs-label">Response schema (JSON)</label>
-        <JsonEditor
-          value={agent.responseSchema || ''}
-          onChange={(text) => updateAgent(agent.id, { responseSchema: text })}
-          defaultMode="tree"
-          height="520px"
-        />
+        <FullscreenWrapper label="Response schema">
+          <JsonEditor
+            value={agent.responseSchema || ''}
+            onChange={(text) => updateAgent(agent.id, { responseSchema: text })}
+            defaultMode="tree"
+            height="520px"
+          />
+        </FullscreenWrapper>
         <div className="bs-hint">
-          Tree mode lets you expand nodes and edit keys/values visually. Switch
-          to Text mode in the top bar of the editor for raw JSON.
+          Click <strong>Fullscreen</strong> to edit larger schemas comfortably
+          (Esc to collapse). Tree mode lets you expand nodes and edit
+          keys/values visually; switch to Text mode in the editor's top bar
+          for raw JSON.
         </div>
       </section>
 

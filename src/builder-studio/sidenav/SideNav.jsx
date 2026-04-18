@@ -276,6 +276,7 @@ function TeamsPanel() {
   const [name, setName] = useState('')
   const [menu, setMenu] = useCtxMenu()
   const [editing, setEditing] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
 
   return (
     <div className="bs-sec">
@@ -310,7 +311,7 @@ function TeamsPanel() {
                   { id: 'rename', label: 'Rename', onSelect: () => setEditing(t.id) },
                   { id: 'dup', label: 'Duplicate', onSelect: () => duplicateTeam(t.id) },
                   { separator: true },
-                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => deleteTeam(t.id) },
+                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ id: t.id, name: t.name }) },
                 ],
               })
             }}
@@ -332,11 +333,20 @@ function TeamsPanel() {
                 </>
               )}
             </div>
-            <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); deleteTeam(t.id) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
+            <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); setPendingDelete({ id: t.id, name: t.name }) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
           </li>
         ))}
       </ul>
       {menu}
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete team?"
+          message={`"${pendingDelete.name}" will be removed. Agent pools and agents belonging to this team remain, but become orphaned.`}
+          confirmLabel="Delete team"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => { deleteTeam(pendingDelete.id); setPendingDelete(null) }}
+        />
+      )}
     </div>
   )
 }
@@ -357,6 +367,7 @@ function AgentsPanel() {
   const [poolTeam, setPoolTeam] = useState(teams[0]?.id || '')
   const [name, setName] = useState('')
   const [menu, setMenu] = useCtxMenu()
+  const [pendingDelete, setPendingDelete] = useState(null) // { kind: 'pool'|'agent', id, name }
 
   function toggle(id) {
     setExpanded((prev) => {
@@ -394,7 +405,7 @@ function AgentsPanel() {
                     items: [
                       { id: 'add', label: 'New agent…', icon: PlusIcon, onSelect: () => createAgent(p.id, { name: 'New Agent' }) },
                       { separator: true },
-                      { id: 'del', label: 'Delete pool', icon: TrashIcon, danger: true, onSelect: () => deleteAgentPool(p.id) },
+                      { id: 'del', label: 'Delete pool', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ kind: 'pool', id: p.id, name: p.name }) },
                     ],
                   })
                 }}
@@ -405,7 +416,7 @@ function AgentsPanel() {
                   <div className="bs-row-title">{p.name}</div>
                   <div className="bs-row-meta">{poolAgents.length} agent{poolAgents.length === 1 ? '' : 's'}</div>
                 </div>
-                <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); deleteAgentPool(p.id) }} title="Delete pool"><TrashIcon className="bs-ico-xs" /></button>
+                <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); setPendingDelete({ kind: 'pool', id: p.id, name: p.name }) }} title="Delete pool"><TrashIcon className="bs-ico-xs" /></button>
               </div>
               {open && (
                 <div className="bs-tree-children">
@@ -427,7 +438,7 @@ function AgentsPanel() {
                               { id: 'open', label: 'Open', icon: LinkIcon, onSelect: () => openTab({ id: agentTabId(a.id), kind: 'agent', entityId: a.id, title: a.name }) },
                               { id: 'dup', label: 'Duplicate', onSelect: () => duplicateAgent(a.id) },
                               { separator: true },
-                              { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => deleteAgent(a.id) },
+                              { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ kind: 'agent', id: a.id, name: a.name }) },
                             ],
                           })
                         }}
@@ -437,7 +448,7 @@ function AgentsPanel() {
                           <div className="bs-row-title">{a.name}</div>
                           <div className="bs-row-meta">{a.model}</div>
                         </div>
-                        <button className="bs-row-action" onClick={() => deleteAgent(a.id)} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
+                        <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); setPendingDelete({ kind: 'agent', id: a.id, name: a.name }) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
                       </li>
                     ))}
                     {poolAgents.length === 0 && <li className="bs-empty">No agents in this pool.</li>}
@@ -449,6 +460,23 @@ function AgentsPanel() {
         })}
       </ul>
       {menu}
+      {pendingDelete && (
+        <ConfirmModal
+          title={pendingDelete.kind === 'pool' ? 'Delete agent pool?' : 'Delete agent?'}
+          message={
+            pendingDelete.kind === 'pool'
+              ? `"${pendingDelete.name}" will be removed. Agents inside the pool remain, but become orphaned until reassigned.`
+              : `"${pendingDelete.name}" will be removed from its pool. Workflows referencing this agent will need to be re-wired.`
+          }
+          confirmLabel={pendingDelete.kind === 'pool' ? 'Delete pool' : 'Delete agent'}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            if (pendingDelete.kind === 'pool') deleteAgentPool(pendingDelete.id)
+            else deleteAgent(pendingDelete.id)
+            setPendingDelete(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -463,6 +491,7 @@ function SkillsPanel() {
   const [name, setName] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [menu, setMenu] = useCtxMenu()
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
   const editing = skills.find((k) => k.id === editingId)
 
   return (
@@ -491,7 +520,7 @@ function SkillsPanel() {
                   { id: 'edit', label: 'Open editor', icon: LinkIcon, onSelect: () => openTab({ id: skillTabId(k.id), kind: 'skill', entityId: k.id, title: k.name }) },
                   { id: 'dup', label: 'Duplicate', onSelect: () => duplicateSkill(k.id) },
                   { separator: true },
-                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => deleteSkill(k.id) },
+                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ id: k.id, name: k.name }) },
                 ],
               })
             }}
@@ -501,7 +530,7 @@ function SkillsPanel() {
               <div className="bs-row-title">{k.name}</div>
               <div className="bs-row-meta">{k.language}</div>
             </div>
-            <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); deleteSkill(k.id) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
+            <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); setPendingDelete({ id: k.id, name: k.name }) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
           </li>
         ))}
         {skills.length === 0 && <li className="bs-empty">No skills yet.</li>}
@@ -522,6 +551,19 @@ function SkillsPanel() {
         </Collapsible>
       )}
       {menu}
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete skill?"
+          message={`"${pendingDelete.name}" will be removed. Agents or workflows that reference this skill will silently skip it on the next run.`}
+          confirmLabel="Delete skill"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteSkill(pendingDelete.id)
+            if (editingId === pendingDelete.id) setEditingId(null)
+            setPendingDelete(null)
+          }}
+        />
+      )}
     </div>
   )
 }
