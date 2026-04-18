@@ -309,17 +309,44 @@ export const useWorkspaceStore = create()(
         },
 
         // ---------- Workflows ----------
-        createWorkflow(name, teamId) {
+        createWorkflow(name, teamId, partial = {}) {
           const wf = {
             id: `wf_${uuid()}`,
             name,
             teamId,
+            description: partial.description || '',
             nodes: [],
             edges: [],
+            // Advanced / runtime defaults surfaced in the workflow inspector.
+            metadata: {
+              defaultTimeoutMs: partial.defaultTimeoutMs ?? 30000,
+              maxRetries: partial.maxRetries ?? 0,
+              failFast: partial.failFast ?? true,
+              logLevel: partial.logLevel || 'info',
+              tags: partial.tags || [],
+            },
             createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           }
           set((s) => ({ workflows: [...s.workflows, wf], activeWorkflowId: wf.id }))
           return wf
+        },
+
+        /** Patch any top-level fields on a workflow — description, teamId,
+         *  metadata.*, etc. Used by the workflow-level inspector. */
+        updateWorkflow(id, patch) {
+          set((s) => ({
+            workflows: s.workflows.map((w) =>
+              w.id === id
+                ? {
+                    ...w,
+                    ...patch,
+                    metadata: patch.metadata ? { ...w.metadata, ...patch.metadata } : w.metadata,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : w
+            ),
+          }))
         },
         openWorkflow(id) {
           set({ activeWorkflowId: id })

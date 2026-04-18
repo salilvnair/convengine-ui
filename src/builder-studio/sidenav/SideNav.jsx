@@ -15,6 +15,8 @@ import { useWorkspaceStore } from '../stores/workspace-store'
 import { useTabsStore, agentTabId, skillTabId, teamTabId } from '../stores/tabs-store'
 import BlockPalette from './BlockPalette'
 import ContextMenu from './ContextMenu'
+import ConfirmModal from '../components/ConfirmModal'
+import CreateWorkflowModal from '../components/CreateWorkflowModal'
 import {
   WorkflowsIcon,
   TeamsIcon,
@@ -176,12 +178,14 @@ function WorkflowsPanel() {
   const focusWorkflowTab = useTabsStore((s) => s.setActive)
   const [menu, setMenu] = useCtxMenu()
   const [editing, setEditing] = useState(null)
+  const [newOpen, setNewOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
 
   return (
     <div className="bs-sec">
       <button
         className="bs-add-btn"
-        onClick={() => createWorkflow('Untitled workflow', teams[0]?.id)}
+        onClick={() => setNewOpen(true)}
       >
         <PlusIcon className="bs-ico-sm" />
         <span>New workflow</span>
@@ -203,7 +207,7 @@ function WorkflowsPanel() {
                   { id: 'rename', label: 'Rename', onSelect: () => setEditing(w.id) },
                   { id: 'dup', label: 'Duplicate', onSelect: () => duplicateWorkflow(w.id) },
                   { separator: true },
-                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => deleteWorkflow(w.id) },
+                  { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ id: w.id, name: w.name }) },
                 ],
               })
             }}
@@ -231,7 +235,7 @@ function WorkflowsPanel() {
             </div>
             <button
               className="bs-row-action"
-              onClick={(e) => { e.stopPropagation(); deleteWorkflow(w.id) }}
+              onClick={(e) => { e.stopPropagation(); setPendingDelete({ id: w.id, name: w.name }) }}
               title="Delete workflow"
             >
               <TrashIcon className="bs-ico-xs" />
@@ -240,6 +244,24 @@ function WorkflowsPanel() {
         ))}
       </ul>
       {menu}
+
+      {newOpen && (
+        <CreateWorkflowModal
+          teams={teams}
+          onCancel={() => setNewOpen(false)}
+          onCreate={(name, teamId) => { createWorkflow(name, teamId); setNewOpen(false) }}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete workflow?"
+          message={`"${pendingDelete.name}" and all its blocks will be removed. This cannot be undone.`}
+          confirmLabel="Delete workflow"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => { deleteWorkflow(pendingDelete.id); setPendingDelete(null) }}
+        />
+      )}
     </div>
   )
 }

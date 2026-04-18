@@ -37,8 +37,23 @@
   /* vanilla-jsoneditor ships the `jse-theme-dark` class as a wrapper; adding
      the class to our host element flips every child into dark mode. */
   border: 1px solid var(--ce-border, #1f2937);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  background: #0b1020;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.bs-jsoneditor:hover { border-color: #334155; }
+.bs-jsoneditor:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+}
+.bs-jsoneditor .jse-main,
+.bs-jsoneditor .jse-text-mode,
+.bs-jsoneditor .cm-editor {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .bs-jsoneditor.jse-theme-dark,
 .bs-jsoneditor { /* fallback when we forget to add .jse-theme-dark */
@@ -187,19 +202,27 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: 8px 8px 0 0;
   border: 1px solid transparent;
   border-bottom: none;
   background: transparent;
   color: var(--text-secondary, #94a3b8);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
   max-width: 220px;
   position: relative;
   top: 1px;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
+/* Keep tab icons at a fixed square so the first "Workflow" tab (narrower
+   icon) doesn't end up visually shorter than agent/skill tabs with
+   differently-sized glyphs. */
+.bs-tab > svg { width: 14px; height: 14px; flex: 0 0 14px; }
 .bs-tab:hover { color: var(--text-primary, #e5e7eb); background: rgba(99,102,241,0.06); }
 .bs-tab.is-active {
   color: var(--text-primary, #e5e7eb);
@@ -484,14 +507,25 @@
 /* Section wrapper */
 .bs-sec { display: flex; flex-direction: column; gap: 8px; }
 
-/* Inline form: input + action button row */
+/* Inline form: input + (optional dropdown) + icon button row.
+   Every child lines up to exactly 34px so the plus button, select caret
+   and text baseline share a horizontal rhythm. */
 .bs-inline-form {
   display: flex;
   gap: 6px;
   align-items: stretch;
 }
-.bs-inline-form .bs-input { flex: 1 1 auto; min-width: 0; }
-.bs-input-sm { max-width: 100px; }
+.bs-inline-form > .bs-input,
+.bs-inline-form > select.bs-input,
+.bs-inline-form > .bs-icon-btn,
+.bs-inline-form > .bs-btn,
+.bs-inline-form > .bs-btn-primary,
+.bs-inline-form > .bs-btn-accent {
+  height: 34px;
+  box-sizing: border-box;
+}
+.bs-inline-form > .bs-input { flex: 1 1 auto; min-width: 0; }
+.bs-inline-form > select.bs-input { flex: 0 0 auto; min-width: 140px; max-width: 180px; }
 
 /* Add button (full-width) */
 .bs-add-btn {
@@ -515,7 +549,7 @@
 /* Square icon button */
 .bs-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px;
+  width: 34px; height: 34px;
   flex-shrink: 0;
   border-radius: 6px;
   border: 1px solid var(--ce-border, #1f2937);
@@ -525,6 +559,9 @@
   transition: all 120ms ease;
 }
 .bs-icon-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+.bs-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-icon-btn-danger { color: #f87171; }
+.bs-icon-btn-danger:hover { border-color: #ef4444; color: #fca5a5; background: rgba(239,68,68,0.08); }
 
 /* Row list */
 .bs-rows { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -753,6 +790,100 @@ select.bs-input option {
   border: 1px solid #dc2626;
 }
 .bs-btn-danger:hover { background: #b91c1c; border-color: #b91c1c; }
+
+/* Danger ghost — subtle red tint, used for Delete in the inspector header. */
+.bs-btn-danger-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.35);
+  color: #f87171;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+  margin-left: auto;
+}
+.bs-btn-danger-ghost:hover {
+  background: rgba(239,68,68,0.10);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+.bs-btn-danger-ghost:active { background: rgba(239,68,68,0.18); }
+
+/* ---------- Polished checkbox row (Strict JSON output, etc.) ---------- */
+.bs-check-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 10px;
+  background: rgba(99,102,241,0.03);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.bs-check-row:hover {
+  border-color: #475569;
+  background: rgba(99,102,241,0.06);
+}
+.bs-check-row:has(.bs-check:checked) {
+  border-color: #6366f1;
+  background: rgba(99,102,241,0.10);
+}
+.bs-check {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 2px 0 0 0;
+  width: 18px; height: 18px;
+  flex: 0 0 18px;
+  border: 1.5px solid #475569;
+  border-radius: 5px;
+  background: var(--bg-secondary, #111827);
+  cursor: pointer;
+  position: relative;
+  transition: all 120ms ease;
+}
+.bs-check:hover { border-color: #818cf8; }
+.bs-check:checked {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+.bs-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px; top: 1px;
+  width: 5px; height: 10px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.bs-check:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.35);
+}
+.bs-check-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bs-check-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+  line-height: 1.3;
+}
+.bs-check-sub {
+  font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.55;
+}
+.bs-check-sub code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(99,102,241,0.12);
+  color: #c7d2fe;
+  border: 1px solid rgba(99,102,241,0.2);
+}
 
 .bs-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .bs-list-item {
@@ -1186,24 +1317,7 @@ select.bs-input option {
 .bs-mcp-panel-head .bs-settings-h3 { flex: 1; }
 .bs-mcp-panel-actions { display: flex; gap: 6px; align-items: center; }
 
-/* Generic icon-only button (refresh, etc.) */
-.bs-icon-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px;
-  padding: 0;
-  border: 1px solid var(--ce-border, #1f2937);
-  border-radius: 6px;
-  background: var(--bg-secondary, #111827);
-  color: var(--text-secondary, #94a3b8);
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
-}
-.bs-icon-btn:hover:not(:disabled) {
-  border-color: #6366f1;
-  color: var(--text-primary, #e5e7eb);
-  background: rgba(99,102,241,0.08);
-}
-.bs-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Generic icon-only button (refresh, etc.) — see canonical .bs-icon-btn above. */
 .bs-refresh-glyph { font-size: 15px; line-height: 1; display: inline-block; }
 .bs-refresh-glyph.is-spinning { animation: bs-spin 800ms linear infinite; }
 @keyframes bs-spin { to { transform: rotate(360deg); } }
@@ -1287,6 +1401,26 @@ select.bs-input option {
   gap: 8px; padding: 7px 10px; font-size: 12px;
 }
 .bs-node-row + .bs-node-row { border-top: 1px solid rgba(148,163,184,0.08); }
+
+/* ComfyUI-style per-field I/O pin: a small colored dot rendered on the left
+   edge of each subBlock row. Color is mapped to the field's data shape so
+   the card reads like a ComfyUI node at a glance. Pins are decorative
+   (ReactFlow handles are still on the node body edges), but they help the
+   user recognize field types without reading labels. */
+.bs-node-row-pin {
+  flex-shrink: 0;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.55), 0 0 6px rgba(0,0,0,0.4);
+  margin-right: 2px;
+}
+.bs-node-row-pin-green  { background: #22c55e; }
+.bs-node-row-pin-cyan   { background: #06b6d4; }
+.bs-node-row-pin-blue   { background: #3b82f6; }
+.bs-node-row-pin-purple { background: #a855f7; }
+.bs-node-row-pin-orange { background: #f59e0b; }
+.bs-node-row-pin-grey   { background: #64748b; }
+
 .bs-node-row-label {
   color: var(--text-secondary, #94a3b8);
   text-transform: capitalize;
@@ -1335,6 +1469,9 @@ select.bs-input option {
   border-left: 1px solid var(--ce-border, #1f2937);
   background: var(--ce-surface, #0f172a);
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 .bs-inspector-empty { align-items: center; justify-items: center; display: grid; }
 .bs-inspector-hint { padding: 20px; color: var(--text-secondary, #94a3b8); font-size: 13px; text-align: center; }
@@ -1443,6 +1580,244 @@ select.bs-input option {
 .bs-node-row { min-width: 0; box-sizing: border-box; }
 .bs-node-row-label { min-width: 0; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-node-row-value { min-width: 0; max-width: 50%; }
+
+/* ================================================================
+ * ComfyUI-style run animation + multi-output branching + modals
+ * ============================================================ */
+
+/* Base node polish — warmer shadow + faster transitions for state changes */
+.bs-node {
+  transition: box-shadow 200ms ease, border-color 200ms ease, transform 160ms ease;
+  position: relative;
+}
+
+/* Running: pulsing green aura, title glows, matches ComfyUI's "this is
+   the node the server is currently chewing on" look. */
+@keyframes bs-node-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55), 0 0 0 1px rgba(16, 185, 129, 0.8) inset; }
+  70%  { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0), 0 0 0 1px rgba(16, 185, 129, 0.8) inset; }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 0 1px rgba(16, 185, 129, 0.8) inset; }
+}
+.bs-node-running {
+  border-color: #10b981 !important;
+  animation: bs-node-pulse 1.4s ease-out infinite;
+}
+.bs-node-running .bs-node-icon-well {
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.6);
+}
+
+/* Done: solid green ring for a beat, then fades when highlights clear. */
+.bs-node-done {
+  border-color: rgba(16,185,129,0.45) !important;
+  box-shadow: 0 0 0 1px rgba(16,185,129,0.25);
+}
+.bs-node-done::after {
+  content: '';
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16,185,129,0.7);
+}
+
+/* Error: red border + shake once to draw the eye. */
+@keyframes bs-node-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.bs-node-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px rgba(239,68,68,0.3);
+  animation: bs-node-shake 400ms ease-in-out;
+}
+
+/* Multi-output branching nodes need extra right padding so the label
+   column doesn't collide with the title/badge. */
+.bs-node-multi-out {
+  padding-right: 56px;
+  min-height: 120px;
+}
+.bs-node-out-rail {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 56px;
+  pointer-events: none;
+}
+.bs-node-out-label {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary, #111827);
+  border: 1px solid var(--ce-border, #1f2937);
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+  max-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-node-out-label-true { color: #10b981; border-color: rgba(16,185,129,0.4); }
+.bs-node-out-label-false { color: #ef4444; border-color: rgba(239,68,68,0.4); }
+.bs-node-out-label-else { color: #f59e0b; border-color: rgba(245,158,11,0.4); }
+.bs-node-out-label-case { color: #a5b4fc; border-color: rgba(99,102,241,0.4); }
+
+/* Multi-handle pins — smaller, colored per branch */
+.react-flow__handle.bs-handle-multi {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  border: 2px solid var(--ce-surface, #0f172a) !important;
+}
+.react-flow__handle.bs-handle-true { background: #10b981 !important; }
+.react-flow__handle.bs-handle-false { background: #ef4444 !important; }
+.react-flow__handle.bs-handle-else { background: #f59e0b !important; }
+.react-flow__handle.bs-handle-case { background: #6366f1 !important; }
+
+/* Edges — branch-colored strokes. ReactFlow renders edges as <path>
+   with className we set; we style both the path and marker. */
+.react-flow__edge.bs-edge-true .react-flow__edge-path { stroke: #10b981 !important; stroke-width: 2.2 !important; }
+.react-flow__edge.bs-edge-false .react-flow__edge-path { stroke: #ef4444 !important; stroke-width: 2.2 !important; }
+.react-flow__edge.bs-edge-else .react-flow__edge-path { stroke: #f59e0b !important; stroke-width: 2.2 !important; }
+.react-flow__edge.bs-edge-case .react-flow__edge-path { stroke: #818cf8 !important; stroke-width: 2.2 !important; }
+
+/* Active (flowing) edge — animated dash like ComfyUI's node-link pulse. */
+@keyframes bs-edge-flow {
+  to { stroke-dashoffset: -24; }
+}
+.react-flow__edge.bs-edge-flowing .react-flow__edge-path {
+  stroke: #6366f1 !important;
+  stroke-width: 3 !important;
+  stroke-dasharray: 8 6 !important;
+  animation: bs-edge-flow 0.6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(99,102,241,0.6));
+}
+
+/* Done edge — subtle green */
+.react-flow__edge.bs-edge-done .react-flow__edge-path {
+  stroke: rgba(16,185,129,0.5) !important;
+  stroke-width: 2 !important;
+}
+
+/* ---------- Modal overlay + base (used by ConfirmModal, CreateWorkflowModal) */
+.bs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(5, 9, 20, 0.65);
+  backdrop-filter: blur(4px);
+  animation: bs-fade-in 160ms ease;
+}
+@keyframes bs-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes bs-slide-up { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+.bs-modal-overlay > .bs-modal {
+  background: var(--ce-surface, #0f172a);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.06);
+  min-width: 380px;
+  max-width: 520px;
+  animation: bs-slide-up 180ms ease;
+}
+
+/* Confirm modal layout */
+.bs-confirm-modal {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 14px;
+  padding: 22px 22px 18px;
+  align-items: start;
+}
+.bs-confirm-icon {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(239,68,68,0.12);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.35);
+}
+.bs-confirm-title {
+  grid-column: 2;
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+}
+.bs-confirm-message {
+  grid-column: 2;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-confirm-actions {
+  grid-column: 2;
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* Create-workflow modal layout */
+.bs-create-modal {
+  display: flex;
+  flex-direction: column;
+  min-width: 440px;
+}
+.bs-modal-header {
+  padding: 18px 20px 8px;
+  border-bottom: 1px solid var(--ce-border, #1f2937);
+}
+.bs-modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+}
+.bs-modal-sub {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-modal-body {
+  padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.bs-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--ce-border, #1f2937);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+.bs-hint-warn {
+  color: #fbbf24;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.25);
+}
+
+/* Read-only value cell in the workflow inspector */
+.bs-readonly {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-secondary, #94a3b8);
+  background: rgba(148,163,184,0.05);
+  border: 1px dashed var(--ce-border, #1f2937);
+  border-radius: 6px;
+}
 
 @media (max-width: 1200px) {
   .bs-main { grid-template-columns: auto minmax(0, 1fr) 6px var(--bs-right-w, 300px); }

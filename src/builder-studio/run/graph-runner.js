@@ -28,6 +28,12 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   const outputs = {}     // nodeId -> output value
   const trace = []       // ordered
   const started = new Set()
+  /**
+   * Branching nodes record the chosen output-handle id here so that
+   * downstream readiness can skip edges leaving non-matching handles.
+   * Regular nodes (any single-output block) don't set this.
+   */
+  const chosenHandle = {} // nodeId -> string | null
 
   // Seed user_input nodes directly from the RunModal-collected values.
   for (const n of nodes) {
@@ -46,13 +52,25 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
     }
   }
 
-  // BFS with readiness gating: schedule a node when all incoming upstream
-  // nodes have produced an output. Batches are dispatched in parallel.
+  // BFS with readiness gating. An incoming edge is "satisfied" when:
+  //  (a) its source node has finished, AND
+  //  (b) either the source was a single-output block (no chosenHandle),
+  //      OR the edge's sourceHandle matches the chosen branch.
+  // This is how if_else / if_elseif_else / switch_case suppress the losing
+  // branches without a separate pruning pass.
+  const edgeIsLive = (e) => {
+    if (!started.has(e.source)) return false
+    const chosen = chosenHandle[e.source]
+    if (chosen == null) return true
+    const sh = e.sourceHandle || 'out'
+    return sh === chosen
+  }
   while (true) {
     const ready = nodes.filter((n) => {
       if (started.has(n.id)) return false
       const ins = incoming[n.id] || []
-      return ins.every((e) => started.has(e.source))
+      if (ins.length === 0) return false
+      return ins.every(edgeIsLive)
     })
     if (ready.length === 0) break
 
@@ -65,7 +83,14 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType })
       try {
         const output = await runNode({ node: n, values, input, outputs })
-        outputs[n.id] = output
+        // For branching blocks the runner returns { branch, value } — record
+        // the chosen handle so downstream edges can gate on it.
+        if (output && typeof output === 'object' && typeof output.branch === 'string') {
+          chosenHandle[n.id] = output.branch
+          outputs[n.id] = output.value
+        } else {
+          outputs[n.id] = output
+        }
         trace.push({
           nodeId: n.id,
           blockType: n.data?.blockType,
@@ -116,6 +141,8 @@ async function runNode({ node, values, input, outputs }) {
       return runFunctionNode({ values, input })
     case 'if_else':
       return runIfElseNode({ values, input })
+    case 'if_elseif_else':
+      return runIfElseIfElseNode({ values, input })
     case 'switch':
       return runSwitchNode({ values, input })
     case 'for_loop':
@@ -190,18 +217,46 @@ function runFunctionNode({ values, input }) {
 }
 
 function runIfElseNode({ values, input }) {
-  const expr = values.condition || 'true'
-  // eslint-disable-next-line no-new-func
-  const fn = new Function('input', `return (${expr})`)
-  const truthy = !!fn(input)
+  // `expression` is authored in the Inspector; legacy canvases used `condition`.
+  const expr = values.expression || values.condition || 'true'
+  const truthy = !!eval_safe(expr, input)
   return { branch: truthy ? 'true' : 'false', value: input }
 }
 
+/**
+ * Walk the `conditions` table top-to-bottom; first truthy row picks the
+ * corresponding `branch_<i>` handle. Falls through to `else` if nothing matches.
+ * Row shape is either `{ label, expression }` (from the Inspector table) or
+ * `[label, expression]` (raw tuple).
+ */
+function runIfElseIfElseNode({ values, input }) {
+  const rows = Array.isArray(values.conditions) ? values.conditions : []
+  const n = Math.max(1, Math.min(8, Number(values.branches) || rows.length || 2))
+  for (let i = 0; i < n; i++) {
+    const row = rows[i]
+    if (!row) continue
+    const expr = row.expression ?? row[1]
+    if (!expr) continue
+    if (eval_safe(expr, input)) {
+      return { branch: `branch_${i + 1}`, value: input }
+    }
+  }
+  return { branch: 'else', value: input }
+}
+
 function runSwitchNode({ values, input }) {
-  const key = values.key ? String(eval_safe(values.key, input)) : String(input)
+  const keyVal = values.keyExpr ? eval_safe(values.keyExpr, input) : input
+  const key = String(keyVal)
   const cases = Array.isArray(values.cases) ? values.cases : []
-  const match = cases.find((c) => String(c.value ?? c[0]) === key)
-  return { branch: match ? (match.label ?? match[1]) : 'default', value: input }
+  const n = Math.max(1, Math.min(12, Number(values.caseCount) || cases.length || 3))
+  for (let i = 0; i < Math.min(n, cases.length); i++) {
+    const c = cases[i]
+    const match = c.value ?? c.match ?? c[0]
+    if (match != null && String(match) === key) {
+      return { branch: `case_${i + 1}`, value: input }
+    }
+  }
+  return { branch: 'default', value: input }
 }
 
 function runJsonValidator({ values, input }) {

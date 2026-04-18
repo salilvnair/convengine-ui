@@ -22,7 +22,7 @@ export default function JsonEditor({
   onChange,
   readOnly = false,
   defaultMode = 'tree', // 'tree' | 'text'
-  height = '260px',
+  height = '420px',
   className = '',
 }) {
   const holderRef = useRef(null)

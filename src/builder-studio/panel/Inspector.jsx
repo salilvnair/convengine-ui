@@ -7,8 +7,11 @@
  */
 import { useMemo, useState } from 'react'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
 import SubBlockRenderer from './SubBlockRenderer'
+import ConfirmModal from '../components/ConfirmModal'
+import WorkflowInspector from './WorkflowInspector'
 
 const EMPTY = Object.freeze({})
 
@@ -31,6 +34,8 @@ export default function Inspector() {
     [selectedNodeId, subBlockValues]
   )
   const [mode, setMode] = useState('basic')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const activeWorkflowId = useWorkspaceStore((s) => s.activeWorkflowId)
 
   const node = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null
   const cfg = node ? getBlock(node.data.blockType) : null
@@ -51,9 +56,11 @@ export default function Inspector() {
   }, [cfg, mode, values, availableModes])
 
   if (!node || !cfg) {
+    // Nothing selected → surface workflow-level edit & advanced options.
+    if (activeWorkflowId) return <WorkflowInspector workflowId={activeWorkflowId} />
     return (
       <aside className="bs-inspector bs-inspector-empty">
-        <div className="bs-inspector-hint">Select a block to edit its configuration</div>
+        <div className="bs-inspector-hint">Create or open a workflow to edit its settings, or click a block on the canvas.</div>
       </aside>
     )
   }
@@ -67,7 +74,13 @@ export default function Inspector() {
             <div className="bs-inspector-title">{cfg.name}</div>
             <div className="bs-inspector-sub">{cfg.description}</div>
           </div>
-          <button className="bs-btn-ghost" onClick={() => removeNode(node.id)} title="Delete block">
+          <button className="bs-btn-danger-ghost" onClick={() => setConfirmDelete(true)} title="Delete block">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
             Delete
           </button>
         </div>
@@ -105,6 +118,16 @@ export default function Inspector() {
           <div className="bs-inspector-hint">No {mode} fields for this block.</div>
         )}
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete block?"
+          message={`"${node.data?.title || cfg.name}" and all its connections will be removed. This cannot be undone.`}
+          confirmLabel="Delete block"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => { setConfirmDelete(false); removeNode(node.id) }}
+        />
+      )}
     </aside>
   )
 }

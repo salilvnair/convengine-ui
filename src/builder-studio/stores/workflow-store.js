@@ -22,6 +22,14 @@ const initialState = {
   renamingNodeId: null,
   /** Map<nodeId, Record<subBlockId, unknown>> — values per block instance. */
   subBlockValues: {},
+  /** ComfyUI-style run state: id of the node currently executing, set of
+   *  node ids that have finished (green flash), set of edge ids currently
+   *  "flowing" (data traveling). All cleared at run start and after a
+   *  run completes. */
+  activeNodeId: null,
+  completedNodeIds: [],
+  activeEdgeIds: [],
+  errorNodeId: null,
 }
 
 export const useWorkflowStore = create()(
@@ -156,6 +164,37 @@ export const useWorkflowStore = create()(
 
       reset() {
         set(initialState)
+      },
+
+      /* ---------------- ComfyUI-style run state ---------------- */
+      startRun() {
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null })
+      },
+      markNodeRunning(nodeId) {
+        set((s) => {
+          // Mark inbound edges as "flowing" so they pulse.
+          const inEdges = s.edges.filter((e) => e.target === nodeId).map((e) => e.id)
+          return { activeNodeId: nodeId, activeEdgeIds: inEdges }
+        })
+      },
+      markNodeDone(nodeId) {
+        set((s) => ({
+          activeNodeId: s.activeNodeId === nodeId ? null : s.activeNodeId,
+          completedNodeIds: s.completedNodeIds.includes(nodeId)
+            ? s.completedNodeIds
+            : [...s.completedNodeIds, nodeId],
+          activeEdgeIds: s.activeEdgeIds.filter((id) => !s.edges.find((e) => e.id === id && e.target === nodeId)),
+        }))
+      },
+      markNodeError(nodeId) {
+        set({ errorNodeId: nodeId, activeNodeId: null, activeEdgeIds: [] })
+      },
+      endRun() {
+        // Keep completed highlights for a beat then clear via RunModal.
+        set({ activeNodeId: null, activeEdgeIds: [] })
+      },
+      clearRunHighlights() {
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null })
       },
     }),
     { name: 'builder-studio-workflow' }

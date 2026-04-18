@@ -21,6 +21,7 @@ import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
 import ContextMenu from '../sidenav/ContextMenu'
+import ConfirmModal from '../components/ConfirmModal'
 import {
   TrashIcon,
   LinkIcon,
@@ -62,11 +63,35 @@ function WorkflowNode({ id, data, selected }) {
   const renamingNodeId = useWorkflowStore((s) => s.renamingNodeId)
   const endRename = useWorkflowStore((s) => s.endRename)
   const values = useWorkflowStore((s) => s.subBlockValues[id])
+  const activeNodeId = useWorkflowStore((s) => s.activeNodeId)
+  const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
+  const errorNodeId = useWorkflowStore((s) => s.errorNodeId)
+  const isActive = activeNodeId === id
+  const isDone = completedNodeIds.includes(id)
+  const isError = errorNodeId === id
   const cfg = getBlock(data.blockType)
   const Icon = data.icon || cfg?.icon
 
+  /**
+   * Output handles — for most blocks this is a single centered pin on the
+   * right. Branching blocks declare `outputHandles: [...]` (strings) or
+   * `outputHandlesFromValues(values)` (a function for dynamic counts, used
+   * by if-elseif-else and switch with variable N).
+   */
+  const outputHandles = useMemo(() => {
+    if (!cfg) return ['out']
+    if (typeof cfg.outputHandlesFromValues === 'function') {
+      try { return cfg.outputHandlesFromValues(values || {}) || ['out'] } catch { return ['out'] }
+    }
+    if (Array.isArray(cfg.outputHandles) && cfg.outputHandles.length > 0) return cfg.outputHandles
+    return ['out']
+  }, [cfg, values])
+
   const [menu, setMenu] = useState(null)       // { x, y } in screen coords
   const [editing, setEditing] = useState(false) // inline-rename
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const requestDelete = () => setConfirmDelete(true)
 
   // Keyboard-driven rename (F2/Enter on the canvas) flips us into edit mode.
   useEffect(() => {
@@ -115,7 +140,15 @@ function WorkflowNode({ id, data, selected }) {
   return (
     <>
       <div
-        className={`bs-node ${selected ? 'bs-node-selected' : ''} ${isContainer ? 'bs-node-container' : ''}`}
+        className={[
+          'bs-node',
+          selected ? 'bs-node-selected' : '',
+          isContainer ? 'bs-node-container' : '',
+          isActive ? 'bs-node-running' : '',
+          isDone ? 'bs-node-done' : '',
+          isError ? 'bs-node-error' : '',
+          outputHandles.length > 1 ? 'bs-node-multi-out' : '',
+        ].filter(Boolean).join(' ')}
         onClick={() => selectNode(id)}
         onContextMenu={openMenu}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
@@ -157,7 +190,7 @@ function WorkflowNode({ id, data, selected }) {
           <button
             className="bs-node-close"
             title="Delete block"
-            onClick={(e) => { e.stopPropagation(); removeNode(id) }}
+            onClick={(e) => { e.stopPropagation(); requestDelete() }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <XIcon className="bs-ico-xs" />
@@ -169,8 +202,14 @@ function WorkflowNode({ id, data, selected }) {
             {previewRows.map((row) => {
               const editable = INLINE_EDITABLE.has(row.sb.type)
               const interactive = INLINE_INTERACTIVE.has(row.sb.type)
+              const pin = fieldPinColor(row.sb)
               return (
                 <div key={row.id} className="bs-node-row">
+                  <span
+                    className={`bs-node-row-pin bs-node-row-pin-${pin}`}
+                    title={`${row.sb.type || 'field'}`}
+                    aria-hidden="true"
+                  />
                   <span className="bs-node-row-label">{row.label}</span>
                   {editable ? (
                     <span
@@ -188,7 +227,45 @@ function WorkflowNode({ id, data, selected }) {
           </div>
         )}
 
-        <Handle type="source" position={Position.Right} className="bs-handle" id="out" />
+        {/* Output handles — single centered pin for most blocks, or a
+            stacked column of labeled pins for branching blocks.
+            Labels are rendered as a sibling overlay because ReactFlow
+            needs the `<Handle>` elements mounted directly on the node. */}
+        {outputHandles.length === 1 ? (
+          <Handle type="source" position={Position.Right} className="bs-handle" id={outputHandles[0]} />
+        ) : (
+          <>
+            {outputHandles.map((h, i) => {
+              const step = 100 / (outputHandles.length + 1)
+              const top = step * (i + 1)
+              return (
+                <Handle
+                  key={h}
+                  type="source"
+                  position={Position.Right}
+                  className={`bs-handle bs-handle-multi bs-handle-${safeHandleColor(h)}`}
+                  id={h}
+                  style={{ top: `${top}%` }}
+                />
+              )
+            })}
+            <div className="bs-node-out-rail" aria-hidden="true">
+              {outputHandles.map((h, i) => {
+                const step = 100 / (outputHandles.length + 1)
+                const top = step * (i + 1)
+                return (
+                  <span
+                    key={h}
+                    className={`bs-node-out-label bs-node-out-label-${safeHandleColor(h)}`}
+                    style={{ top: `${top}%` }}
+                  >
+                    {h}
+                  </span>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {menu && (
@@ -203,8 +280,18 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'disc', label: 'Disconnect edges', onSelect: () => disconnectNode(id) },
             { id: 'copy', label: 'Copy node ID', onSelect: copyId },
             { separator: true },
-            { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: () => removeNode(id) },
+            { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: requestDelete },
           ]}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete block?"
+          message={`"${data.title || data.blockType}" and all its connections will be removed. This cannot be undone.`}
+          confirmLabel="Delete block"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => { setConfirmDelete(false); removeNode(id) }}
         />
       )}
     </>
@@ -325,6 +412,39 @@ function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
  *  the node (handled by the parent), which surfaces the Inspector for editing. */
 function SummaryChip({ text }) {
   return <span className="bs-node-chip">{text}</span>
+}
+
+/**
+ * Map an output-handle label to a semantic color bucket used by the CSS.
+ * `true` → green, `false` → red, numeric case labels → indigo, others → indigo.
+ */
+function safeHandleColor(h) {
+  const s = String(h).toLowerCase()
+  if (s === 'true') return 'true'
+  if (s === 'false') return 'false'
+  if (s === 'else' || s === 'default') return 'else'
+  return 'case'
+}
+
+/**
+ * ComfyUI-style per-field pin color. Each subBlock row shows a tiny colored
+ * dot on its left edge mapped to the field's data shape so a user can scan
+ * a node at a glance and see "this one takes a string, that one a list".
+ *   green  → boolean/toggle
+ *   cyan   → number / slider
+ *   blue   → string-ish
+ *   purple → enum (dropdown/combobox)
+ *   orange → structured (table / list / tool-input)
+ *   grey   → anything else
+ */
+function fieldPinColor(sb) {
+  const t = sb?.type
+  if (t === 'switch' || t === 'checkbox') return 'green'
+  if (t === 'slider' || t === 'number-input') return 'cyan'
+  if (t === 'short-input' || t === 'long-input' || t === 'text' || t === 'eval-input' || t === 'code') return 'blue'
+  if (t === 'dropdown' || t === 'combobox') return 'purple'
+  if (t === 'table' || t === 'checkbox-list' || t === 'grouped-checkbox-list' || t === 'tool-input' || t === 'skill-input') return 'orange'
+  return 'grey'
 }
 
 function safeJsonArray(s) {

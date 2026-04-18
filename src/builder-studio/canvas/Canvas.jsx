@@ -9,12 +9,13 @@
  *   - ⌘D / Ctrl-D         → duplicate selected node
  * (Both are suppressed while typing inside inputs/textareas/contentEditable.)
  */
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
 import WorkflowNode from './WorkflowNode'
+import ConfirmModal from '../components/ConfirmModal'
 
 const nodeTypes = { builderBlock: WorkflowNode }
 
@@ -44,6 +45,39 @@ function CanvasInner() {
   const beginRename = useWorkflowStore((s) => s.beginRename)
   const moveNodeBy = useWorkflowStore((s) => s.moveNodeBy)
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
+  const activeEdgeIds = useWorkflowStore((s) => s.activeEdgeIds)
+  const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
+  const nodesById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes])
+  const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
+
+  /**
+   * Overlay run-state styles onto the edges ReactFlow renders:
+   *  - edges currently flowing (`activeEdgeIds`) get a pulsing gradient
+   *  - edges that have finished (both endpoints in `completedNodeIds`) get
+   *    a solid "done" stroke
+   * The node-level classes (running / done) are applied inside WorkflowNode,
+   * which is the correct scope because the node is the child component.
+   */
+  const displayedEdges = useMemo(() => {
+    const activeSet = new Set(activeEdgeIds)
+    const doneSet = new Set(completedNodeIds)
+    return edges.map((e) => {
+      const cls = []
+      if (activeSet.has(e.id)) cls.push('bs-edge-flowing')
+      else if (doneSet.has(e.source) && doneSet.has(e.target)) cls.push('bs-edge-done')
+      if (e.sourceHandle === 'true') cls.push('bs-edge-true')
+      else if (e.sourceHandle === 'false') cls.push('bs-edge-false')
+      else if (e.sourceHandle === 'else' || e.sourceHandle === 'default') cls.push('bs-edge-else')
+      else if (e.sourceHandle && e.sourceHandle.startsWith('case_')) cls.push('bs-edge-case')
+      else if (e.sourceHandle && e.sourceHandle.startsWith('branch_')) cls.push('bs-edge-case')
+      const className = [e.className, ...cls].filter(Boolean).join(' ')
+      return {
+        ...e,
+        className,
+        animated: activeSet.has(e.id) || e.animated,
+      }
+    })
+  }, [edges, activeEdgeIds, completedNodeIds])
 
   const onDragOver = useCallback((e) => {
     e.preventDefault()
@@ -86,11 +120,12 @@ function CanvasInner() {
         return
       }
 
-      // Delete / Backspace — remove selected node
+      // Delete / Backspace — prompt before removing the selected node.
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!selectedNodeId) return
         e.preventDefault()
-        removeNode(selectedNodeId)
+        const n = nodesById[selectedNodeId]
+        setPendingDelete({ id: selectedNodeId, title: n?.data?.title || n?.data?.blockType || 'this block' })
         return
       }
 
@@ -130,7 +165,7 @@ function CanvasInner() {
     <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={displayedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -144,6 +179,16 @@ function CanvasInner() {
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable maskColor="rgba(0,0,0,0.35)" />
       </ReactFlow>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete block?"
+          message={`"${pendingDelete.title}" and all its connections will be removed. This cannot be undone.`}
+          confirmLabel="Delete block"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => { removeNode(pendingDelete.id); setPendingDelete(null) }}
+        />
+      )}
     </div>
   )
 }

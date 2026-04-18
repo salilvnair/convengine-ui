@@ -17,6 +17,7 @@ import SideNav from './sidenav/SideNav'
 import CenterPane from './tabs/CenterPane'
 import Inspector from './panel/Inspector'
 import RunModal from './run/RunModal'
+import CreateWorkflowModal from './components/CreateWorkflowModal'
 import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore } from './stores/tabs-store'
@@ -47,6 +48,7 @@ export default function AgentBuilderPage() {
   const [rTip, setRTip] = useState(false)
   const dragRef = useRef({ active: false, startX: 0, startW: R_DEFAULT, moved: false })
   const [runOpen, setRunOpen] = useState(false)
+  const [newWorkflowOpen, setNewWorkflowOpen] = useState(false)
 
   useEffect(() => {
     if (!activeWorkflowId) return
@@ -149,7 +151,7 @@ export default function AgentBuilderPage() {
           ) : (
             <button
               className="bs-btn"
-              onClick={() => createWorkflow('Untitled workflow', teams[0]?.id)}
+              onClick={() => setNewWorkflowOpen(true)}
             >
               + New workflow
             </button>
@@ -219,6 +221,17 @@ export default function AgentBuilderPage() {
 
       {runOpen && liveWorkflow && (
         <RunModal workflow={liveWorkflow} onClose={() => setRunOpen(false)} />
+      )}
+
+      {newWorkflowOpen && (
+        <CreateWorkflowModal
+          teams={teams}
+          onCancel={() => setNewWorkflowOpen(false)}
+          onCreate={(name, teamId) => {
+            createWorkflow(name, teamId)
+            setNewWorkflowOpen(false)
+          }}
+        />
       )}
     </div>
   )

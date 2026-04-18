@@ -29,6 +29,7 @@ const registry = {
   wait: Core.WaitBlock,
   table: Core.TableBlock,
   if_else: Core.IfElseBlock,
+  if_elseif_else: Core.IfElseIfElseBlock,
   switch: Core.SwitchBlock,
   for_loop: Core.ForLoopBlock,
   for_each: Core.ForEachBlock,

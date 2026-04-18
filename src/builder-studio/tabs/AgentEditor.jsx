@@ -100,7 +100,7 @@ export default function AgentEditor({ agentId }) {
           value={agent.responseSchema || ''}
           onChange={(text) => updateAgent(agent.id, { responseSchema: text })}
           defaultMode="tree"
-          height="280px"
+          height="520px"
         />
         <div className="bs-hint">
           Tree mode lets you expand nodes and edit keys/values visually. Switch
@@ -109,20 +109,23 @@ export default function AgentEditor({ agentId }) {
       </section>
 
       <section className="bs-editor-section">
-        <label className="bs-label-inline">
+        <label className="bs-check-row">
           <input
             type="checkbox"
+            className="bs-check"
             checked={agent.strictOutput === true}
             onChange={(e) => updateAgent(agent.id, { strictOutput: e.target.checked })}
           />
-          <span>Strict JSON output</span>
+          <span className="bs-check-body">
+            <span className="bs-check-title">Strict JSON output</span>
+            <span className="bs-check-sub">
+              When enabled with a Response Schema, the backend routes through{' '}
+              <code>LlmClient.generateJsonStrict</code> — on OpenAI that sets{' '}
+              <code>response_format: {'{ type: "json_schema", strict: true }'}</code>{' '}
+              so the model is guaranteed to produce schema-conformant JSON or fail.
+            </span>
+          </span>
         </label>
-        <div className="bs-hint">
-          When enabled with a Response Schema, the backend routes through{' '}
-          <code>LlmClient.generateJsonStrict</code> — on OpenAI that sets{' '}
-          <code>response_format: {'{ type: "json_schema", strict: true }'}</code>{' '}
-          so the model is guaranteed to produce schema-conformant JSON or fail.
-        </div>
       </section>
 
       <section className="bs-editor-section">

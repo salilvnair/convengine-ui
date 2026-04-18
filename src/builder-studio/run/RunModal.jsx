@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { executeGraph } from './graph-runner'
+import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, XIcon } from '../components/icons'
 
 export default function RunModal({ workflow, onClose }) {
@@ -16,6 +17,12 @@ export default function RunModal({ workflow, onClose }) {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [progress, setProgress] = useState([])
+  const startRun = useWorkflowStore((s) => s.startRun)
+  const markNodeRunning = useWorkflowStore((s) => s.markNodeRunning)
+  const markNodeDone = useWorkflowStore((s) => s.markNodeDone)
+  const markNodeError = useWorkflowStore((s) => s.markNodeError)
+  const endRun = useWorkflowStore((s) => s.endRun)
+  const clearRunHighlights = useWorkflowStore((s) => s.clearRunHighlights)
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape' && !busy) onClose() }
@@ -25,6 +32,7 @@ export default function RunModal({ workflow, onClose }) {
 
   async function doRun() {
     setBusy(true); setError(null); setResult(null); setProgress([])
+    startRun() // reset canvas highlights
     try {
       // Validate required inputs
       for (const n of inputNodes) {
@@ -35,15 +43,27 @@ export default function RunModal({ workflow, onClose }) {
       const res = await executeGraph({
         workflow,
         inputs: values,
-        onProgress: (p) => setProgress((prev) => [...prev, p]),
+        onProgress: (p) => {
+          setProgress((prev) => [...prev, p])
+          // Mirror progress into the workflow store so WorkflowNode
+          // can flash the running card green (ComfyUI-style).
+          if (p.type === 'start') markNodeRunning(p.nodeId)
+          else if (p.type === 'done') markNodeDone(p.nodeId)
+          else if (p.type === 'error') markNodeError(p.nodeId)
+        },
       })
       setResult(res)
+      endRun()
     } catch (err) {
       setError(err.message || String(err))
+      endRun()
     } finally {
       setBusy(false)
     }
   }
+
+  // Clear canvas highlights when the modal closes.
+  useEffect(() => clearRunHighlights, [clearRunHighlights])
 
   return (
     <div className="bs-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose() }}>
