@@ -32,13 +32,20 @@ export default function ContextMenu({ x, y, items, onClose }) {
     }
     function onKey(e) { if (e.key === 'Escape') onClose() }
     function onScroll() { onClose() }
+    function onGlobalClose() { onClose() }
+    // Close on any click or right-click outside the menu
     document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('contextmenu', onDocClick)
     document.addEventListener('keydown', onKey)
+    // Global event: another context menu is opening, close this one
+    window.addEventListener('bs:close-context-menus', onGlobalClose)
     // If anything scrolls under the menu (canvas pan, panel scroll), close it.
     window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('contextmenu', onDocClick)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('bs:close-context-menus', onGlobalClose)
       window.removeEventListener('scroll', onScroll, true)
     }
   }, [onClose])

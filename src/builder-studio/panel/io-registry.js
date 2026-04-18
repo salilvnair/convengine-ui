@@ -1,25 +1,29 @@
 /**
- * IO Panel Registry — extensible configuration for the Inspector's I/O panel.
+ * IO Panel Registry — extensible configuration for the Inspector's I/O panel
+ * and card-level port display.
  *
  * Extensions can register:
  *   - Custom type colors (for typed badges in inputs/outputs)
+ *   - Card port overrides (what shows on the node card vs inspector)
  *   - Custom IO sections (connections, template vars, custom panels)
  *   - Block-level feature flags (e.g. which blocks show template variables)
  *
  * Usage from an extension:
- *   import { registerTypeColor, registerIOSection, enableFeature } from './io-registry'
+ *   import { registerTypeColor, registerCardPorts, enableFeature } from './io-registry'
  *   registerTypeColor('vector', { bg: '...', border: '...', text: '...' })
+ *   registerCardPorts('my_block', { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] })
  *   enableFeature('templateVars', 'my_custom_block')
  */
 
 // ─── Type Colors ────────────────────────────────────────────────────────────
+// `solid` is used for port circles on nodes; `bg`/`border`/`text` for badges.
 const typeColors = {
-  string:  { bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.3)',  text: '#86efac' },
-  number:  { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)', text: '#fde68a' },
-  boolean: { bg: 'rgba(244,114,182,0.12)',border: 'rgba(244,114,182,0.3)',text: '#f9a8d4' },
-  json:    { bg: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.3)', text: '#a5b4fc' },
-  array:   { bg: 'rgba(14,165,233,0.12)', border: 'rgba(14,165,233,0.3)', text: '#7dd3fc' },
-  any:     { bg: 'rgba(148,163,184,0.12)',border: 'rgba(148,163,184,0.3)',text: '#cbd5e1' },
+  string:  { bg: 'rgba(34,197,94,0.12)',  border: 'rgba(34,197,94,0.3)',  text: '#86efac',  solid: '#22c55e' },
+  number:  { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)', text: '#fde68a',  solid: '#fbbf24' },
+  boolean: { bg: 'rgba(244,114,182,0.12)',border: 'rgba(244,114,182,0.3)',text: '#f9a8d4',  solid: '#f472b6' },
+  json:    { bg: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.3)', text: '#a5b4fc',  solid: '#6366f1' },
+  array:   { bg: 'rgba(14,165,233,0.12)', border: 'rgba(14,165,233,0.3)', text: '#7dd3fc',  solid: '#0ea5e9' },
+  any:     { bg: 'rgba(148,163,184,0.12)',border: 'rgba(148,163,184,0.3)',text: '#cbd5e1',  solid: '#94a3b8' },
 }
 
 export function registerTypeColor(typeName, colors) {
@@ -33,6 +37,91 @@ export function getTypeColor(typeName) {
 
 export function getAllTypeColors() {
   return { ...typeColors }
+}
+
+// ─── Card Ports — what shows on the node card (simplified) ──────────────────
+// Key: blockType → { inputs: [{ key, type }], outputs: [{ key, type }] }
+//
+// Ports can be:
+//   - Explicit overrides (registered per block type)
+//   - 'auto' — derive card summary from the block's full inputs/outputs schema
+//
+// "auto" derivation rules (n8n/ComfyUI hybrid):
+//   Inputs:  If 0 → none. If all same type → single port of that type.
+//            If mixed → single "input" port typed "json".
+//   Outputs: Show each individually (max 3). If 4+ → show first + "…more".
+//
+// Blocks that need special treatment override explicitly.
+const cardPortOverrides = {
+  // Triggers — no input
+  starter:       { inputs: [],  outputs: [] },
+  user_input:    { inputs: [],  outputs: 'auto' },
+  webhook_request: { inputs: [],  outputs: 'auto' },
+  schedule:      { inputs: [],  outputs: 'auto' },
+  variables:     { inputs: [],  outputs: [] },
+  // If/Else family — multi-output branching, handled by outputHandles
+  if_else:       { inputs: 'auto', outputs: [] },
+  if_elseif_else:{ inputs: 'auto', outputs: [] },
+  switch:        { inputs: 'auto', outputs: [] },
+  // Show Preview: always any→any pass-through
+  show_preview:  { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'payload', type: 'any' }] },
+}
+
+export function registerCardPorts(blockType, ports) {
+  if (!blockType || !ports) return
+  cardPortOverrides[blockType] = ports
+}
+
+/**
+ * Derive the dominant type from a set of IO definitions.
+ * Returns the common type if all entries share it, otherwise 'json'.
+ */
+function deriveType(ioDefs) {
+  if (!ioDefs) return 'any'
+  const entries = Object.values(ioDefs)
+  if (entries.length === 0) return 'any'
+  const types = new Set(entries.map((e) => e.type || 'any'))
+  if (types.size === 1) return [...types][0]
+  return 'json'
+}
+
+/**
+ * Build auto-derived ports from full block schema definitions.
+ */
+function autoPorts(fullDefs, direction) {
+  if (!fullDefs || Object.keys(fullDefs).length === 0) return []
+  const entries = Object.entries(fullDefs)
+
+  if (direction === 'input') {
+    // Single summary port for inputs
+    return [{ key: 'input', type: deriveType(fullDefs) }]
+  }
+  // Outputs: show each (up to 3)
+  if (entries.length <= 3) {
+    return entries.map(([k, v]) => ({ key: k, type: v.type || 'any' }))
+  }
+  return entries.slice(0, 3).map(([k, v]) => ({ key: k, type: v.type || 'any' }))
+}
+
+/**
+ * Get the card-level ports for a block type.
+ * Returns { inputs: [{ key, type }], outputs: [{ key, type }] }
+ */
+export function getCardPorts(blockType, fullInputs, fullOutputs) {
+  const override = cardPortOverrides[blockType]
+
+  let inputs, outputs
+
+  if (override) {
+    inputs = override.inputs === 'auto' ? autoPorts(fullInputs, 'input') : override.inputs
+    outputs = override.outputs === 'auto' ? autoPorts(fullOutputs, 'output') : override.outputs
+  } else {
+    // No explicit override — fully auto-derive
+    inputs = autoPorts(fullInputs, 'input')
+    outputs = autoPorts(fullOutputs, 'output')
+  }
+
+  return { inputs: inputs || [], outputs: outputs || [] }
 }
 
 // ─── Feature Flags (block-type → Set of features) ──────────────────────────

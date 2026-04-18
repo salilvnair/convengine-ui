@@ -20,6 +20,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
+import { getTypeColor, getCardPorts } from '../panel/io-registry'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import JsonView from '../run/JsonView'
@@ -84,6 +85,7 @@ function WorkflowNode({ id, data, selected }) {
   const [nodeW, setNodeW] = useState(data.width || DEFAULT_W)
   const [nodeH, setNodeH] = useState(data.height || DEFAULT_H)
   const [resizing, setResizing] = useState(false)
+  const [resizeMode, setResizeMode] = useState(false) // right-click → Resize toggles this
 
   // Sync if data changes externally (e.g. undo, load)
   useEffect(() => {
@@ -155,6 +157,11 @@ function WorkflowNode({ id, data, selected }) {
     if (renamingNodeId === id) setEditing(true)
   }, [renamingNodeId, id])
 
+  // Exit resize mode when node is deselected
+  useEffect(() => {
+    if (!selected) setResizeMode(false)
+  }, [selected])
+
   const isContainer = data.blockType === 'loop' || data.blockType === 'parallel'
   const isTrigger = data.category === 'triggers' || cfg?.category === 'triggers'
 
@@ -174,6 +181,8 @@ function WorkflowNode({ id, data, selected }) {
   function openMenu(e) {
     e.preventDefault()
     e.stopPropagation()
+    // Close any other open context menu first (global event)
+    window.dispatchEvent(new Event('bs:close-context-menus'))
     setMenu({ x: e.clientX, y: e.clientY })
   }
 
@@ -201,6 +210,18 @@ function WorkflowNode({ id, data, selected }) {
     [cfg]
   )
 
+  // ─── Typed port strips (ComfyUI-style) — registry-driven ────────────────
+  const { inputPorts, outputPorts } = useMemo(() => {
+    if (!cfg) return { inputPorts: [], outputPorts: [] }
+    const card = getCardPorts(cfg.type, cfg.inputs, cfg.outputs)
+    // For multi-output branching blocks, skip typed outputs
+    const outs = outputHandles.length > 1 ? [] : (card.outputs || [])
+    return {
+      inputPorts: (card.inputs || []).map((p) => ({ ...p, color: getTypeColor(p.type) })),
+      outputPorts: outs.map((p) => ({ ...p, color: getTypeColor(p.type) })),
+    }
+  }, [cfg, outputHandles])
+
   return (
     <>
       <div
@@ -213,6 +234,7 @@ function WorkflowNode({ id, data, selected }) {
           isError ? 'bs-node-error' : '',
           outputHandles.length > 1 ? 'bs-node-multi-out' : '',
           resizing ? 'bs-node-resizing' : '',
+          resizeMode ? 'bs-node-resize-mode' : '',
         ].filter(Boolean).join(' ')}
         style={{
           width: nodeW || undefined,
@@ -224,20 +246,21 @@ function WorkflowNode({ id, data, selected }) {
         onContextMenu={openMenu}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
       >
-        {/* Resize handles — edges and corners */}
-        <div className="bs-resize bs-resize-n" onPointerDown={(e) => onResizeStart(e, 'n')} />
-        <div className="bs-resize bs-resize-s" onPointerDown={(e) => onResizeStart(e, 's')} />
-        <div className="bs-resize bs-resize-e" onPointerDown={(e) => onResizeStart(e, 'e')} />
-        <div className="bs-resize bs-resize-w" onPointerDown={(e) => onResizeStart(e, 'w')} />
-        <div className="bs-resize bs-resize-nw" onPointerDown={(e) => onResizeStart(e, 'nw')} />
-        <div className="bs-resize bs-resize-ne" onPointerDown={(e) => onResizeStart(e, 'ne')} />
-        <div className="bs-resize bs-resize-sw" onPointerDown={(e) => onResizeStart(e, 'sw')} />
-        <div className="bs-resize bs-resize-se" onPointerDown={(e) => onResizeStart(e, 'se')} />
-
-        {!isTrigger && (
-          <Handle type="target" position={Position.Left} className="bs-handle" id="in" />
+        {/* Resize handles — only visible when resize mode is active */}
+        {resizeMode && (
+          <>
+            <div className="bs-resize bs-resize-n" onPointerDown={(e) => onResizeStart(e, 'n')} />
+            <div className="bs-resize bs-resize-s" onPointerDown={(e) => onResizeStart(e, 's')} />
+            <div className="bs-resize bs-resize-e" onPointerDown={(e) => onResizeStart(e, 'e')} />
+            <div className="bs-resize bs-resize-w" onPointerDown={(e) => onResizeStart(e, 'w')} />
+            <div className="bs-resize bs-resize-nw" onPointerDown={(e) => onResizeStart(e, 'nw')} />
+            <div className="bs-resize bs-resize-ne" onPointerDown={(e) => onResizeStart(e, 'ne')} />
+            <div className="bs-resize bs-resize-sw" onPointerDown={(e) => onResizeStart(e, 'sw')} />
+            <div className="bs-resize bs-resize-se" onPointerDown={(e) => onResizeStart(e, 'se')} />
+          </>
         )}
 
+        {/* ── Header ── */}
         <div className="bs-node-header">
           <div className="bs-node-icon-well" style={{ background: cfg?.bgColor || data.bgColor }}>
             {Icon ? <Icon className="bs-node-icon" /> : null}
@@ -266,8 +289,6 @@ function WorkflowNode({ id, data, selected }) {
 
           <span className="bs-node-badge">{data.blockType}</span>
 
-          {/* Hover-delete (mirrors sidenav rows). Stops propagation so
-              clicking it doesn't also select the node. */}
           <button
             className="bs-node-close"
             title="Delete block"
@@ -278,11 +299,40 @@ function WorkflowNode({ id, data, selected }) {
           </button>
         </div>
 
+        {/* ── Input port strip (ComfyUI-style) ── */}
+        {inputPorts.length > 0 && (
+          <div className="bs-port-strip bs-port-strip-in">
+            {inputPorts.map((p) => (
+              <div key={p.key} className="bs-port-row bs-port-row-in">
+                <Handle
+                  type="target"
+                  position={Position.Left}
+                  id={`in_${p.key}`}
+                  className="bs-port-handle bs-port-handle-in"
+                  style={{ background: p.color.solid }}
+                />
+                <span className="bs-port-dot" style={{ background: p.color.solid }} />
+                <span className="bs-port-name">{p.key}</span>
+                <span
+                  className="bs-port-type-badge"
+                  style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
+                >
+                  {p.type}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Fallback: single input handle for blocks with no typed inputs */}
+        {inputPorts.length === 0 && !isTrigger && (
+          <Handle type="target" position={Position.Left} className="bs-handle" id="in" />
+        )}
+
+        {/* ── Body rows ── */}
         {previewRows.length > 0 && (
           <div className="bs-node-body">
             {previewRows.map((row) => {
-              // Full-width JSON preview area — used by Save To Files so the
-              // card shows the latest payload it received (Postman-style).
               if (row.sb.type === 'json-preview') {
                 return (
                   <div key={row.id} className="bs-node-jsonpreview" onClick={(e) => { e.stopPropagation(); selectNode(id) }}>
@@ -322,44 +372,66 @@ function WorkflowNode({ id, data, selected }) {
           </div>
         )}
 
-        {/* Output handles — single centered pin for most blocks, or a
-            stacked column of labeled pins for branching blocks.
-            Labels are rendered as a sibling overlay because ReactFlow
-            needs the `<Handle>` elements mounted directly on the node. */}
-        {outputHandles.length === 1 ? (
-          <Handle type="source" position={Position.Right} className="bs-handle" id={outputHandles[0]} />
-        ) : (
-          <>
-            {outputHandles.map((h, i) => {
-              const step = 100 / (outputHandles.length + 1)
-              const top = step * (i + 1)
-              return (
+        {/* ── Output port strip (ComfyUI-style) — single-output blocks ── */}
+        {outputPorts.length > 0 && (
+          <div className="bs-port-strip bs-port-strip-out">
+            {outputPorts.map((p, i) => (
+              <div key={p.key} className="bs-port-row bs-port-row-out">
+                <span
+                  className="bs-port-type-badge"
+                  style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
+                >
+                  {p.type}
+                </span>
+                <span className="bs-port-name">{p.key}</span>
+                <span className="bs-port-dot" style={{ background: p.color.solid }} />
                 <Handle
-                  key={h}
                   type="source"
                   position={Position.Right}
-                  className={`bs-handle bs-handle-multi bs-handle-${safeHandleColor(h)}`}
-                  id={h}
-                  style={{ top: `${top}%` }}
+                  id={p.key}
+                  className="bs-port-handle bs-port-handle-out"
+                  style={{ background: p.color.solid }}
                 />
-              )
-            })}
-            <div className="bs-node-out-rail" aria-hidden="true">
-              {outputHandles.map((h, i) => {
-                const step = 100 / (outputHandles.length + 1)
-                const top = step * (i + 1)
-                return (
-                  <span
-                    key={h}
-                    className={`bs-node-out-label bs-node-out-label-${safeHandleColor(h)}`}
-                    style={{ top: `${top}%` }}
-                  >
-                    {h}
-                  </span>
-                )
-              })}
-            </div>
-          </>
+                {/* Backward-compat: first output also responds to legacy "out" handle ID */}
+                {i === 0 && p.key !== 'out' && (
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id="out"
+                    className="bs-port-handle-hidden"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Fallback: single output handle for blocks with no typed outputs */}
+        {outputPorts.length === 0 && outputHandles.length === 1 && (
+          <Handle type="source" position={Position.Right} className="bs-handle" id={outputHandles[0]} />
+        )}
+
+        {/* ── Input backward-compat: hidden "in" handle for old edges ── */}
+        {inputPorts.length > 0 && (
+          <Handle type="target" position={Position.Left} id="in" className="bs-port-handle-hidden" />
+        )}
+
+        {/* ── Multi-output branching handles (if_else, switch, etc.) ── */}
+        {outputHandles.length > 1 && (
+          <div className="bs-port-strip bs-port-strip-out bs-port-strip-branch">
+            {outputHandles.map((h) => (
+              <div key={h} className="bs-port-row bs-port-row-out">
+                <span className={`bs-port-branch-label bs-port-branch-${safeHandleColor(h)}`}>{h}</span>
+                <span className={`bs-port-dot bs-port-dot-${safeHandleColor(h)}`} />
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={h}
+                  className={`bs-port-handle bs-port-handle-out bs-port-handle-${safeHandleColor(h)}`}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -369,11 +441,13 @@ function WorkflowNode({ id, data, selected }) {
           y={menu.y}
           onClose={() => setMenu(null)}
           items={[
-            { id: 'open', label: 'Open in Inspector', icon: LinkIcon, onSelect: () => selectNode(id) },
-            { id: 'rename', label: 'Rename', shortcut: 'F2', onSelect: () => setEditing(true) },
-            { id: 'dup', label: 'Duplicate', icon: PlusIcon, shortcut: '⌘D', onSelect: () => duplicateNode(id) },
-            { id: 'disc', label: 'Disconnect edges', onSelect: () => disconnectNode(id) },
-            { id: 'copy', label: 'Copy node ID', onSelect: copyId },
+            { id: 'open', label: 'Open in Inspector', icon: CtxInspectorIcon, onSelect: () => selectNode(id) },
+            { id: 'rename', label: 'Rename', icon: CtxRenameIcon, shortcut: 'F2', onSelect: () => setEditing(true) },
+            { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, shortcut: '⌘D', onSelect: () => duplicateNode(id) },
+            { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, onSelect: () => setResizeMode((v) => !v) },
+            { separator: true },
+            { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, onSelect: () => disconnectNode(id) },
+            { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, onSelect: copyId },
             { separator: true },
             { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: requestDelete },
           ]}
@@ -558,6 +632,28 @@ function formatPreview(value) {
   if (typeof value === 'object') return <em>{'{…}'}</em>
   const s = String(value)
   return s.length > 32 ? `${s.slice(0, 32)}…` : s
+}
+
+/* ─── Context Menu SVG Icons ─────────────────────────────────────────────── */
+const svgProps = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }
+
+function CtxInspectorIcon(props) {
+  return <svg {...svgProps} {...props}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /></svg>
+}
+function CtxRenameIcon(props) {
+  return <svg {...svgProps} {...props}><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+}
+function CtxDuplicateIcon(props) {
+  return <svg {...svgProps} {...props}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+}
+function CtxResizeIcon(props) {
+  return <svg {...svgProps} {...props}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
+}
+function CtxDisconnectIcon(props) {
+  return <svg {...svgProps} {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+}
+function CtxCopyIcon(props) {
+  return <svg {...svgProps} {...props}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
 }
 
 export default memo(WorkflowNode)

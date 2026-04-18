@@ -16,6 +16,7 @@ import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
 import WorkflowNode from './WorkflowNode'
 import ConfirmModal from '../components/ConfirmModal'
+import ContextMenu from '../sidenav/ContextMenu'
 
 const nodeTypes = { builderBlock: WorkflowNode }
 
@@ -49,6 +50,23 @@ function CanvasInner() {
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
   const nodesById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes])
   const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
+  const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
+
+  // Right-click or click on an edge → show "Remove connection" menu
+  const onEdgeContextMenu = useCallback((e, edge) => {
+    e.preventDefault()
+    window.dispatchEvent(new Event('bs:close-context-menus'))
+    const sourceNode = nodesById[edge.source]
+    const targetNode = nodesById[edge.target]
+    const sourceName = sourceNode?.data?.title || edge.source
+    const targetName = targetNode?.data?.title || edge.target
+    setEdgeMenu({
+      x: e.clientX,
+      y: e.clientY,
+      edgeId: edge.id,
+      label: `${sourceName} → ${targetName}`,
+    })
+  }, [nodesById])
 
   /**
    * Overlay run-state styles onto the edges ReactFlow renders:
@@ -170,8 +188,10 @@ function CanvasInner() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onEdgesDelete={onEdgesDelete}
-        onPaneClick={() => selectNode(null)}
+        onEdgeContextMenu={onEdgeContextMenu}
+        onPaneClick={() => { selectNode(null); window.dispatchEvent(new Event('bs:close-context-menus')) }}
         nodeTypes={memoNodeTypes}
+        edgesUpdatable
         fitView
         proOptions={{ hideAttribution: true }}
       >
@@ -187,6 +207,19 @@ function CanvasInner() {
           confirmLabel="Delete block"
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => { removeNode(pendingDelete.id); setPendingDelete(null) }}
+        />
+      )}
+
+      {edgeMenu && (
+        <ContextMenu
+          x={edgeMenu.x}
+          y={edgeMenu.y}
+          onClose={() => setEdgeMenu(null)}
+          items={[
+            { id: 'info', label: edgeMenu.label, disabled: true },
+            { separator: true },
+            { id: 'remove', label: 'Remove connection', danger: true, onSelect: () => removeEdge(edgeMenu.edgeId) },
+          ]}
         />
       )}
     </div>

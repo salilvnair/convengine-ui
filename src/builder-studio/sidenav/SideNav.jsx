@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspace-store'
-import { useTabsStore, agentTabId, skillTabId, teamTabId } from '../stores/tabs-store'
+import { useTabsStore, agentTabId, skillTabId, teamTabId, workflowTabId } from '../stores/tabs-store'
 import BlockPalette from './BlockPalette'
 import ContextMenu from './ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
@@ -175,7 +175,9 @@ function WorkflowsPanel() {
   const deleteWorkflow = useWorkspaceStore((s) => s.deleteWorkflow)
   const renameWorkflow = useWorkspaceStore((s) => s.renameWorkflow)
   const duplicateWorkflow = useWorkspaceStore((s) => s.duplicateWorkflow)
-  const focusWorkflowTab = useTabsStore((s) => s.setActive)
+  const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
+  const renameTab = useTabsStore((s) => s.renameTab)
+  const closeTab = useTabsStore((s) => s.closeTab)
   const [menu, setMenu] = useCtxMenu()
   const [editing, setEditing] = useState(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -196,16 +198,16 @@ function WorkflowsPanel() {
           <li
             key={w.id}
             className={`bs-row ${w.id === activeId ? 'is-active' : ''}`}
-            onClick={() => { openWorkflow(w.id); focusWorkflowTab('workflow') }}
+            onClick={() => openWorkflowTab(w.id, w.name)}
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(w.id) }}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({
                 x: e.clientX, y: e.clientY,
                 items: [
-                  { id: 'open', label: 'Open', icon: LinkIcon, onSelect: () => { openWorkflow(w.id); focusWorkflowTab('workflow') } },
+                  { id: 'open', label: 'Open in Tab', icon: LinkIcon, onSelect: () => openWorkflowTab(w.id, w.name) },
                   { id: 'rename', label: 'Rename', onSelect: () => setEditing(w.id) },
-                  { id: 'dup', label: 'Duplicate', onSelect: () => duplicateWorkflow(w.id) },
+                  { id: 'dup', label: 'Duplicate', onSelect: () => { const copy = duplicateWorkflow(w.id); if (copy) openWorkflowTab(copy.id, copy.name) } },
                   { separator: true },
                   { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, onSelect: () => setPendingDelete({ id: w.id, name: w.name }) },
                 ],
@@ -220,7 +222,7 @@ function WorkflowsPanel() {
                   className="bs-inline-edit"
                   defaultValue={w.name}
                   onClick={(e) => e.stopPropagation()}
-                  onBlur={(e) => { renameWorkflow(w.id, e.target.value.trim() || w.name); setEditing(null) }}
+                  onBlur={(e) => { const v = e.target.value.trim() || w.name; renameWorkflow(w.id, v); renameTab(workflowTabId(w.id), v); setEditing(null) }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur()
                     if (e.key === 'Escape') setEditing(null)
@@ -249,7 +251,7 @@ function WorkflowsPanel() {
         <CreateWorkflowModal
           teams={teams}
           onCancel={() => setNewOpen(false)}
-          onCreate={(name, teamId) => { createWorkflow(name, teamId); setNewOpen(false) }}
+          onCreate={(name, teamId) => { const wf = createWorkflow(name, teamId); openWorkflowTab(wf.id, wf.name); setNewOpen(false) }}
         />
       )}
 
@@ -259,7 +261,7 @@ function WorkflowsPanel() {
           message={`"${pendingDelete.name}" and all its blocks will be removed. This cannot be undone.`}
           confirmLabel="Delete workflow"
           onCancel={() => setPendingDelete(null)}
-          onConfirm={() => { deleteWorkflow(pendingDelete.id); setPendingDelete(null) }}
+          onConfirm={() => { closeTab(workflowTabId(pendingDelete.id)); deleteWorkflow(pendingDelete.id); setPendingDelete(null) }}
         />
       )}
     </div>

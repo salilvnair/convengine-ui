@@ -2,18 +2,20 @@
  * Postman-style tab bar + body for the builder studio center pane.
  *
  *   ┌─────────────────────────────────────────────────────┐
- *   │ [Workflow]  [🤖 URL Data Extractor ×]  [⭐ Skill ×] │ tab bar
+ *   │ [📄 Demo ×]  [📄 New WF ×]  [🤖 Agent ×]          │ tab bar
  *   ├─────────────────────────────────────────────────────┤
  *   │                                                     │
  *   │   (active tab's content — Canvas or entity editor)  │
  *   │                                                     │
  *   └─────────────────────────────────────────────────────┘
  *
- * The `workflow` tab is always present and renders the ReactFlow canvas.
- * Agent/Skill tabs render their editors. Closing a tab drops it; closing
- * the active tab falls back to the one that was before it.
+ * Each workflow gets its own tab. The first workflow tab is pinned (cannot
+ * be closed) — like ComfyUI's default graph. Switching workflow tabs sets
+ * `activeWorkflowId` in workspace store so the canvas shows the right graph.
  */
-import { useTabsStore } from '../stores/tabs-store'
+import { useEffect, useRef } from 'react'
+import { useTabsStore, workflowIdFromTab } from '../stores/tabs-store'
+import { useWorkspaceStore } from '../stores/workspace-store'
 import Canvas from '../canvas/Canvas'
 import AgentEditor from './AgentEditor'
 import SkillEditor from './SkillEditor'
@@ -32,10 +34,20 @@ const ICONS = {
 export default function CenterPane() {
   const tabs = useTabsStore((s) => s.tabs)
   const activeId = useTabsStore((s) => s.activeId)
+  const pinnedWorkflowTabId = useTabsStore((s) => s.pinnedWorkflowTabId)
   const setActive = useTabsStore((s) => s.setActive)
   const closeTab = useTabsStore((s) => s.closeTab)
+  const openWorkflow = useWorkspaceStore((s) => s.openWorkflow)
+  const initDone = useRef(false)
 
   const active = tabs.find((t) => t.id === activeId) || tabs[0]
+
+  // When the active tab changes, if it's a workflow tab, sync activeWorkflowId
+  useEffect(() => {
+    if (!activeId) return
+    const wfId = workflowIdFromTab(activeId)
+    if (wfId) openWorkflow(wfId)
+  }, [activeId, openWorkflow])
 
   return (
     <div className="bs-center">
@@ -43,7 +55,7 @@ export default function CenterPane() {
         {tabs.map((t) => {
           const Icon = ICONS[t.kind] || WorkflowsIcon
           const isActive = t.id === activeId
-          const pinned = t.id === 'workflow'
+          const pinned = t.id === pinnedWorkflowTabId
           return (
             <button
               key={t.id}

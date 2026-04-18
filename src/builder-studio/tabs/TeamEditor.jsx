@@ -40,7 +40,7 @@ export default function TeamEditor({ teamId }) {
   const createAgent = useWorkspaceStore((s) => s.createAgent)
   const openWorkflow = useWorkspaceStore((s) => s.openWorkflow)
   const openTab = useTabsStore((s) => s.openTab)
-  const setActive = useTabsStore((s) => s.setActive)
+  const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
 
   const team = useMemo(() => teams.find((t) => t.id === teamId), [teams, teamId])
   const pools = useMemo(
@@ -192,7 +192,7 @@ export default function TeamEditor({ teamId }) {
               <li
                 key={w.id}
                 className="bs-row"
-                onClick={() => { openWorkflow(w.id); setActive('workflow') }}
+                onClick={() => openWorkflowTab(w.id, w.name)}
               >
                 <WorkflowsIcon className="bs-ico-sm bs-row-lead" />
                 <div className="bs-row-main">
@@ -203,7 +203,7 @@ export default function TeamEditor({ teamId }) {
                 </div>
                 <button
                   className="bs-btn-ghost"
-                  onClick={(e) => { e.stopPropagation(); openWorkflow(w.id); setActive('workflow') }}
+                  onClick={(e) => { e.stopPropagation(); openWorkflowTab(w.id, w.name) }}
                   title="Open on canvas"
                 >
                   <LinkIcon className="bs-ico-xs" />

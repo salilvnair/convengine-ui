@@ -21,7 +21,7 @@ import BottomToolbar from './run/BottomToolbar'
 import CreateWorkflowModal from './components/CreateWorkflowModal'
 import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
-import { useTabsStore } from './stores/tabs-store'
+import { useTabsStore, workflowTabId } from './stores/tabs-store'
 import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
 import './builder-studio.css'
 
@@ -42,6 +42,9 @@ export default function AgentBuilderPage() {
   const edges = useWorkflowStore((s) => s.edges)
   const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
   const openSettings = useTabsStore((s) => s.openSettings)
+  const initWorkflowTabs = useTabsStore((s) => s.initWorkflowTabs)
+  const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
+  const renameTab = useTabsStore((s) => s.renameTab)
 
   const [rOpen, setROpen] = useState(true)
   const [rWidth, setRWidth] = useState(R_DEFAULT)
@@ -51,6 +54,16 @@ export default function AgentBuilderPage() {
   const [runOpen, setRunOpen] = useState(false)
   const [dockTab, setDockTab] = useState('run')
   const [newWorkflowOpen, setNewWorkflowOpen] = useState(false)
+  const tabsInited = useRef(false)
+
+  // Initialize workflow tabs from workspace store on first mount
+  useEffect(() => {
+    if (tabsInited.current) return
+    if (workflows.length > 0) {
+      tabsInited.current = true
+      initWorkflowTabs(workflows, activeWorkflowId)
+    }
+  }, [workflows, activeWorkflowId, initWorkflowTabs])
 
   useEffect(() => {
     if (!activeWorkflowId) return
@@ -127,7 +140,7 @@ export default function AgentBuilderPage() {
                 defaultValue={active.name}
                 onBlur={(e) => {
                   const v = e.target.value.trim()
-                  if (v && v !== active.name) renameWorkflow(active.id, v)
+                  if (v && v !== active.name) { renameWorkflow(active.id, v); renameTab(workflowTabId(active.id), v) }
                   setEditingName(false)
                 }}
                 onKeyDown={(e) => {
@@ -249,7 +262,8 @@ export default function AgentBuilderPage() {
           teams={teams}
           onCancel={() => setNewWorkflowOpen(false)}
           onCreate={(name, teamId) => {
-            createWorkflow(name, teamId)
+            const wf = createWorkflow(name, teamId)
+            openWorkflowTab(wf.id, wf.name)
             setNewWorkflowOpen(false)
           }}
         />
