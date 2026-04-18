@@ -397,11 +397,13 @@ export const useWorkspaceStore = create()(
       }),
       {
         name: 'builder-studio/workspace',
-        version: 6,
+        version: 7,
         migrate: (persisted, fromVersion) => {
-          // Any older-version blob is discarded in favor of the bundled seed
-          // (demo workflow now includes a dedicated user_input node).
-          if (!persisted || fromVersion < 4) return initialState
+          // Any older-version blob is discarded in favor of the bundled seed.
+          // Bump whenever the demo topology changes (new node/edge) so users
+          // who already ran the studio get the updated canvas instead of a
+          // stale rehydrate. v7 adds the terminal Show-Preview node.
+          if (!persisted || fromVersion < 7) return initialState
           return persisted
         },
       }
