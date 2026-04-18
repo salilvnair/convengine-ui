@@ -295,8 +295,10 @@ export default function App() {
       setActivePage("ce_builder");
       return;
     }
-
-    // TODO: Route to the Agents builder page when the Agents builder is available.
+    if (agentBuilderType === "agents") {
+      setActivePage("agent_builder");
+      return;
+    }
   };
 
   const onCancelAgentBuilder = () => {

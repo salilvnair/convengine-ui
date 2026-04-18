@@ -1,0 +1,128 @@
+/**
+ * ReactFlow canvas — mirrors sim/apps/sim/app/workspace/[workspaceId]/w/[workflowId]/workflow.tsx.
+ *
+ * Supports drag-drop from the BlockPalette (via HTML5 DnD), pan/zoom,
+ * minimap, background, and click-to-select for the inspector.
+ *
+ * Keyboard:
+ *   - Delete / Backspace  → remove selected node
+ *   - ⌘D / Ctrl-D         → duplicate selected node
+ * (Both are suppressed while typing inside inputs/textareas/contentEditable.)
+ */
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow } from 'reactflow'
+import 'reactflow/dist/style.css'
+import { useWorkflowStore } from '../stores/workflow-store'
+import { getBlock } from '../blocks/registry'
+import WorkflowNode from './WorkflowNode'
+
+const nodeTypes = { builderBlock: WorkflowNode }
+
+function isEditableTarget(t) {
+  if (!t) return false
+  const tag = (t.tagName || '').toLowerCase()
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
+  if (t.isContentEditable) return true
+  // vanilla-jsoneditor / CodeMirror roots
+  if (t.closest?.('.cm-editor, .bs-jsoneditor, [contenteditable="true"]')) return true
+  return false
+}
+
+function CanvasInner() {
+  const wrapperRef = useRef(null)
+  const { screenToFlowPosition } = useReactFlow()
+  const nodes = useWorkflowStore((s) => s.nodes)
+  const edges = useWorkflowStore((s) => s.edges)
+  const onNodesChange = useWorkflowStore((s) => s.onNodesChange)
+  const onEdgesChange = useWorkflowStore((s) => s.onEdgesChange)
+  const onConnect = useWorkflowStore((s) => s.onConnect)
+  const addNode = useWorkflowStore((s) => s.addNode)
+  const selectNode = useWorkflowStore((s) => s.selectNode)
+  const removeNode = useWorkflowStore((s) => s.removeNode)
+  const removeEdge = useWorkflowStore((s) => s.removeEdge)
+  const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
+  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
+
+  const onDragOver = useCallback((e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }, [])
+
+  const onDrop = useCallback(
+    (e) => {
+      e.preventDefault()
+      const blockType = e.dataTransfer.getData('application/builder-studio-block')
+      if (!blockType) return
+      const cfg = getBlock(blockType)
+      if (!cfg) return
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      addNode(blockType, position, cfg)
+    },
+    [addNode, screenToFlowPosition]
+  )
+
+  // Delete selected edges via ReactFlow's onEdgesDelete handler (fired when
+  // an edge is selected + user hits Delete). We also intercept keydown for
+  // node deletion since RF's built-in only acts on its internal "selected".
+  const onEdgesDelete = useCallback(
+    (toDelete) => {
+      toDelete.forEach((e) => removeEdge(e.id))
+    },
+    [removeEdge]
+  )
+
+  useEffect(() => {
+    function onKey(e) {
+      if (isEditableTarget(e.target)) return
+      const meta = e.metaKey || e.ctrlKey
+
+      // Duplicate
+      if (meta && (e.key === 'd' || e.key === 'D')) {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        duplicateNode(selectedNodeId)
+        return
+      }
+
+      // Delete selected node
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        removeNode(selectedNodeId)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedNodeId, removeNode, duplicateNode])
+
+  const memoNodeTypes = useMemo(() => nodeTypes, [])
+
+  return (
+    <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onEdgesDelete={onEdgesDelete}
+        onPaneClick={() => selectNode(null)}
+        nodeTypes={memoNodeTypes}
+        fitView
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background gap={18} size={1.2} color="var(--ce-border)" />
+        <Controls showInteractive={false} />
+        <MiniMap pannable zoomable maskColor="rgba(0,0,0,0.35)" />
+      </ReactFlow>
+    </div>
+  )
+}
+
+export default function Canvas() {
+  return (
+    <ReactFlowProvider>
+      <CanvasInner />
+    </ReactFlowProvider>
+  )
+}

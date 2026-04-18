@@ -1,0 +1,144 @@
+/**
+ * Workflow canvas store — nodes, edges, selection, subBlock values.
+ *
+ * Split mirrors sim's stores/workflows/{workflow,subblock}. Kept in one file
+ * for concision but namespaced under two exported hooks.
+ */
+import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
+import {
+  addEdge as rfAddEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
+} from 'reactflow'
+import { v4 as uuid } from 'uuid'
+
+const initialState = {
+  nodes: [],
+  edges: [],
+  selectedNodeId: null,
+  /** Map<nodeId, Record<subBlockId, unknown>> — values per block instance. */
+  subBlockValues: {},
+}
+
+export const useWorkflowStore = create()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
+
+      loadWorkflow({ nodes, edges, subBlockValues }) {
+        set({
+          nodes: nodes || [],
+          edges: edges || [],
+          subBlockValues: subBlockValues || {},
+          selectedNodeId: null,
+        })
+      },
+
+      onNodesChange(changes) {
+        set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) }))
+      },
+      onEdgesChange(changes) {
+        set((s) => ({ edges: applyEdgeChanges(changes, s.edges) }))
+      },
+      onConnect(params) {
+        set((s) => ({ edges: rfAddEdge({ ...params, animated: true }, s.edges) }))
+      },
+
+      addNode(blockType, position, blockConfig) {
+        const id = `n_${uuid()}`
+        const node = {
+          id,
+          type: 'builderBlock',
+          position,
+          data: {
+            blockType,
+            title: blockConfig?.name || blockType,
+            bgColor: blockConfig?.bgColor || '#334155',
+            icon: blockConfig?.icon,
+            category: blockConfig?.category,
+          },
+        }
+        set((s) => ({ nodes: [...s.nodes, node] }))
+        return node
+      },
+
+      removeNode(id) {
+        set((s) => {
+          const { [id]: _dropped, ...restValues } = s.subBlockValues
+          return {
+            nodes: s.nodes.filter((n) => n.id !== id),
+            edges: s.edges.filter((e) => e.source !== id && e.target !== id),
+            subBlockValues: restValues,
+            selectedNodeId: s.selectedNodeId === id ? null : s.selectedNodeId,
+          }
+        })
+      },
+
+      /** Clone a node at a 32px/32px offset and deep-copy its subBlockValues. */
+      duplicateNode(id) {
+        const s = get()
+        const src = s.nodes.find((n) => n.id === id)
+        if (!src) return null
+        const newId = `n_${uuid()}`
+        const copy = {
+          ...src,
+          id: newId,
+          position: { x: (src.position?.x || 0) + 32, y: (src.position?.y || 0) + 32 },
+          data: { ...src.data, title: `${src.data?.title || src.data?.blockType} copy` },
+          selected: false,
+        }
+        const srcValues = s.subBlockValues[id]
+        set({
+          nodes: [...s.nodes, copy],
+          subBlockValues: srcValues
+            ? { ...s.subBlockValues, [newId]: JSON.parse(JSON.stringify(srcValues)) }
+            : s.subBlockValues,
+          selectedNodeId: newId,
+        })
+        return newId
+      },
+
+      /** Drop every edge incident to this node without removing the node. */
+      disconnectNode(id) {
+        set((s) => ({
+          edges: s.edges.filter((e) => e.source !== id && e.target !== id),
+        }))
+      },
+
+      /** Rename a node's visible title (doesn't affect blockType or id). */
+      renameNode(id, title) {
+        set((s) => ({
+          nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, title } } : n)),
+        }))
+      },
+
+      /** Remove a single edge by id. */
+      removeEdge(id) {
+        set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }))
+      },
+
+      selectNode(id) {
+        set({ selectedNodeId: id })
+      },
+
+      setSubBlockValue(nodeId, subBlockId, value) {
+        set((s) => ({
+          subBlockValues: {
+            ...s.subBlockValues,
+            [nodeId]: { ...(s.subBlockValues[nodeId] || {}), [subBlockId]: value },
+          },
+        }))
+      },
+
+      getSubBlockValues(nodeId) {
+        return get().subBlockValues[nodeId] || {}
+      },
+
+      reset() {
+        set(initialState)
+      },
+    }),
+    { name: 'builder-studio-workflow' }
+  )
+)
