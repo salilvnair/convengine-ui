@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspace-store'
-import { useTabsStore, agentTabId, skillTabId } from '../stores/tabs-store'
+import { useTabsStore, agentTabId, skillTabId, teamTabId } from '../stores/tabs-store'
 import BlockPalette from './BlockPalette'
 import ContextMenu from './ContextMenu'
 import {
@@ -193,6 +193,7 @@ function WorkflowsPanel() {
             key={w.id}
             className={`bs-row ${w.id === activeId ? 'is-active' : ''}`}
             onClick={() => { openWorkflow(w.id); focusWorkflowTab('workflow') }}
+            onDoubleClick={(e) => { e.stopPropagation(); setEditing(w.id) }}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({
@@ -249,6 +250,7 @@ function TeamsPanel() {
   const deleteTeam = useWorkspaceStore((s) => s.deleteTeam)
   const renameTeam = useWorkspaceStore((s) => s.renameTeam)
   const duplicateTeam = useWorkspaceStore((s) => s.duplicateTeam)
+  const openTab = useTabsStore((s) => s.openTab)
   const [name, setName] = useState('')
   const [menu, setMenu] = useCtxMenu()
   const [editing, setEditing] = useState(null)
@@ -276,11 +278,13 @@ function TeamsPanel() {
           <li
             key={t.id}
             className="bs-row"
+            onClick={() => openTab({ id: teamTabId(t.id), kind: 'team', entityId: t.id, title: t.name })}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({
                 x: e.clientX, y: e.clientY,
                 items: [
+                  { id: 'open', label: 'Open', icon: LinkIcon, onSelect: () => openTab({ id: teamTabId(t.id), kind: 'team', entityId: t.id, title: t.name }) },
                   { id: 'rename', label: 'Rename', onSelect: () => setEditing(t.id) },
                   { id: 'dup', label: 'Duplicate', onSelect: () => duplicateTeam(t.id) },
                   { separator: true },
@@ -294,6 +298,8 @@ function TeamsPanel() {
               {editing === t.id ? (
                 <input
                   autoFocus className="bs-inline-edit" defaultValue={t.name}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                   onBlur={(e) => { renameTeam(t.id, e.target.value.trim() || t.name); setEditing(null) }}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditing(null) }}
                 />
@@ -304,7 +310,7 @@ function TeamsPanel() {
                 </>
               )}
             </div>
-            <button className="bs-row-action" onClick={() => deleteTeam(t.id)} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
+            <button className="bs-row-action" onClick={(e) => { e.stopPropagation(); deleteTeam(t.id) }} title="Delete"><TrashIcon className="bs-ico-xs" /></button>
           </li>
         ))}
       </ul>

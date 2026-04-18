@@ -32,7 +32,9 @@ export default function AgentBuilderPage() {
   const workflows = useWorkspaceStore((s) => s.workflows)
   const saveWorkflow = useWorkspaceStore((s) => s.saveWorkflow)
   const createWorkflow = useWorkspaceStore((s) => s.createWorkflow)
+  const renameWorkflow = useWorkspaceStore((s) => s.renameWorkflow)
   const teams = useWorkspaceStore((s) => s.teams)
+  const [editingName, setEditingName] = useState(false)
   const loadWorkflow = useWorkflowStore((s) => s.loadWorkflow)
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
@@ -114,7 +116,36 @@ export default function AgentBuilderPage() {
         </div>
         <div className="bs-topbar-center">
           {active ? (
-            <div className="bs-topbar-wfname">{active.name}</div>
+            editingName ? (
+              <input
+                autoFocus
+                className="bs-topbar-wfname-input"
+                defaultValue={active.name}
+                onBlur={(e) => {
+                  const v = e.target.value.trim()
+                  if (v && v !== active.name) renameWorkflow(active.id, v)
+                  setEditingName(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                  if (e.key === 'Escape') setEditingName(false)
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="bs-topbar-wfname"
+                onClick={() => setEditingName(true)}
+                onDoubleClick={() => setEditingName(true)}
+                title="Click to rename this workflow"
+              >
+                <span>{active.name}</span>
+                <svg className="bs-topbar-wfname-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+              </button>
+            )
           ) : (
             <button
               className="bs-btn"

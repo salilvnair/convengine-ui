@@ -62,3 +62,4 @@ export const useTabsStore = create((set, get) => ({
 export const SETTINGS_TAB_ID = 'settings'
 export function agentTabId(agentId) { return `agent:${agentId}` }
 export function skillTabId(skillId) { return `skill:${skillId}` }
+export function teamTabId(teamId) { return `team:${teamId}` }

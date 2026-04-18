@@ -18,12 +18,14 @@ import Canvas from '../canvas/Canvas'
 import AgentEditor from './AgentEditor'
 import SkillEditor from './SkillEditor'
 import SettingsTab from './SettingsTab'
-import { WorkflowsIcon, AgentsIcon, SkillsIcon, SettingsIcon, XIcon } from '../components/icons'
+import TeamEditor from './TeamEditor'
+import { WorkflowsIcon, AgentsIcon, SkillsIcon, TeamsIcon, SettingsIcon, XIcon } from '../components/icons'
 
 const ICONS = {
   workflow: WorkflowsIcon,
   agent: AgentsIcon,
   skill: SkillsIcon,
+  team: TeamsIcon,
   settings: SettingsIcon,
 }
 
@@ -73,6 +75,7 @@ export default function CenterPane() {
         {active?.kind === 'workflow' && <Canvas />}
         {active?.kind === 'agent' && <AgentEditor agentId={active.entityId} />}
         {active?.kind === 'skill' && <SkillEditor skillId={active.entityId} />}
+        {active?.kind === 'team' && <TeamEditor teamId={active.entityId} />}
         {active?.kind === 'settings' && <SettingsTab />}
       </div>
     </div>

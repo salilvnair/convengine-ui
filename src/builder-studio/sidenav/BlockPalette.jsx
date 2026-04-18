@@ -41,13 +41,31 @@ export default function BlockPalette() {
 
   return (
     <div className="bs-palette">
-      <input
-        type="text"
-        className="bs-palette-search"
-        placeholder="Search blocks..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
+      <div className="bs-palette-search-wrap">
+        <svg className="bs-palette-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          type="search"
+          className="bs-input bs-palette-search"
+          placeholder="Search blocks…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+        />
+        {filter && (
+          <button
+            type="button"
+            className="bs-palette-search-clear"
+            onClick={() => setFilter('')}
+            aria-label="Clear search"
+            title="Clear"
+          >×</button>
+        )}
+      </div>
       {Object.entries(CATEGORY_LABELS).map(([cat, label]) => {
         const items = grouped[cat] || []
         if (items.length === 0) return null

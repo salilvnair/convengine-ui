@@ -28,9 +28,29 @@ import {
   XIcon,
 } from '../components/icons'
 
-// subBlock types we allow editing inline on the card; everything else is
-// read-only preview (use the Inspector for full editing).
-const INLINE_EDITABLE = new Set(['switch', 'dropdown', 'combobox'])
+/**
+ * subBlock types we render as dedicated inline widgets on the card.
+ *
+ * Design rule (Notion-style): inputs look like text until focused, then
+ * reveal their chrome. For structural types (arrays / tables / code) we show
+ * a compact read-only summary chip and rely on the Inspector for editing.
+ * Anything not listed here falls through to `formatPreview`.
+ */
+/** Types that edit in place — pointer events must NOT bubble to the card
+ *  (otherwise a click selects the node and steals focus mid-typing). */
+const INLINE_INTERACTIVE = new Set([
+  'switch', 'dropdown', 'combobox',
+  'short-input', 'long-input', 'text', 'eval-input',
+  'slider',
+])
+/** Types that render as a read-only summary chip. Clicking bubbles up so the
+ *  node gets selected and the Inspector surfaces the full editor. */
+const INLINE_SUMMARY = new Set([
+  'checkbox-list', 'grouped-checkbox-list',
+  'table',
+  'tool-input', 'skill-input',
+])
+const INLINE_EDITABLE = new Set([...INLINE_INTERACTIVE, ...INLINE_SUMMARY])
 
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
@@ -148,11 +168,15 @@ function WorkflowNode({ id, data, selected }) {
           <div className="bs-node-body">
             {previewRows.map((row) => {
               const editable = INLINE_EDITABLE.has(row.sb.type)
+              const interactive = INLINE_INTERACTIVE.has(row.sb.type)
               return (
                 <div key={row.id} className="bs-node-row">
                   <span className="bs-node-row-label">{row.label}</span>
                   {editable ? (
-                    <span className="bs-node-row-edit" {...stopPointer}>
+                    <span
+                      className="bs-node-row-edit"
+                      {...(interactive ? stopPointer : {})}
+                    >
                       {renderInlineEditor(row.sb, row.value, (v) => setSubBlockValue(id, row.id, v))}
                     </span>
                   ) : (
@@ -188,34 +212,123 @@ function WorkflowNode({ id, data, selected }) {
 }
 
 function renderInlineEditor(sb, value, onChange) {
-  if (sb.type === 'switch') {
-    return (
-      <label className="bs-switch bs-switch-sm">
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          onChange={(e) => onChange(e.target.checked)}
+  switch (sb.type) {
+    case 'switch':
+      return (
+        <label className="bs-switch bs-switch-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          <span />
+        </label>
+      )
+
+    case 'dropdown':
+    case 'combobox': {
+      const options = typeof sb.options === 'function' ? safeCall(sb.options) : (sb.options || [])
+      return (
+        <select
+          className="bs-node-select"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {!value && <option value="">{sb.placeholder || 'Select…'}</option>}
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+      )
+    }
+
+    // Text inputs — rendered as "ghost" fields that look like text until focus.
+    // For `eval-input` / `long-input` we still use a single-line input on the
+    // card; the Inspector holds the full multi-line textarea.
+    case 'short-input':
+    case 'long-input':
+    case 'text':
+    case 'eval-input':
+      return (
+        <InlineInput
+          type={sb.password ? 'password' : 'text'}
+          value={value ?? ''}
+          placeholder={sb.placeholder}
+          onChange={onChange}
         />
-        <span />
-      </label>
-    )
+      )
+
+    case 'slider': {
+      // Show a compact number field (keeps the card tight). Full slider lives
+      // in the Inspector.
+      const min = sb.min ?? 0
+      const max = sb.max ?? 1
+      const step = sb.step ?? (sb.integer ? 1 : 0.01)
+      return (
+        <InlineInput
+          type="number"
+          value={value ?? min}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(v) => onChange(v === '' ? v : Number(v))}
+        />
+      )
+    }
+
+    case 'checkbox-list':
+    case 'grouped-checkbox-list': {
+      const arr = Array.isArray(value) ? value : []
+      return <SummaryChip text={arr.length ? `${arr.length} selected` : 'none'} />
+    }
+
+    case 'table': {
+      const rows = Array.isArray(value) ? value : []
+      return <SummaryChip text={rows.length ? `${rows.length} row${rows.length === 1 ? '' : 's'}` : 'empty'} />
+    }
+
+    case 'tool-input':
+    case 'skill-input': {
+      const arr = Array.isArray(value)
+        ? value
+        : (typeof value === 'string' ? safeJsonArray(value) : [])
+      return <SummaryChip text={arr.length ? `${arr.length} attached` : 'none'} />
+    }
+
+    default:
+      return null
   }
-  if (sb.type === 'dropdown' || sb.type === 'combobox') {
-    const options = typeof sb.options === 'function' ? safeCall(sb.options) : (sb.options || [])
-    return (
-      <select
-        className="bs-node-select"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {!value && <option value="">{sb.placeholder || 'Select…'}</option>}
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>{o.label}</option>
-        ))}
-      </select>
-    )
-  }
-  return null
+}
+
+/**
+ * Notion-style "ghost" text input: invisible chrome until hovered/focused.
+ * Commits on change; blurs on Enter; Escape reverts to last committed value.
+ */
+function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
+  return (
+    <input
+      className="bs-node-input"
+      type={type}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') e.currentTarget.blur()
+      }}
+      {...rest}
+    />
+  )
+}
+
+/** Read-only summary pill used for arrays/tables. Clicking the row selects
+ *  the node (handled by the parent), which surfaces the Inspector for editing. */
+function SummaryChip({ text }) {
+  return <span className="bs-node-chip">{text}</span>
+}
+
+function safeJsonArray(s) {
+  try { const v = JSON.parse(s); return Array.isArray(v) ? v : [] } catch { return [] }
 }
 
 function safeCall(fn) {
