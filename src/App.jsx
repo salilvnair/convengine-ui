@@ -6,6 +6,7 @@ import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
 import SemanticBuilderPage from "./components/SemanticBuilderPage";
 import SemanticQueryDebugPage from "./components/SemanticQueryDebugPage";
 import PdfExtractPage from "./components/PdfExtractPage";
+import CeBuilderPage from "./ce-builder/CeBuilderPage.jsx";
 import { fetchAudits, refreshCaches, refreshSemanticEmbeddingCatalog, subscribeConversation } from "./api/convengine.api.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
@@ -95,6 +96,18 @@ function PdfExtractIcon() {
       <path d="M7 3.8h7.8L19.5 8v12.2H7V3.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="M14.8 3.8V8h4.7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="M9.3 12.1h7.1M9.3 15.3h7.1M9.3 18.5h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CeBuilderIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3.8" y="4.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="13.8" y="4.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="8.8" y="13.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 10.8V12a1.4 1.4 0 0 0 1.4 1.4h1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M17 10.8V12a1.4 1.4 0 0 1-1.4 1.4h-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -365,6 +378,10 @@ export default function App() {
     setActivePage("pdf_extract");
   };
 
+  const onOpenCeBuilder = () => {
+    setActivePage("ce_builder");
+  };
+
   const onRunInspect = () => {
     setInspectQuery({ prefix: inspectPrefix, schema: inspectSchema, matchMode: inspectMatchMode });
     setInspectOpen(false);
@@ -487,6 +504,15 @@ export default function App() {
                     >
                       <PdfExtractIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-ce ${activePage === "ce_builder" ? "is-active" : ""}`}
+                      onClick={onOpenCeBuilder}
+                      title="CE Builder (visual ce_* editor)"
+                      aria-label="CE Builder"
+                    >
+                      <CeBuilderIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -510,6 +536,8 @@ export default function App() {
                         ? "semantic query debug"
                       : activePage === "pdf_extract"
                         ? "pdf extract studio"
+                      : activePage === "ce_builder"
+                        ? "ce builder"
                       : "db schema inspect"}
                 </span>
               )}
@@ -566,6 +594,8 @@ export default function App() {
             <SemanticQueryDebugPage />
           ) : activePage === "pdf_extract" ? (
             <PdfExtractPage />
+          ) : activePage === "ce_builder" ? (
+            <CeBuilderPage />
           ) : (
             <DbSchemaInspectPage
               query={inspectQuery}

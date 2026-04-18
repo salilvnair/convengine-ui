@@ -316,91 +316,72 @@ export async function fetchSemanticModelStudioConfig() {
   return res.json();
 }
 
-export async function analyzeSemanticQueryDebug(payload) {
-  const res = await fetch(`${DB_BASE}/semantic-query/debug-analyze`, {
+// Semantic debug REST wrappers — point at the new /api/v1/semantic facade that
+// runs the interpret/compile/execute stages directly, bypassing the 27-step
+// ConvEngine pipeline. Replaces the old /semantic-query/debug-analyze stream.
+const SEMANTIC_DEBUG_BASE = "http://localhost:8080/api/v1/semantic";
+
+async function semanticPost(path, body) {
+  const res = await fetch(`${SEMANTIC_DEBUG_BASE}${path}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload || {}),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
   });
   if (!res.ok) {
-    throw new Error(`Backend error: ${res.status}`);
+    throw new Error(`Semantic debug ${path} failed: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
 
-export function analyzeSemanticQueryDebugStream(question, handlers = {}, options = {}) {
-  const qs = new URLSearchParams();
-  qs.set("question", String(question || ""));
-  if (options && Object.prototype.hasOwnProperty.call(options, "includeRetrieval")) {
-    qs.set("includeRetrieval", String(Boolean(options.includeRetrieval)));
-  }
-  if (options && Object.prototype.hasOwnProperty.call(options, "includeJsonPath")) {
-    qs.set("includeJsonPath", String(Boolean(options.includeJsonPath)));
-  }
-  if (options && Object.prototype.hasOwnProperty.call(options, "includeAst")) {
-    qs.set("includeAst", String(Boolean(options.includeAst)));
-  }
-  if (options && Object.prototype.hasOwnProperty.call(options, "includeSqlGeneration")) {
-    qs.set("includeSqlGeneration", String(Boolean(options.includeSqlGeneration)));
-  }
-  if (options && Object.prototype.hasOwnProperty.call(options, "includeSqlExecution")) {
-    qs.set("includeSqlExecution", String(Boolean(options.includeSqlExecution)));
-  }
-  const source = new EventSource(`${DB_BASE}/semantic-query/debug-analyze/stream?${qs.toString()}`);
-  let closed = false;
+export function runSemanticDebug({ question, mode = "llm", execute = false } = {}) {
+  return semanticPost("/run", { question, mode, execute });
+}
 
-  const safeClose = () => {
-    if (closed) {
-      return;
-    }
+export function interpretSemantic({ question, mode = "llm", context, hints } = {}) {
+  return semanticPost("/interpret", { question, mode, context, hints });
+}
+
+export function compileSemantic({ question, canonicalIntent } = {}) {
+  return semanticPost("/compile", { question, canonicalIntent });
+}
+
+export function executeSemanticSql({ sql, params } = {}) {
+  return semanticPost("/execute", { sql, params });
+}
+
+// SSE live stream of the semantic debug pipeline. Emits `stage` events
+// (INTERPRET/COMPILE/EXECUTE with phase start|done|error) and terminates with
+// a `done` event carrying the aggregated payload (same shape as /run).
+export function streamSemanticDebug({ question, mode = "llm", execute = false } = {}, handlers = {}) {
+  const qs = new URLSearchParams({
+    question: String(question || ""),
+    mode: String(mode || "llm"),
+    execute: String(Boolean(execute)),
+  });
+  const source = new EventSource(`${SEMANTIC_DEBUG_BASE}/run/stream?${qs.toString()}`);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
     closed = true;
     source.close();
-    handlers.onClosed?.();
+    handlers.onClose?.();
   };
-
-  source.onopen = () => handlers.onConnected?.();
-
-  source.addEventListener("DEBUG_EVENT", (event) => {
-    try {
-      handlers.onEvent?.(event.data ? JSON.parse(event.data) : {});
-    } catch {
-      handlers.onEvent?.({});
-    }
+  source.addEventListener("stage", (e) => {
+    try { handlers.onStage?.(JSON.parse(e.data)); } catch { /* ignore */ }
   });
-
-  source.addEventListener("DEBUG_COMPLETE", (event) => {
-    try {
-      const parsed = event.data ? JSON.parse(event.data) : {};
-      handlers.onComplete?.(parsed?.response || null);
-    } catch {
-      handlers.onComplete?.(null);
-    } finally {
-      safeClose();
-    }
+  source.addEventListener("done", (e) => {
+    try { handlers.onDone?.(JSON.parse(e.data)); } catch { handlers.onDone?.(null); }
+    close();
   });
-
-  source.addEventListener("DEBUG_ERROR", (event) => {
-    try {
-      const parsed = event.data ? JSON.parse(event.data) : {};
-      handlers.onError?.(new Error(parsed?.message || "Debug stream failed."));
-    } catch {
-      handlers.onError?.(new Error("Debug stream failed."));
-    }
+  source.addEventListener("error", (e) => {
+    let msg = "stream error";
+    try { msg = JSON.parse(e.data)?.message || msg; } catch { /* ignore */ }
+    handlers.onError?.(new Error(msg));
   });
-
   source.onerror = () => {
-    if (!closed) {
-      handlers.onError?.(new Error("Debug stream connection error."));
-    }
+    if (!closed) handlers.onError?.(new Error("SSE connection error"));
   };
-
-  return {
-    close() {
-      safeClose();
-    },
-  };
+  return { close };
 }
 
 export function subscribeConversationSse(conversationId, handlers = {}) {
