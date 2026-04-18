@@ -1,119 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import ChatPanel from "./components/ChatPanel";
-import AuditTimeline from "./components/AuditTimeline";
-import CacheAnalyzePage from "./components/CacheAnalyzePage";
-import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
-import SemanticBuilderPage from "./components/SemanticBuilderPage";
-import SemanticQueryDebugPage from "./components/SemanticQueryDebugPage";
-import PdfExtractPage from "./components/PdfExtractPage";
-import CeBuilderPage from "./ce-builder/CeBuilderPage.jsx";
 import { fetchAudits, refreshCaches, refreshSemanticEmbeddingCatalog, subscribeConversation } from "./api/convengine.api.js";
+import { createClientId } from "./lib/uuid.js";
+import { AgentBuilderModal } from "./components/app/components/AgentBuilderModal.jsx";
+import { AuditDrawer } from "./components/app/components/AuditDrawer.jsx";
+import { InspectModal } from "./components/app/components/InspectModal.jsx";
+import { PageContent } from "./components/app/components/PageContent.jsx";
+import { TopNav } from "./components/app/components/TopNav.jsx";
+import { assetUrl } from "./components/app/utils/assets.js";
+import { extractVerboseText, resolveStage } from "./components/app/utils/progress.js";
 
 const DEFAULT_AUDIT_WIDTH = 460;
 const MIN_PROGRESS_VISIBLE_MS = 9000;
 
-function extractVerboseText(streamEvent) {
-  const payload = streamEvent?.data;
-  if (!payload || typeof payload !== "object") return "";
-  const verbose =
-    (payload.verbose && typeof payload.verbose === "object" && payload.verbose) ||
-    (payload.payload && typeof payload.payload === "object" && payload.payload.verbose && typeof payload.payload.verbose === "object" && payload.payload.verbose) ||
-    null;
-  if (!verbose) return "";
-  if (typeof verbose.text === "string" && verbose.text.trim()) return verbose.text.trim();
-  if (typeof verbose.message === "string" && verbose.message.trim()) return verbose.message.trim();
-  if (typeof verbose.errorMessage === "string" && verbose.errorMessage.trim()) return verbose.errorMessage.trim();
-  return "";
-}
-
-function resolveStage(streamEvent) {
-  if (typeof streamEvent?.stage === "string" && streamEvent.stage.trim()) return streamEvent.stage.trim();
-  const payload = streamEvent?.data;
-  if (payload && typeof payload === "object" && typeof payload.stage === "string") return payload.stage.trim();
-  return "";
-}
-
-function RefreshCacheIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M20 4.8V10.2H14.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 19.2V13.8H9.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M6.2 9.9C6.9 8.35 8.1 7.05 9.62 6.2C11.14 5.35 12.9 5.03 14.62 5.29C16.34 5.55 17.92 6.38 19.1 7.68" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M17.8 14.1C17.1 15.65 15.9 16.95 14.38 17.8C12.86 18.65 11.1 18.97 9.38 18.71C7.66 18.45 6.08 17.62 4.9 16.32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function AnalyzeCacheIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.7" stroke="currentColor" strokeWidth="2" />
-      <path d="M8 14.8L10.8 12L12.9 14.1L16.2 10.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 18.2H16.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="8" cy="14.8" r="1.05" fill="currentColor" />
-      <circle cx="10.8" cy="12" r="1.05" fill="currentColor" />
-      <circle cx="12.9" cy="14.1" r="1.05" fill="currentColor" />
-      <circle cx="16.2" cy="10.4" r="1.05" fill="currentColor" />
-    </svg>
-  );
-}
-
-function InspectDbIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.5" y="4.2" width="17" height="6.1" rx="1.6" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="3.5" y="13.7" width="10.8" height="6.1" rx="1.6" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M17 14.3L20.7 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="16.2" cy="13.5" r="2.2" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function SemanticLayerBuilderIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 20h4l10.6-10.6a1.8 1.8 0 0 0 0-2.6l-1.4-1.4a1.8 1.8 0 0 0-2.6 0L4 16v4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M13.8 6.2l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SemanticDebugIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="7.8" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 8.2v4.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="12" cy="15.9" r="1.2" fill="currentColor" />
-      <path d="M5.3 6.2l2.2 1.2M18.7 6.2l-2.2 1.2M5.3 17.8l2.2-1.2M18.7 17.8l-2.2-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M20.2 3.8l-2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function PdfExtractIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 3.8h7.8L19.5 8v12.2H7V3.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M14.8 3.8V8h4.7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M9.3 12.1h7.1M9.3 15.3h7.1M9.3 18.5h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CeBuilderIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3.8" y="4.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13.8" y="4.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="8.8" y="13.4" width="6.4" height="6.4" rx="1.4" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M7 10.8V12a1.4 1.4 0 0 0 1.4 1.4h1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M17 10.8V12a1.4 1.4 0 0 1-1.4 1.4h-1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export default function App() {
-  const [conversationId] = useState(crypto.randomUUID());
+  const [conversationId] = useState(() => createClientId());
   const [auditVersion, setAuditVersion] = useState(0);
   const [themeMode, setThemeMode] = useState(() => {
     if (typeof window === "undefined") return "light";
@@ -129,6 +29,8 @@ export default function App() {
   const [inspectMatchMode, setInspectMatchMode] = useState("REGEX");
   const [inspectQuery, setInspectQuery] = useState({ prefix: "", schema: "", matchMode: "REGEX" });
   const [inspectTargetPage, setInspectTargetPage] = useState("schema");
+  const [agentBuilderOpen, setAgentBuilderOpen] = useState(false);
+  const [agentBuilderType, setAgentBuilderType] = useState("convengine");
   const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
   const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
   const [liveProgressText, setLiveProgressText] = useState("");
@@ -360,6 +262,10 @@ export default function App() {
     setActivePage((prev) => (prev === "chat" ? "cache" : "chat"));
   };
 
+  const onOpenChat = () => {
+    setActivePage("chat");
+  };
+
   const onOpenInspectDialog = () => {
     setInspectTargetPage("schema");
     setInspectOpen(true);
@@ -379,7 +285,22 @@ export default function App() {
   };
 
   const onOpenCeBuilder = () => {
-    setActivePage("ce_builder");
+    setAgentBuilderType("convengine");
+    setAgentBuilderOpen(true);
+  };
+
+  const onBuildAgentBuilder = () => {
+    setAgentBuilderOpen(false);
+    if (agentBuilderType === "convengine") {
+      setActivePage("ce_builder");
+      return;
+    }
+
+    // TODO: Route to the Agents builder page when the Agents builder is available.
+  };
+
+  const onCancelAgentBuilder = () => {
+    setAgentBuilderOpen(false);
   };
 
   const onRunInspect = () => {
@@ -402,238 +323,81 @@ export default function App() {
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
+  const turnLatencyText = turnLatencyMs !== null ? formatTurnLatency(turnLatencyMs) : "";
+
   return (
     <>
-      <aside className={`audit-drawer ${auditOpen ? "open" : ""} ${auditResizing ? "resizing" : ""}`} style={{ width: `${auditDrawerWidth}px` }}>
-        <div className="audit-resize-handle" onMouseDown={onAuditResizeMouseDown} onDoubleClick={onAuditResizeDoubleClick} title="Drag to resize (double-click to toggle max/default)" />
-        <div className="audit-head">
-          <h3>Audit Timeline</h3>
-          <div className="audit-head-actions">
-            <span className="audit-conv-id" title={conversationId}>{conversationId}</span>
-            <button
-              type="button"
-              className={`audit-icon-btn audit-copy ${copiedConvId ? "is-copied" : ""}`}
-              onClick={onCopyConversationId}
-              title={copiedConvId ? "Conversation ID copied" : "Copy Conversation ID"}
-              aria-label={copiedConvId ? "Conversation ID copied" : "Copy Conversation ID"}
-            >
-              {copiedConvId ? "✓" : "⎘"}
-            </button>
-            <button type="button" className="audit-icon-btn audit-close" onClick={() => setAuditOpen(false)} title="Close Audit Timeline" aria-label="Close Audit Timeline">✕</button>
-          </div>
-        </div>
-        <AuditTimeline audits={auditEvents} loading={auditLoading} error={auditError} />
-      </aside>
+      <AuditDrawer
+        conversationId={conversationId}
+        auditOpen={auditOpen}
+        auditResizing={auditResizing}
+        auditDrawerWidth={auditDrawerWidth}
+        onAuditResizeMouseDown={onAuditResizeMouseDown}
+        onAuditResizeDoubleClick={onAuditResizeDoubleClick}
+        copiedConvId={copiedConvId}
+        onCopyConversationId={onCopyConversationId}
+        onClose={() => setAuditOpen(false)}
+        auditEvents={auditEvents}
+        auditLoading={auditLoading}
+        auditError={auditError}
+      />
 
       <div className="app-shell">
         <main className="main-chat-layout">
-          <header className="top-nav">
-            <div className="brand-wrap">
-              <button
-                type="button"
-                className="brand-icon hero-home-btn"
-                onClick={() => window.location.reload()}
-                title="ConvEngine"
-                aria-label="ConvEngine"
-              >
-                <img
-                  src={themeMode === "dark" ? "/logo-dark.png" : "/logo-light.png"}
-                  alt="ConvEngine"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "/conv.svg";
-                  }}
-                />
-              </button>
-              <div className="brand-copy">
-                <div className="brand-title-row">
-                  <h1>ConvEngine</h1>
-                  <div className="hero-cache-actions">
-                    <button
-                      type="button"
-                      className="hero-cache-icon-btn hero-cache-icon-btn-refresh"
-                      onClick={onCacheRefresh}
-                      disabled={cacheRefreshLoading}
-                      title={cacheRefreshLoading ? "Refreshing cache..." : "Refresh cache"}
-                      aria-label={cacheRefreshLoading ? "Refreshing cache" : "Refresh cache"}
-                    >
-                      <RefreshCacheIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-analyze ${activePage === "cache" ? "is-active" : ""}`}
-                      onClick={onToggleAnalyzePage}
-                      title={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
-                      aria-label={activePage === "cache" ? "Back to chat" : "Open cache analyze"}
-                    >
-                      <AnalyzeCacheIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-db ${activePage === "schema" ? "is-active" : ""}`}
-                      onClick={onOpenInspectDialog}
-                      title="Inspect DB schema tables/columns/joins"
-                      aria-label="Inspect DB schema tables columns joins"
-                    >
-                      <InspectDbIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-semantic ${activePage === "semantic_builder" ? "is-active" : ""}`}
-                      onClick={onOpenSemanticLayerBuilder}
-                      title="Semantic Builder Studio"
-                      aria-label="Semantic Builder Studio"
-                    >
-                      <SemanticLayerBuilderIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-semantic ${activePage === "semantic_debug" ? "is-active" : ""}`}
-                      onClick={onOpenSemanticDebug}
-                      title="Semantic Query Debug"
-                      aria-label="Semantic Query Debug"
-                    >
-                      <SemanticDebugIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-pdf ${activePage === "pdf_extract" ? "is-active" : ""}`}
-                      onClick={onOpenPdfExtract}
-                      title="PDF Extract Studio"
-                      aria-label="PDF Extract Studio"
-                    >
-                      <PdfExtractIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`hero-cache-icon-btn hero-cache-icon-btn-ce ${activePage === "ce_builder" ? "is-active" : ""}`}
-                      onClick={onOpenCeBuilder}
-                      title="CE Builder (visual ce_* editor)"
-                      aria-label="CE Builder"
-                    >
-                      <CeBuilderIcon />
-                    </button>
-                  </div>
-                </div>
-                <p>Structured AI. Predictable Intelligence.</p>
-              </div>
-            </div>
+          <TopNav
+            activePage={activePage}
+            cacheRefreshLoading={cacheRefreshLoading}
+            cacheRefreshMessage={cacheRefreshMessage}
+            onOpenChat={onOpenChat}
+            onCacheRefresh={onCacheRefresh}
+            onToggleAnalyzePage={onToggleAnalyzePage}
+            onOpenInspectDialog={onOpenInspectDialog}
+            onOpenSemanticLayerBuilder={onOpenSemanticLayerBuilder}
+            onOpenSemanticDebug={onOpenSemanticDebug}
+            onOpenPdfExtract={onOpenPdfExtract}
+            onOpenCeBuilder={onOpenCeBuilder}
+            engineIntent={engineIntent}
+            engineState={engineState}
+            turnLatencyText={turnLatencyText}
+            themeMode={themeMode}
+            onToggleTheme={() => setThemeMode((prev) => (prev === "light" ? "dark" : "light"))}
+            auditOpen={auditOpen}
+            onOpenAudit={() => setAuditOpen(true)}
+            assetUrl={assetUrl}
+          />
 
-            <div className="top-center-status" aria-live="polite">
-              {activePage === "chat" ? (
-                <>
-                  {engineIntent ? <span className="hero-chip hero-chip-intent">intent: {engineIntent}</span> : null}
-                  {engineState ? <span className="hero-chip hero-chip-state">state: {engineState}</span> : null}
-                  {turnLatencyMs !== null ? <span className="hero-chip hero-chip-timing">time: {formatTurnLatency(turnLatencyMs)}</span> : null}
-                </>
-              ) : (
-                <span className="hero-chip hero-chip-state">
-                  {activePage === "cache"
-                    ? "cache diagnostics"
-                    : activePage === "semantic_builder"
-                      ? "semantic builder studio"
-                    : activePage === "semantic_debug"
-                        ? "semantic query debug"
-                      : activePage === "pdf_extract"
-                        ? "pdf extract studio"
-                      : activePage === "ce_builder"
-                        ? "ce builder"
-                      : "db schema inspect"}
-                </span>
-              )}
-              {cacheRefreshMessage ? <span className="hero-chip hero-chip-intent">{cacheRefreshMessage}</span> : null}
-            </div>
-
-            <div className="top-actions">
-              <button
-                type="button"
-                className={themeMode === "light" ? "hero-theme-toggle moon" : "hero-theme-toggle sun"}
-                onClick={() => setThemeMode((prev) => (prev === "light" ? "dark" : "light"))}
-                aria-label={themeMode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-                title={themeMode === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-              >
-                {themeMode === "light" ? "◐" : "☀"}
-              </button>
-
-              <button
-                type="button"
-                className="audit-toggle"
-                onClick={() => setAuditOpen(true)}
-                title="Open Audit Timeline"
-                aria-label="Open Audit Timeline"
-                style={{ display: auditOpen ? "none" : "inline-flex" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <path d="M8 7H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <path d="M8 12H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <path d="M8 17H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="5" cy="7" r="1.2" fill="currentColor" />
-                  <circle cx="5" cy="12" r="1.2" fill="currentColor" />
-                  <circle cx="5" cy="17" r="1.2" fill="currentColor" />
-                </svg>
-              </button>
-            </div>
-          </header>
-
-          {activePage === "chat" ? (
-            <ChatPanel
-              conversationId={conversationId}
-              onAuditUpdate={() => setAuditVersion((v) => v + 1)}
-              onEngineStatusUpdate={onEngineStatusUpdate}
-              onTurnTimingUpdate={onTurnTimingUpdate}
-              progressText={liveProgressText}
-            />
-          ) : activePage === "cache" ? (
-            <CacheAnalyzePage />
-          ) : activePage === "semantic_builder" ? (
-            <SemanticBuilderPage
-              query={inspectQuery}
-              onOpenRunDialog={onOpenInspectDialog}
-            />
-          ) : activePage === "semantic_debug" ? (
-            <SemanticQueryDebugPage />
-          ) : activePage === "pdf_extract" ? (
-            <PdfExtractPage />
-          ) : activePage === "ce_builder" ? (
-            <CeBuilderPage />
-          ) : (
-            <DbSchemaInspectPage
-              query={inspectQuery}
-              onOpenRunDialog={onOpenInspectDialog}
-            />
-          )}
+          <PageContent
+            activePage={activePage}
+            conversationId={conversationId}
+            onAuditUpdate={() => setAuditVersion((v) => v + 1)}
+            onEngineStatusUpdate={onEngineStatusUpdate}
+            onTurnTimingUpdate={onTurnTimingUpdate}
+            liveProgressText={liveProgressText}
+            inspectQuery={inspectQuery}
+            onOpenInspectDialog={onOpenInspectDialog}
+          />
         </main>
       </div>
 
-      {inspectOpen ? (
-        <div className="ce-modal-overlay" role="dialog" aria-modal="true">
-          <div className="ce-modal">
-            <h3>Inspect DB Schema</h3>
-            <p>Enter table pattern or exact table name, choose match mode, then run inspection.</p>
-            <label>
-              Name
-              <input value={inspectPrefix} onChange={(e) => setInspectPrefix(e.target.value)} placeholder="any table name or table name substring" />
-            </label>
-            <label>
-              Match
-              <select value={inspectMatchMode} onChange={(e) => setInspectMatchMode(e.target.value)}>
-                <option value="REGEX">REGEX</option>
-                <option value="EXACT">EXACT</option>
-              </select>
-            </label>
-            <label>
-              Schema
-              <input value={inspectSchema} onChange={(e) => setInspectSchema(e.target.value)} placeholder="(optional) uses convengine.schema.active" />
-            </label>
-            <div className="ce-modal-actions">
-              <button type="button" className="cache-analyze-load" onClick={onRunInspect}>
-                {inspectTargetPage === "semantic_builder" ? "Build" : "Run"}
-              </button>
-              <button type="button" className="cache-analyze-load cache-analyze-secondary" onClick={() => setInspectOpen(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <InspectModal
+        open={inspectOpen}
+        inspectPrefix={inspectPrefix}
+        inspectSchema={inspectSchema}
+        inspectMatchMode={inspectMatchMode}
+        inspectTargetPage={inspectTargetPage}
+        onPrefixChange={setInspectPrefix}
+        onSchemaChange={setInspectSchema}
+        onMatchModeChange={setInspectMatchMode}
+        onRun={onRunInspect}
+        onCancel={() => setInspectOpen(false)}
+      />
+      <AgentBuilderModal
+        open={agentBuilderOpen}
+        builderType={agentBuilderType}
+        onBuilderTypeChange={setAgentBuilderType}
+        onBuild={onBuildAgentBuilder}
+        onCancel={onCancelAgentBuilder}
+      />
     </>
   );
 }

@@ -125,7 +125,8 @@ body {
   border-radius: 9px;
 }
 
-.brand-copy h1 {
+.brand-copy h1,
+.brand-title-home {
   margin: 0;
   font-size: 21px;
   font-weight: 800;
@@ -136,6 +137,24 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.brand-title-home {
+  appearance: none;
+  border: 0;
+  padding: 0 0 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.brand-title-home:hover {
+  filter: brightness(1.08);
+}
+
+.brand-title-home:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
 .brand-title-row {
@@ -221,10 +240,22 @@ body {
   color: #166534;
 }
 
+.hero-cache-icon-btn-chat {
+  background: #ffffff;
+  border-color: var(--border-default);
+  color: #2563eb;
+}
+
 .hero-cache-icon-btn-analyze {
   background: #ffffff;
   border-color: var(--border-default);
   color: #1d4ed8;
+}
+
+.hero-cache-icon-btn-ce {
+  background: #ffffff;
+  border-color: var(--border-default);
+  color: #4f46e5;
 }
 
 .hero-cache-icon-btn:hover:not(:disabled) {
@@ -233,6 +264,14 @@ body {
 
 .hero-cache-icon-btn-analyze.is-active {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.24);
+}
+
+.hero-cache-icon-btn-chat.is-active {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.24);
+}
+
+.hero-cache-icon-btn-ce.is-active {
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.24);
 }
 
 .hero-cache-icon-btn:disabled {
@@ -1522,10 +1561,22 @@ body {
   color: #86efac;
 }
 
+[data-theme='dark'] .hero-cache-icon-btn-chat {
+  background: var(--bg-secondary);
+  border-color: var(--border-default);
+  color: #93c5fd;
+}
+
 [data-theme='dark'] .hero-cache-icon-btn-analyze {
   background: var(--bg-secondary);
   border-color: var(--border-default);
   color: #93c5fd;
+}
+
+[data-theme='dark'] .hero-cache-icon-btn-ce {
+  background: var(--bg-secondary);
+  border-color: var(--border-default);
+  color: #a5b4fc;
 }
 
 [data-theme='dark'] .hero-cache-icon-btn-db {
@@ -6544,6 +6595,10 @@ body {
   box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.3);
 }
 
+[data-theme='dark'] .hero-cache-icon-btn-ce.is-active {
+  box-shadow: 0 0 0 2px rgba(165, 180, 252, 0.3);
+}
+
 [data-theme='dark'] .pm-chip {
   background: rgba(15, 23, 42, 0.72);
   color: #93c5fd;
@@ -7719,4 +7774,3 @@ body {
 @media (max-width: 820px) {
   .sqd-stage-strip { grid-template-columns: 1fr; }
 }
-

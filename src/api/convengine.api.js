@@ -1,7 +1,14 @@
-const API_BASE = "http://localhost:8080/api/v1/conversation";
-const CACHE_BASE = "http://localhost:8080/api/v1/cache";
-const DB_BASE = "http://localhost:8080/api/v1/db";
-const WS_BASE = "http://localhost:8080";
+function normalizeHost(rawValue, fallbackValue) {
+  const chosen = rawValue && String(rawValue).trim() ? String(rawValue).trim() : fallbackValue;
+  return chosen.replace(/\/+$/, "");
+}
+
+const DEFAULT_API_HOST = import.meta.env.DEV ? "http://localhost:8080" : "/convengine";
+const API_HOST = normalizeHost(import.meta.env.VITE_CONVENGINE_API_HOST, DEFAULT_API_HOST);
+const API_BASE = `${API_HOST}/api/v1/conversation`;
+const CACHE_BASE = `${API_HOST}/api/v1/cache`;
+const DB_BASE = `${API_HOST}/api/v1/db`;
+const WS_BASE = API_HOST;
 
 const STREAM_STAGE_EVENTS = [
   "CONNECTED",

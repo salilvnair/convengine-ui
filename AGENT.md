@@ -61,6 +61,7 @@ Important files:
 - `src/components/CacheAnalyzePage.jsx`
 - `src/components/convengine/DbTable.jsx`
 - `src/components/convengine/renderInlineTokens.jsx`
+- `.github/copilot-instructions.md`
 - `src/index.css`
 
 ## 5. Core UI Responsibilities by File
