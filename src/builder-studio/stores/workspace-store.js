@@ -138,6 +138,12 @@ const demoNodes = [
     position: { x: 1180, y: 160 },
     data: { blockType: 'response', title: 'Response', bgColor: '#2F55D4' },
   },
+  {
+    id: 'n_preview',
+    type: 'builderBlock',
+    position: { x: 1480, y: 160 },
+    data: { blockType: 'show_preview', title: 'Final Preview', bgColor: '#14B8A6' },
+  },
 ]
 
 const demoEdges = [
@@ -145,6 +151,7 @@ const demoEdges = [
   { id: 'e_in_a1', source: 'n_input', target: 'n_agent1', animated: true },
   { id: 'e_a1_a2', source: 'n_agent1', target: 'n_agent2', animated: true },
   { id: 'e_a2_r', source: 'n_agent2', target: 'n_response', animated: true },
+  { id: 'e_r_prev', source: 'n_response', target: 'n_preview', animated: true },
 ]
 
 const demoSubBlockValues = {
@@ -153,7 +160,9 @@ const demoSubBlockValues = {
     label: 'URL',
     kind: 'url',
     placeholder: 'https://example.com',
-    defaultValue: '',
+    // Typed-in default so the demo auto-runs without a popup. Users can
+    // edit this inline on the card.
+    defaultValue: 'https://www.salilvnair.com/docs/v2/architecture',
     required: true,
   },
   n_agent1: {
@@ -161,7 +170,8 @@ const demoSubBlockValues = {
     userPrompt: demoAgent1.userPrompt,
     model: demoAgent1.model,
     temperature: 0.2,
-    tools: JSON.stringify([seedSkillId], null, 2),
+    // Single unified Skills/Tools field (was split into tools+skills).
+    skills: JSON.stringify([seedSkillId], null, 2),
     responseFormat: JSON.stringify(demoAgent1.outputSchema, null, 2),
   },
   n_agent2: {
@@ -172,6 +182,7 @@ const demoSubBlockValues = {
     responseFormat: JSON.stringify(demoAgent2.outputSchema, null, 2),
   },
   n_response: { data: '<n_agent2.output>' },
+  n_preview: { label: 'Final output' },
 }
 
 const demoWorkflow = {
@@ -386,7 +397,7 @@ export const useWorkspaceStore = create()(
       }),
       {
         name: 'builder-studio/workspace',
-        version: 4,
+        version: 6,
         migrate: (persisted, fromVersion) => {
           // Any older-version blob is discarded in favor of the bundled seed
           // (demo workflow now includes a dedicated user_input node).

@@ -30,6 +30,10 @@ const initialState = {
   completedNodeIds: [],
   activeEdgeIds: [],
   errorNodeId: null,
+  /** Per-node last output from the most recent run. Drives the Save-to-Files
+   *  preview body and can be consumed by any block that wants to show what
+   *  it last produced. Keyed by node id. Cleared by `clearRunHighlights`. */
+  lastOutputs: {},
 }
 
 export const useWorkflowStore = create()(
@@ -168,7 +172,10 @@ export const useWorkflowStore = create()(
 
       /* ---------------- ComfyUI-style run state ---------------- */
       startRun() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {} })
+      },
+      recordNodeOutput(nodeId, output) {
+        set((s) => ({ lastOutputs: { ...s.lastOutputs, [nodeId]: output } }))
       },
       markNodeRunning(nodeId) {
         set((s) => {
@@ -194,7 +201,7 @@ export const useWorkflowStore = create()(
         set({ activeNodeId: null, activeEdgeIds: [] })
       },
       clearRunHighlights() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {} })
       },
     }),
     { name: 'builder-studio-workflow' }

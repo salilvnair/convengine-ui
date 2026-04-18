@@ -196,7 +196,12 @@ export default function AgentBuilderPage() {
         style={{ '--bs-right-w': `${rOpen ? rWidth : 0}px` }}
       >
         <SideNav />
-        <CenterPane />
+        <div className="bs-center-wrap">
+          <CenterPane />
+          {runOpen && liveWorkflow && (
+            <RunModal workflow={liveWorkflow} onClose={() => setRunOpen(false)} />
+          )}
+        </div>
 
         <div
           className="bs-splitter bs-splitter-right"
@@ -218,10 +223,6 @@ export default function AgentBuilderPage() {
           <Inspector />
         </section>
       </main>
-
-      {runOpen && liveWorkflow && (
-        <RunModal workflow={liveWorkflow} onClose={() => setRunOpen(false)} />
-      )}
 
       {newWorkflowOpen && (
         <CreateWorkflowModal

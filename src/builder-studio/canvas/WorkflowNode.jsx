@@ -22,6 +22,7 @@ import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
+import JsonView from '../run/JsonView'
 import {
   TrashIcon,
   LinkIcon,
@@ -66,6 +67,9 @@ function WorkflowNode({ id, data, selected }) {
   const activeNodeId = useWorkflowStore((s) => s.activeNodeId)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
   const errorNodeId = useWorkflowStore((s) => s.errorNodeId)
+  // Subscribe to the last payload this node received/produced — drives the
+  // Save To Files preview body and the per-card status badge.
+  const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
   const isError = errorNodeId === id
@@ -200,6 +204,20 @@ function WorkflowNode({ id, data, selected }) {
         {previewRows.length > 0 && (
           <div className="bs-node-body">
             {previewRows.map((row) => {
+              // Full-width JSON preview area — used by Save To Files so the
+              // card shows the latest payload it received (Postman-style).
+              if (row.sb.type === 'json-preview') {
+                return (
+                  <div key={row.id} className="bs-node-jsonpreview" onClick={(e) => e.stopPropagation()}>
+                    <div className="bs-node-jsonpreview-head">{row.label}</div>
+                    <div className="bs-node-jsonpreview-body">
+                      {lastOutput == null
+                        ? <span className="bs-node-jsonpreview-empty">No run yet.</span>
+                        : <JsonView value={lastOutput} />}
+                    </div>
+                  </div>
+                )
+              }
               const editable = INLINE_EDITABLE.has(row.sb.type)
               const interactive = INLINE_INTERACTIVE.has(row.sb.type)
               const pin = fieldPinColor(row.sb)

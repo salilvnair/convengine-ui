@@ -99,8 +99,12 @@ export const AgentBlock = {
       mode: 'advanced',
     },
     ...getProviderCredentialSubBlocks(),
-    { id: 'tools', title: 'Tools', type: 'tool-input', defaultValue: [] },
-    { id: 'skills', title: 'Skills', type: 'skill-input', defaultValue: [] },
+    // In convengine, "skills" ARE the agent's tools — a skill is just a
+    // tool whose implementation is a JS function stored in the workspace.
+    // We expose one unified field so the card doesn't show two identical
+    // JSON editors. Legacy workflows that still have a `tools` array get
+    // merged with `skills` at runtime (see graph-runner.runAgentNode).
+    { id: 'skills', title: 'Skills / Tools', type: 'skill-input', defaultValue: [] },
     {
       id: 'memoryType',
       title: 'Memory',
@@ -218,8 +222,7 @@ export const AgentBlock = {
     reasoningEffort: { type: 'string', description: 'Reasoning effort level' },
     verbosity: { type: 'string', description: 'Verbosity level' },
     thinkingLevel: { type: 'string', description: 'Thinking level' },
-    tools: { type: 'json', description: 'Available tools configuration' },
-    skills: { type: 'json', description: 'Selected skills configuration' },
+    skills: { type: 'json', description: 'Selected skills / tools configuration' },
   },
   outputs: {
     content: { type: 'string', description: 'Generated response content' },

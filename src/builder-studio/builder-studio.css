@@ -180,6 +180,17 @@
 .bs-btn-run:not(:disabled) { border-color: #10b981; color: #10b981; }
 .bs-btn-run:not(:disabled):hover { background: rgba(16,185,129,0.08); }
 
+/* Wrapper that owns the CenterPane + bottom-docked Run panel. Needs
+   `position: relative` so the Run dock's `position: absolute` anchors
+   here (covering only the canvas column, not the sidenav or inspector). */
+.bs-center-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0; min-height: 0;
+  height: 100%;
+}
+.bs-center-wrap > .bs-center { flex: 1 1 auto; min-width: 0; }
+
 /* ---------- Center pane (tabs + body) ---------- */
 .bs-center {
   display: flex;
@@ -192,11 +203,14 @@
 .bs-tabbar {
   display: flex;
   gap: 2px;
-  padding: 6px 6px 0;
+  padding: 8px 6px 0;
   border-bottom: 1px solid var(--ce-border, #1f2937);
   background: var(--ce-surface, #0f172a);
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
+  flex-shrink: 0;
+  align-items: flex-end;
 }
 .bs-tab {
   display: inline-flex;
@@ -216,7 +230,8 @@
   white-space: nowrap;
   max-width: 220px;
   position: relative;
-  top: 1px;
+  flex-shrink: 0;
+  box-sizing: border-box;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 /* Keep tab icons at a fixed square so the first "Workflow" tab (narrower
@@ -237,7 +252,13 @@
   opacity: 0.55;
 }
 .bs-tab-close:hover { opacity: 1; background: rgba(239,68,68,0.15); color: #ef4444; }
-.bs-tab-body { flex: 1 1 auto; min-height: 0; min-width: 0; position: relative; overflow: hidden; }
+.bs-tab-body {
+  flex: 1 1 auto; min-height: 0; min-width: 0;
+  position: relative; overflow: hidden;
+  /* Reserve scrollbar space so long canvases don't shove the tabbar to the
+     left and visually clip the active tab's raised top border. */
+  scrollbar-gutter: stable;
+}
 .bs-tab-body > * { height: 100%; }
 
 /* ---------- Entity editors (agent / skill tabs) ---------- */
@@ -342,6 +363,234 @@
 .bs-run-trace li { display: flex; gap: 8px; padding: 6px 8px; background: var(--bg-secondary, #111827); border-radius: 6px; }
 .bs-run-trace-node { font-weight: 600; color: #6366f1; min-width: 120px; }
 .bs-run-trace-io { color: var(--text-secondary, #94a3b8); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Bottom-docked Run panel (VSCode-terminal / ComfyUI logs style) ---------- */
+.bs-run-dock {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 320px; min-height: 140px;
+  display: flex; flex-direction: column;
+  background: var(--ce-surface, #0f172a);
+  border-top: 1px solid var(--ce-border, #1f2937);
+  box-shadow: 0 -12px 32px rgba(0,0,0,0.45);
+  z-index: 20;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  animation: bs-slide-up 160ms ease-out;
+}
+.bs-run-dock.is-minimized { max-height: 40px; }
+.bs-run-dock-resize {
+  position: absolute; top: -3px; left: 0; right: 0; height: 6px;
+  cursor: ns-resize; z-index: 2;
+}
+.bs-run-dock-resize:hover { background: rgba(99,102,241,0.35); }
+
+/* Tabs bar (IntelliJ-style) — active tab notches into the body with no seam */
+.bs-run-dock-tabs { display: flex; gap: 2px; align-items: flex-end; margin-bottom: -1px; position: relative; z-index: 1; }
+.bs-run-dock-tab {
+  position: relative;
+  background: transparent; border: 1px solid transparent; border-bottom: none;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px; font-weight: 500;
+  padding: 6px 14px 8px; border-radius: 6px 6px 0 0;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  line-height: 1.3;
+}
+.bs-run-dock-tab:hover { color: var(--text-primary, #e5e7eb); background: rgba(99,102,241,0.06); }
+.bs-run-dock-tab.is-active {
+  color: var(--text-primary, #e5e7eb);
+  background: var(--bg-primary, #0b1020);
+  border-color: var(--ce-border, #1f2937);
+  /* Overlap the head's bottom-border with the body's background so the
+     tab visually notches into the body with zero seam. */
+  box-shadow: 0 1px 0 0 var(--bg-primary, #0b1020);
+}
+.bs-run-dock-tabcount {
+  font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums;
+  background: rgba(99,102,241,0.18); color: #a5b4fc;
+  padding: 0 6px; border-radius: 999px; min-width: 18px; text-align: center;
+}
+.bs-run-dock-state { display: flex; align-items: center; }
+.bs-run-tab { min-height: 0; }
+.bs-run-empty { color: var(--text-secondary, #94a3b8); font-size: 12.5px; padding: 10px 2px; }
+
+/* JSON colorizer (Postman-style) */
+.bs-json-wrap {
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px;
+  overflow: auto; max-height: 320px;
+}
+.bs-json-view {
+  margin: 0; padding: 10px 12px;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 12px; line-height: 1.55;
+  color: var(--text-primary, #e5e7eb);
+  white-space: pre;
+}
+.bs-json-line { display: block; }
+.bs-json-key { color: #a5b4fc; }
+.bs-json-str { color: #86efac; }
+.bs-json-num { color: #fbbf24; }
+.bs-json-bool { color: #f472b6; }
+.bs-json-null { color: #94a3b8; font-style: italic; }
+.bs-json-punct { color: #64748b; }
+.bs-json-indent { white-space: pre; }
+
+/* Expandable Trace rows */
+.bs-run-log-time { color: #64748b; font-variant-numeric: tabular-nums; font-size: 11px; }
+.bs-run-trace-caret { color: #64748b; width: 14px; text-align: center; font-size: 10px; }
+.bs-run-trace-head, .bs-run-trace-row {
+  grid-template-columns: 22px 160px 1fr 64px !important;
+}
+.bs-run-trace-row.is-clickable { cursor: pointer; }
+.bs-run-trace-row.is-clickable:hover { background: rgba(99,102,241,0.06); }
+.bs-run-trace-expand {
+  background: rgba(15,23,42,0.5);
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.bs-run-trace-expand .bs-panel-subtitle { margin-top: 4px; }
+.bs-run-trace-expand .bs-json-wrap { max-height: 260px; }
+.bs-run-dock-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 6px 12px 0; gap: 12px;
+  border-bottom: 1px solid var(--ce-border, #1f2937);
+  background: var(--ce-surface, #0f172a);
+  flex-shrink: 0; min-height: 40px;
+}
+.bs-run-dock-head > .bs-run-dock-state,
+.bs-run-dock-head > .bs-run-dock-actions { padding-bottom: 6px; }
+.bs-run-dock-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+  letter-spacing: 0.01em;
+}
+.bs-run-dock-pill {
+  font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+}
+.bs-run-dock-pill.is-ok { background: rgba(34,197,94,0.15); color: #86efac; border-color: rgba(34,197,94,0.3); }
+.bs-run-dock-pill.is-error { background: rgba(239,68,68,0.15); color: #fca5a5; border-color: rgba(239,68,68,0.35); }
+.bs-run-dock-actions { display: flex; gap: 4px; align-items: center; }
+
+.bs-run-dock-body {
+  padding: 12px 14px;
+  overflow-y: auto; min-height: 0;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--bg-primary, #0b1020);
+  flex: 1;
+}
+.bs-run-dock-inputs { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ce-border, #1f2937); }
+.bs-run-dock-inputs-foot { display: flex; justify-content: flex-end; }
+.bs-field-row { display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; }
+
+/* Streaming log rows — proper flex + gap so block/node/state don't smash
+   together into "agentn_agent1start". */
+.bs-run-log {
+  display: flex; flex-direction: column;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 12px; line-height: 1.55;
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.bs-run-log-row {
+  display: grid;
+  grid-template-columns: 14px 10px 110px 110px 1fr 72px;
+  align-items: center; gap: 10px;
+  padding: 5px 12px;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+}
+.bs-run-log-row.is-clickable { cursor: pointer; }
+.bs-run-log-row.is-clickable:hover { background: rgba(99,102,241,0.06); }
+.bs-run-log-caret { color: #64748b; width: 14px; text-align: center; font-size: 10px; }
+.bs-run-log-item:last-child .bs-run-log-row { border-bottom: none; }
+
+/* Debug / Trace — expanded "wiki of details" pane under a clicked row. */
+.bs-run-log-expand {
+  padding: 10px 14px 14px;
+  background: rgba(15,23,42,0.45);
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+  display: flex; flex-direction: column; gap: 8px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+.bs-run-log-expand .bs-panel-subtitle { margin-top: 4px; }
+.bs-run-log-expand .bs-json-wrap { max-height: 260px; }
+.bs-run-log-kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+.bs-run-log-kv-row { display: contents; }
+.bs-run-log-kv-k {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  align-self: center;
+}
+.bs-run-log-kv-v { color: var(--text-primary, #e5e7eb); word-break: break-word; }
+.bs-run-log-kv-v code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px; color: #a5b4fc;
+  background: rgba(99,102,241,0.1); padding: 1px 6px; border-radius: 4px;
+}
+.bs-run-log-pre {
+  margin: 0; padding: 10px 12px;
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 11.5px; line-height: 1.55;
+  color: var(--text-primary, #e5e7eb);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 260px; overflow: auto;
+}
+.bs-run-log-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.6);
+}
+.bs-run-log-dot.is-start { background: #eab308; animation: bs-node-pulse 1.2s ease-in-out infinite; }
+.bs-run-log-dot.is-done  { background: #22c55e; }
+.bs-run-log-dot.is-error { background: #ef4444; }
+.bs-run-log-block { color: #a5b4fc; font-weight: 600; text-transform: lowercase; }
+.bs-run-log-node  { color: var(--text-secondary, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-run-log-state { color: var(--text-secondary, #94a3b8); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; text-align: right; }
+.bs-run-log-state.is-start { color: #fbbf24; }
+.bs-run-log-state.is-done  { color: #4ade80; }
+.bs-run-log-state.is-error { color: #fca5a5; }
+
+/* Final-trace grid — column-aligned like a table, proper sans font. */
+.bs-run-trace-grid {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.bs-run-trace-head, .bs-run-trace-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 64px;
+  gap: 12px; padding: 7px 12px;
+  align-items: center;
+}
+.bs-run-trace-head {
+  background: rgba(15,23,42,0.85);
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--ce-border, #1f2937);
+}
+.bs-run-trace-row { border-bottom: 1px solid rgba(148,163,184,0.06); }
+.bs-run-trace-row:last-child { border-bottom: none; }
+.bs-run-trace-row.is-error { background: rgba(239,68,68,0.06); }
+.bs-run-trace-row .bs-run-trace-node { color: #a5b4fc; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-run-trace-row .bs-run-trace-io { font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text-primary, #e5e7eb); }
+.bs-run-trace-row .bs-run-trace-ms { color: var(--text-secondary, #94a3b8); font-variant-numeric: tabular-nums; text-align: right; font-size: 11px; }
 
 /* ---------- Side nav (SwiftUI + Claude-Code-style rail + panel + splitter) ---------- */
 .bs-sidenav {
@@ -1611,14 +1860,62 @@ select.bs-input option {
   border-color: rgba(16,185,129,0.45) !important;
   box-shadow: 0 0 0 1px rgba(16,185,129,0.25);
 }
+/* Selected-while-done/running/error — keep the indigo selection ring visible
+   ON TOP of the per-state border so it's obvious which green/red card you've
+   clicked. Without this the status colors "win" and the Inspector feels like
+   it's pointing at nothing. */
+.bs-node-done.bs-node-selected,
+.bs-node-running.bs-node-selected,
+.bs-node-error.bs-node-selected {
+  border-color: #6366f1 !important;
+  box-shadow:
+    0 0 0 2px rgba(99,102,241,0.35),
+    0 0 0 4px rgba(99,102,241,0.18),
+    0 10px 30px -12px rgba(99,102,241,0.45);
+}
 .bs-node-done::after {
   content: '';
   position: absolute;
-  top: 8px; right: 8px;
-  width: 8px; height: 8px;
+  top: -6px; right: -6px;
+  width: 14px; height: 14px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 6px rgba(16,185,129,0.7);
+  border: 2px solid var(--bg-primary, #0b1020);
+  box-shadow: 0 0 12px rgba(16,185,129,0.7);
+  z-index: 5;
+}
+.bs-node-error::after {
+  content: '';
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--bg-primary, #0b1020);
+  box-shadow: 0 0 12px rgba(239,68,68,0.7);
+  z-index: 5;
+}
+
+/* JSON preview area rendered inside Save-to-Files card bodies. */
+.bs-node-jsonpreview {
+  margin: 6px 8px 8px;
+  border: 1px solid rgba(148,163,184,0.14);
+  border-radius: 8px;
+  background: rgba(11,16,32,0.6);
+  overflow: hidden;
+}
+.bs-node-jsonpreview-head {
+  padding: 5px 10px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-secondary, #94a3b8);
+  background: rgba(15,23,42,0.6);
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+}
+.bs-node-jsonpreview-body { max-height: 220px; overflow: auto; }
+.bs-node-jsonpreview-body .bs-json-view { padding: 8px 10px; font-size: 11px; }
+.bs-node-jsonpreview-empty {
+  display: block; padding: 12px; color: var(--text-secondary, #94a3b8);
+  font-size: 11.5px; font-style: italic;
 }
 
 /* Error: red border + shake once to draw the eye. */

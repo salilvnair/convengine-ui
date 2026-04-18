@@ -33,6 +33,8 @@ const registry = {
   switch: Core.SwitchBlock,
   for_loop: Core.ForLoopBlock,
   for_each: Core.ForEachBlock,
+  save_to_files: Core.SaveToFilesBlock,
+  show_preview: Core.ShowPreviewBlock,
 }
 
 /**

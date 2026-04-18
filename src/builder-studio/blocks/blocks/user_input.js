@@ -45,10 +45,14 @@ export const UserInputBlock = {
       value: () => '',
     },
     {
+      // Promoted from advanced → primary. If this is filled, the Run dock
+      // skips the prompt step and auto-runs with this value. Behaves like
+      // ComfyUI's "this field IS the input" ergonomics.
       id: 'defaultValue',
-      title: 'Default value',
+      title: 'Value (auto-run)',
       type: 'short-input',
-      mode: 'advanced',
+      description:
+        'If set, the workflow runs with this value without opening an input dialog.',
       value: () => '',
     },
     {

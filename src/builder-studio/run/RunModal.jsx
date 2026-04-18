@@ -1,12 +1,32 @@
 /**
- * Modal that collects runtime input for every `user_input` node on the canvas
- * and executes the graph via `executeGraph`. Control-flow blocks run in JS
- * locally; agent nodes hop to the convengine backend through `run-client.js`.
+ * Run dock — bottom-anchored, resizable, IntelliJ-style tabbed panel.
+ *
+ * The dock itself is now dumb: it lays out a tab strip + body, handles
+ * resize/run state, and delegates every tab's contents to a `panel`
+ * registered via `panel-registry.js`. Core ships three panels (Run / Debug /
+ * Trace); extensions can drop files into `run-extensions/*.{js,jsx}` or call
+ * `registerRunPanel(...)` at runtime to add more.
+ *
+ * That solves two problems at once:
+ *  (a) the "pasting a URL blanks the panel" bug — the Run panel now always
+ *      renders its inputs + result (no conditional disappearance).
+ *  (b) the framework is extensible: an extension that wants an "Inputs",
+ *      "LLM stream", or "Cost" tab just registers a panel.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, XIcon } from '../components/icons'
+import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
+import RunPanel from './panels/run-panel'
+import DebugPanel from './panels/debug-panel'
+import TracePanel from './panels/trace-panel'
+
+// Register the core panels once. Keeps the registry populated even if no
+// extension files exist.
+registerRunPanel(RunPanel)
+registerRunPanel(DebugPanel)
+registerRunPanel(TracePanel)
 
 export default function RunModal({ workflow, onClose }) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
@@ -17,12 +37,22 @@ export default function RunModal({ workflow, onClose }) {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [progress, setProgress] = useState([])
+  const [expanded, setExpanded] = useState({})
+  const [height, setHeight] = useState(340)
+  const [panels, setPanels] = useState(() => getRunPanels())
+  const [activeTab, setActiveTab] = useState(() => getRunPanels()[0]?.id || 'run')
+
   const startRun = useWorkflowStore((s) => s.startRun)
   const markNodeRunning = useWorkflowStore((s) => s.markNodeRunning)
   const markNodeDone = useWorkflowStore((s) => s.markNodeDone)
   const markNodeError = useWorkflowStore((s) => s.markNodeError)
   const endRun = useWorkflowStore((s) => s.endRun)
-  const clearRunHighlights = useWorkflowStore((s) => s.clearRunHighlights)
+
+  const missing = inputNodes.filter((n) => n.required && !String(values[n.id] || '').trim())
+  const canAutoRun = inputNodes.length > 0 && missing.length === 0
+
+  // Keep the tab list in sync if an extension registers a panel at runtime.
+  useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape' && !busy) onClose() }
@@ -30,11 +60,34 @@ export default function RunModal({ workflow, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [busy, onClose])
 
+  // Auto-run ONCE on mount if every input is satisfied.
+  useEffect(() => {
+    if (canAutoRun && !busy && !result && !error) doRun()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const onResizePointerDown = useCallback((e) => {
+    e.preventDefault()
+    const startY = e.clientY
+    const startH = height
+    function onMove(ev) {
+      const d = startY - ev.clientY
+      const next = Math.min(Math.max(140, startH + d), Math.round(window.innerHeight * 0.85))
+      setHeight(next)
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [height])
+
   async function doRun() {
-    setBusy(true); setError(null); setResult(null); setProgress([])
-    startRun() // reset canvas highlights
+    setBusy(true); setError(null); setResult(null); setProgress([]); setExpanded({})
+    setActiveTab('run')
+    startRun()
     try {
-      // Validate required inputs
       for (const n of inputNodes) {
         if (n.required && !String(values[n.id] || '').trim()) {
           throw new Error(`"${n.label}" is required.`)
@@ -44,9 +97,7 @@ export default function RunModal({ workflow, onClose }) {
         workflow,
         inputs: values,
         onProgress: (p) => {
-          setProgress((prev) => [...prev, p])
-          // Mirror progress into the workflow store so WorkflowNode
-          // can flash the running card green (ComfyUI-style).
+          setProgress((prev) => [...prev, { ...p, at: Date.now() }])
           if (p.type === 'start') markNodeRunning(p.nodeId)
           else if (p.type === 'done') markNodeDone(p.nodeId)
           else if (p.type === 'error') markNodeError(p.nodeId)
@@ -62,99 +113,66 @@ export default function RunModal({ workflow, onClose }) {
     }
   }
 
-  // Clear canvas highlights when the modal closes.
-  useEffect(() => clearRunHighlights, [clearRunHighlights])
+  const stats = useMemo(() => {
+    if (!result?.trace) return null
+    const done = result.trace.filter((t) => !t.error).length
+    const err = result.trace.filter((t) => t.error).length
+    const ms = result.trace.reduce((a, t) => a + (t.ms || 0), 0)
+    return { done, err, ms, total: result.trace.length }
+  }, [result])
+
+  const ctx = {
+    workflow, values, setValues, inputNodes, missing,
+    busy, error, result, progress, expanded, setExpanded,
+    onRun: doRun,
+  }
+  const activePanel = panels.find((p) => p.id === activeTab) || panels[0]
 
   return (
-    <div className="bs-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose() }}>
-      <div className="bs-modal" role="dialog" aria-modal="true">
-        <header className="bs-modal-head">
-          <div className="bs-modal-title"><PlayIcon className="bs-ico-sm" /> Run workflow</div>
-          <button className="bs-modal-close" onClick={onClose} disabled={busy} title="Close">
-            <XIcon className="bs-ico-sm" />
-          </button>
-        </header>
+    <div className="bs-run-dock" style={{ height }}>
+      <div className="bs-run-dock-resize" onPointerDown={onResizePointerDown} title="Drag to resize" />
 
-        <div className="bs-modal-body">
-          {inputNodes.length === 0 ? (
-            <div className="bs-hint">
-              This workflow has no <code>User Input</code> blocks. Drop one on the canvas to prompt
-              for a value at run time.
-            </div>
-          ) : (
-            inputNodes.map((n) => (
-              <div key={n.id} className="bs-field">
-                <label className="bs-label">
-                  {n.label}
-                  {n.required && <span className="bs-required">*</span>}
-                </label>
-                {n.kind === 'long-text' ? (
-                  <textarea
-                    className="bs-textarea"
-                    rows={4}
-                    value={values[n.id] || ''}
-                    placeholder={n.placeholder}
-                    disabled={busy}
-                    onChange={(e) => setValues((v) => ({ ...v, [n.id]: e.target.value }))}
-                  />
-                ) : (
-                  <input
-                    className="bs-input"
-                    type={n.kind === 'number' ? 'number' : n.kind === 'url' ? 'url' : 'text'}
-                    value={values[n.id] || ''}
-                    placeholder={n.placeholder}
-                    disabled={busy}
-                    onChange={(e) => setValues((v) => ({ ...v, [n.id]: e.target.value }))}
-                  />
-                )}
-              </div>
-            ))
-          )}
+      <header className="bs-run-dock-head">
+        <div className="bs-run-dock-tabs" role="tablist">
+          {panels.map((p) => {
+            const badge = typeof p.badge === 'function' ? p.badge(ctx) : null
+            return (
+              <button
+                key={p.id}
+                role="tab"
+                aria-selected={activeTab === p.id}
+                className={`bs-run-dock-tab ${activeTab === p.id ? 'is-active' : ''}`}
+                onClick={() => setActiveTab(p.id)}
+              >
+                {p.label}
+                {badge ? <span className="bs-run-dock-tabcount">{badge}</span> : null}
+              </button>
+            )
+          })}
+        </div>
 
-          {error && <div className="bs-alert bs-alert-error">{error}</div>}
-
-          {progress.length > 0 && (
-            <div className="bs-run-progress">
-              {progress.map((p, i) => (
-                <div key={i} className={`bs-run-step is-${p.type}`}>
-                  <span className="bs-run-step-dot" />
-                  <span className="bs-run-step-label">{p.blockType || ''}</span>
-                  <span className="bs-run-step-node">{p.nodeId}</span>
-                  <span className="bs-run-step-state">{p.type}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {result && (
-            <div className="bs-run-result">
-              <div className="bs-panel-subtitle">Final output</div>
-              <pre className="bs-run-output">{typeof result.output === 'string' ? result.output : JSON.stringify(result.output, null, 2)}</pre>
-              {Array.isArray(result.trace) && result.trace.length > 0 && (
-                <>
-                  <div className="bs-panel-subtitle">Trace</div>
-                  <ol className="bs-run-trace">
-                    {result.trace.map((t, i) => (
-                      <li key={i}>
-                        <span className="bs-run-trace-node">{t.title || t.blockType}</span>
-                        <span className="bs-run-trace-io">{t.error ? '⚠ ' + t.error : t.output}</span>
-                        {t.ms != null && <span className="bs-run-trace-ms">{t.ms}ms</span>}
-                      </li>
-                    ))}
-                  </ol>
-                </>
-              )}
-            </div>
+        <div className="bs-run-dock-state">
+          {busy && <span className="bs-run-dock-pill">running…</span>}
+          {!busy && error && <span className="bs-run-dock-pill is-error">failed</span>}
+          {!busy && result && !error && (
+            <span className="bs-run-dock-pill is-ok">
+              done · {stats?.done}/{stats?.total} · {stats?.ms}ms
+            </span>
           )}
         </div>
 
-        <footer className="bs-modal-foot">
-          <button className="bs-btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="bs-btn-primary" onClick={doRun} disabled={busy}>
-            <PlayIcon className="bs-ico-sm" />
-            {busy ? 'Running…' : 'Run'}
+        <div className="bs-run-dock-actions">
+          <button className="bs-btn-ghost bs-btn-sm" onClick={doRun} disabled={busy} title="Run again">
+            <PlayIcon className="bs-ico-xs" /> Run
           </button>
-        </footer>
+          <button className="bs-btn-ghost bs-btn-sm" onClick={onClose} disabled={busy} title="Close">
+            <XIcon className="bs-ico-xs" />
+          </button>
+        </div>
+      </header>
+
+      <div className="bs-run-dock-body" role="tabpanel">
+        {activePanel ? activePanel.render(ctx) : null}
       </div>
     </div>
   )

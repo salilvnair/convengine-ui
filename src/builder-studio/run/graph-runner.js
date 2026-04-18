@@ -19,6 +19,8 @@
  */
 import { runAgent } from '../api/run-client'
 import { callTool as callMcpTool } from '../mcp/mcp-client'
+import { useWorkspaceStore } from '../stores/workspace-store'
+import { useWorkflowStore } from '../stores/workflow-store'
 
 export async function executeGraph({ workflow, inputs, onProgress }) {
   const { nodes = [], edges = [], subBlockValues = {} } = workflow
@@ -35,20 +37,35 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
    */
   const chosenHandle = {} // nodeId -> string | null
 
-  // Seed user_input nodes directly from the RunModal-collected values.
+  // Seed user_input + starter nodes and emit lifecycle events so the canvas
+  // marks them green alongside the agent/response nodes. Previously these
+  // two block types were seeded silently, which is why the URL and Start
+  // cards never flipped to the "done" state after a run.
   for (const n of nodes) {
     if (n.data?.blockType === 'user_input') {
       outputs[n.id] = inputs[n.id] ?? ''
-      trace.push({ nodeId: n.id, blockType: 'user_input', input: null, output: outputs[n.id] })
+      trace.push({
+        nodeId: n.id,
+        blockType: 'user_input',
+        title: n.data?.title,
+        input: null,
+        output: outputs[n.id],
+        ms: 0,
+        meta: { source: 'RunPanel input', value: outputs[n.id] },
+      })
       started.add(n.id)
-    }
-  }
-
-  // Starter is a no-op pass-through.
-  for (const n of nodes) {
-    if (n.data?.blockType === 'starter') {
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'user_input' })
+      try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'user_input', output: outputs[n.id] })
+    } else if (n.data?.blockType === 'starter') {
       outputs[n.id] = null
+      trace.push({
+        nodeId: n.id, blockType: 'starter', title: n.data?.title,
+        input: null, output: null, ms: 0, meta: { source: 'graph root' },
+      })
       started.add(n.id)
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter' })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', output: null })
     }
   }
 
@@ -80,36 +97,52 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       const upstream = (incoming[n.id] || []).map((e) => outputs[e.source])
       const input = upstream.length <= 1 ? upstream[0] : upstream
       const values = subBlockValues[n.id] || {}
-      onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType })
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title })
       try {
-        const output = await runNode({ node: n, values, input, outputs })
-        // For branching blocks the runner returns { branch, value } — record
-        // the chosen handle so downstream edges can gate on it.
+        const ran = await runNode({ node: n, values, input, outputs })
+        // runNode may return either a raw value or `{ __meta, value }` so that
+        // agent/mcp blocks can attach rich debugging info (systemPrompt,
+        // userPrompt after interpolation, skill output, model, etc.). The meta
+        // is carried through to both the trace and the onProgress `done`
+        // event so the Debug panel can expand a row and show everything.
+        let output = ran
+        let meta
+        if (ran && typeof ran === 'object' && ran.__meta) {
+          meta = ran.__meta
+          output = ran.value
+        }
         if (output && typeof output === 'object' && typeof output.branch === 'string') {
           chosenHandle[n.id] = output.branch
           outputs[n.id] = output.value
         } else {
           outputs[n.id] = output
         }
+        try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
         trace.push({
           nodeId: n.id,
           blockType: n.data?.blockType,
           title: n.data?.title,
           input,
-          output: preview(output),
+          output,            // raw value, no truncation (UI truncates for the collapsed preview)
+          values,            // the user-authored sub-block values for this node
+          meta,              // per-block rich metadata (prompts after templating, etc.)
           ms: Math.round(performance.now() - t0),
         })
-        onProgress?.({ type: 'done', nodeId: n.id, output })
+        onProgress?.({
+          type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+          output, meta, ms: Math.round(performance.now() - t0),
+        })
       } catch (err) {
         trace.push({
           nodeId: n.id,
           blockType: n.data?.blockType,
           title: n.data?.title,
           input,
+          values,
           error: err.message || String(err),
           ms: Math.round(performance.now() - t0),
         })
-        onProgress?.({ type: 'error', nodeId: n.id, error: err })
+        onProgress?.({ type: 'error', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, error: err.message || String(err) })
         throw err
       }
     }))
@@ -151,6 +184,12 @@ async function runNode({ node, values, input, outputs }) {
       return input
     case 'json_validator':
       return runJsonValidator({ values, input })
+    case 'save_to_files':
+      return runSaveToFiles({ values, input })
+    case 'show_preview':
+      // Preview-only sink — pass the upstream payload through untouched so
+      // the card's json-preview body can render it (see WorkflowNode).
+      return input
     default:
       // Unknown block type: pass input through so the graph keeps moving.
       return input
@@ -158,21 +197,120 @@ async function runNode({ node, values, input, outputs }) {
 }
 
 async function runAgentNode({ node, values, input }) {
-  const inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? '')
+  let inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? '')
+  const skillRuns = [] // each: { skillId, name, params, output, error }
+
+  // ─── Client-side skill execution ────────────────────────────────────────
+  // Skills in convengine are small JS functions stored in the workspace. The
+  // backend currently doesn't wire them into LLM tool-calling, so we run any
+  // attached skill here in the browser and feed the skill's output as the
+  // agent's input. That's how the demo ("URL → extract → summarize") works
+  // end-to-end without asking the LLM to hallucinate page content.
+  //
+  // `values.skills` (new field) or legacy `values.tools` — both are JSON
+  // arrays of skill ids. The first skill whose id resolves gets run on the
+  // current input.
+  const skillIds = [
+    ...(safeJsonArray(values.skills)),
+    ...(safeJsonArray(values.tools)),
+  ]
+  /**
+   * `bag` holds every field the userPrompt's `{{foo}}` templates can reference.
+   * Seeded with the raw input, then each skill output (if object-shaped) is
+   * merged in. The summarizer's prompt uses `{{title}}` and `{{text}}`; the
+   * extractor's prompt uses `{{url}}` — none of which were previously
+   * substituted, which is why the LLM saw literal `{{url}}` and replied
+   * "No URL provided."
+   */
+  const bag = looksLikeUrl(inputStr) ? { url: inputStr, input: inputStr } : { input: inputStr }
+  if (skillIds.length > 0) {
+    const skills = useWorkspaceStore.getState().skills || []
+    for (const sid of skillIds) {
+      const skill = skills.find((s) => s.id === sid)
+      if (!skill) continue
+      const params = looksLikeUrl(inputStr) ? { url: inputStr, input: inputStr } : { input: inputStr }
+      try {
+        const out = await runSkillSource(skill, inputStr)
+        inputStr = typeof out === 'string' ? out : JSON.stringify(out)
+        if (out && typeof out === 'object' && !Array.isArray(out)) {
+          for (const [k, v] of Object.entries(out)) bag[k] = v
+        }
+        bag.input = inputStr
+        skillRuns.push({ skillId: sid, name: skill.name, params, output: out })
+      } catch (e) {
+        inputStr = JSON.stringify({ skillError: e.message || String(e), input: inputStr })
+        bag.skillError = e.message || String(e)
+        bag.input = inputStr
+        skillRuns.push({ skillId: sid, name: skill.name, params, error: e.message || String(e) })
+      }
+    }
+  }
+
   const agent = {
     id: node.id,
     model: values.model || 'gpt-4o-mini',
     temperature: values.temperature,
-    systemPrompt: values.systemPrompt || '',
-    userPrompt: interpolate(values.userPrompt || '{{input}}', {}, inputStr),
+    systemPrompt: interpolateBag(values.systemPrompt || '', bag),
+    userPrompt: interpolateBag(values.userPrompt || '{{input}}', bag),
     responseFormat: values.responseFormat || null,
-    // Routes the backend to LlmClient.generateJsonStrict() (OpenAI
-    // `response_format: { type: "json_schema", strict: true }`) when true.
     strictOutput: values.strictOutput === true,
-    tools: safeJson(values.tools) || [],
+    skills: skillIds,
   }
   const res = await runAgent({ agent, input: inputStr })
-  return res.output
+  return {
+    __meta: {
+      model: agent.model,
+      temperature: agent.temperature,
+      systemPrompt: agent.systemPrompt,
+      userPrompt: agent.userPrompt,
+      skillIds,
+      skillRuns,
+      templateBag: bag,
+      rawAgentResponse: res,
+    },
+    value: res.output,
+  }
+}
+
+/**
+ * Execute a workspace skill's JS source string with a single `params` arg.
+ * The demo `sk_url_extract` expects `{ url }`, so we shape input into that
+ * form when the upstream is a URL-like string. For anything else we pass
+ * `{ input }` and let the skill destructure whatever it needs.
+ */
+async function runSkillSource(skill, inputStr) {
+  const params = looksLikeUrl(inputStr)
+    ? { url: inputStr, input: inputStr }
+    : { input: inputStr }
+  // eslint-disable-next-line no-new-func
+  const fn = new Function('params', skill.source)
+  const result = await fn(params)
+  return result
+}
+
+/**
+ * Substitute every `{{key}}` in `template` with `bag[key]`. Stringifies
+ * object values so the LLM gets readable JSON. Leaves unresolved tokens
+ * untouched so authors can spot template typos in the log.
+ */
+function interpolateBag(template, bag) {
+  if (!template) return ''
+  return String(template).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (m, k) => {
+    if (!(k in bag)) return m
+    const v = bag[k]
+    if (v == null) return ''
+    return typeof v === 'string' ? v : JSON.stringify(v)
+  })
+}
+
+function looksLikeUrl(s) {
+  return typeof s === 'string' && /^https?:\/\//i.test(s.trim())
+}
+
+function safeJsonArray(v) {
+  if (Array.isArray(v)) return v
+  if (typeof v !== 'string') return []
+  try { const p = JSON.parse(v); return Array.isArray(p) ? p : [] } catch { return [] }
 }
 
 /**
@@ -257,6 +395,35 @@ function runSwitchNode({ values, input }) {
     }
   }
   return { branch: 'default', value: input }
+}
+
+/**
+ * Save-to-Files: optionally triggers a browser download with the upstream
+ * payload, and always passes the payload through so downstream (or the
+ * inline json-preview area on the card) can see it.
+ */
+function runSaveToFiles({ values, input }) {
+  const fmt = values.format || 'json'
+  const body = fmt === 'raw' || typeof input === 'string'
+    ? (typeof input === 'string' ? input : JSON.stringify(input))
+    : JSON.stringify(input, null, 2)
+  const result = { savedAt: null, bytes: body.length, payload: input }
+  const path = (values.path || '').trim()
+  if (path) {
+    try {
+      const blob = new Blob([body], { type: fmt === 'raw' ? 'text/plain' : 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = path.replace(/^.*[\\/]/, '') || 'output.json'
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      result.savedAt = path
+    } catch (e) {
+      result.error = e.message || String(e)
+    }
+  }
+  return input // pass-through so the preview area shows the actual payload
 }
 
 function runJsonValidator({ values, input }) {
