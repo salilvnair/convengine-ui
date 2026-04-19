@@ -130,12 +130,25 @@ function DebugDetails({ event, deltaMs }) {
         <>
           <div className="bs-panel-subtitle">Error</div>
           <div className="bs-alert bs-alert-error" style={{ marginTop: 0 }}>{error}</div>
-          {errorDetail && (errorDetail.url || errorDetail.status) && (
+          {errorDetail && (
             <div className="bs-run-log-kv" style={{ marginTop: 8 }}>
               {errorDetail.url && <KV k="URL" v={<code>{errorDetail.method || 'GET'} {errorDetail.url}</code>} />}
               {errorDetail.status && <KV k="HTTP Status" v={<code>{errorDetail.status} {errorDetail.statusText || ''}</code>} />}
+              {errorDetail.blockType && <KV k="Block type" v={<code>{errorDetail.blockType}</code>} />}
+              {errorDetail.nodeId && <KV k="Node ID" v={<code>{errorDetail.nodeId}</code>} />}
+              {errorDetail.timestamp && <KV k="Timestamp" v={errorDetail.timestamp} />}
+              {errorDetail.cause && <KV k="Cause" v={errorDetail.cause} />}
               {errorDetail.responseBody && (
-                <KV k="Response" v={<pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 120, overflow: 'auto' }}>{errorDetail.responseBody}</pre>} />
+                <>
+                  <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Response body</div>
+                  <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{errorDetail.responseBody}</pre>
+                </>
+              )}
+              {errorDetail.stack && (
+                <>
+                  <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Stack trace</div>
+                  <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto', fontSize: '11px' }}>{errorDetail.stack}</pre>
+                </>
               )}
             </div>
           )}

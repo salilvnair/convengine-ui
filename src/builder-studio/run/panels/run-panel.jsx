@@ -48,7 +48,39 @@ const RunPanel = {
           </div>
         )}
 
-        {error && <div className="bs-alert bs-alert-error">{error}</div>}
+        {error && (
+          <div className="bs-run-error-detail">
+            <div className="bs-alert bs-alert-error">{error}</div>
+            {result?.trace?.filter((t) => t.error).map((t, i) => {
+              const d = t.errorDetail || {}
+              return (
+                <div key={i} className="bs-run-error-breakdown">
+                  {d.url && (
+                    <div className="bs-run-log-kv-row">
+                      <span className="bs-run-log-kv-k">URL</span>
+                      <span className="bs-run-log-kv-v"><code>{d.method || 'GET'} {d.url}</code></span>
+                    </div>
+                  )}
+                  {d.status && (
+                    <div className="bs-run-log-kv-row">
+                      <span className="bs-run-log-kv-k">HTTP Status</span>
+                      <span className="bs-run-log-kv-v"><code>{d.status} {d.statusText || ''}</code></span>
+                    </div>
+                  )}
+                  {d.blockType && (
+                    <div className="bs-run-log-kv-row">
+                      <span className="bs-run-log-kv-k">Block</span>
+                      <span className="bs-run-log-kv-v"><code>{d.blockType}</code> — {d.nodeTitle || d.nodeId}</span>
+                    </div>
+                  )}
+                  {d.responseBody && (
+                    <pre className="bs-run-log-pre" style={{ marginTop: 6, maxHeight: 160, overflow: 'auto' }}>{d.responseBody}</pre>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {result ? (
           <div className="bs-run-result">

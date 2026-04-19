@@ -140,6 +140,12 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           ...(err.status && { status: err.status }),
           ...(err.statusText && { statusText: err.statusText }),
           ...(err.responseBody && { responseBody: err.responseBody }),
+          ...(err.stack && { stack: err.stack }),
+          ...(err.cause && { cause: err.cause.message || String(err.cause) }),
+          timestamp: new Date().toISOString(),
+          blockType: n.data?.blockType,
+          nodeId: n.id,
+          nodeTitle: n.data?.title,
         }
         trace.push({
           nodeId: n.id,

@@ -3078,14 +3078,38 @@ button.bs-palette-group-toggle:hover {
 }
 .bs-problem-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   font-size: 12px;
   border-radius: 4px;
   transition: background 80ms ease;
 }
 .bs-problem-row:hover { background: rgba(148,163,184,0.06); }
+.bs-problem-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+.bs-problem-caret {
+  width: 14px;
+  text-align: center;
+  font-size: 9px;
+  flex-shrink: 0;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-problem-detail {
+  padding: 6px 10px 10px 36px;
+  border-top: 1px solid var(--ce-border, #1f2937);
+}
+.bs-run-error-detail { display: flex; flex-direction: column; gap: 8px; }
+.bs-run-error-breakdown {
+  padding: 8px 10px;
+  background: rgba(248,113,113,0.06);
+  border-radius: 4px;
+  font-size: 12px;
+}
 .bs-problem-icon {
   width: 16px; text-align: center; font-size: 11px; flex-shrink: 0;
 }

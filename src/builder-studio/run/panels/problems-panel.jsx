@@ -2,6 +2,8 @@
  * Built-in "Problems" panel — shows workflow validation issues.
  * Scans nodes for missing required fields, disconnected edges, etc.
  */
+import { useState } from 'react'
+
 const ProblemsPanel = {
   id: 'problems',
   label: 'Problems',
@@ -30,17 +32,66 @@ const ProblemsPanel = {
     return (
       <div className="bs-run-tab bs-problems-list">
         {problems.map((p, i) => (
-          <div key={i} className={`bs-problem-row is-${p.severity}`}>
-            <span className={`bs-problem-icon is-${p.severity}`}>
-              {p.severity === 'error' ? '✕' : p.severity === 'warning' ? '⚠' : 'ℹ'}
-            </span>
-            <span className="bs-problem-node">{p.node || '—'}</span>
-            <span className="bs-problem-msg">{p.message}</span>
-          </div>
+          <ProblemRow key={i} problem={p} />
         ))}
       </div>
     )
   },
+}
+
+function ProblemRow({ problem: p }) {
+  const [open, setOpen] = useState(false)
+  const hasDetail = p.detail && (p.detail.url || p.detail.status || p.detail.responseBody || p.detail.stack)
+  return (
+    <div className={`bs-problem-row is-${p.severity}`}>
+      <div
+        className="bs-problem-summary"
+        onClick={() => hasDetail && setOpen((v) => !v)}
+        role={hasDetail ? 'button' : undefined}
+        style={hasDetail ? { cursor: 'pointer' } : undefined}
+      >
+        <span className="bs-problem-caret">{hasDetail ? (open ? '▼' : '▶') : ' '}</span>
+        <span className={`bs-problem-icon is-${p.severity}`}>
+          {p.severity === 'error' ? '✕' : p.severity === 'warning' ? '⚠' : 'ℹ'}
+        </span>
+        <span className="bs-problem-node">{p.node || '—'}</span>
+        <span className="bs-problem-msg">{p.message}</span>
+      </div>
+      {open && hasDetail && (
+        <div className="bs-problem-detail">
+          <div className="bs-run-log-kv">
+            {p.detail.url && <KV k="URL" v={<code>{p.detail.method || 'GET'} {p.detail.url}</code>} />}
+            {p.detail.status && <KV k="HTTP Status" v={<code>{p.detail.status} {p.detail.statusText || ''}</code>} />}
+            {p.detail.nodeId && <KV k="Node ID" v={<code>{p.detail.nodeId}</code>} />}
+            {p.detail.blockType && <KV k="Block type" v={<code>{p.detail.blockType}</code>} />}
+            {p.detail.timestamp && <KV k="Timestamp" v={p.detail.timestamp} />}
+            {p.detail.cause && <KV k="Cause" v={p.detail.cause} />}
+          </div>
+          {p.detail.responseBody && (
+            <>
+              <div className="bs-panel-subtitle" style={{ marginTop: 8 }}>Response body</div>
+              <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{p.detail.responseBody}</pre>
+            </>
+          )}
+          {p.detail.stack && (
+            <>
+              <div className="bs-panel-subtitle" style={{ marginTop: 8 }}>Stack trace</div>
+              <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto', fontSize: '11px' }}>{p.detail.stack}</pre>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KV({ k, v }) {
+  return (
+    <div className="bs-run-log-kv-row">
+      <span className="bs-run-log-kv-k">{k}</span>
+      <span className="bs-run-log-kv-v">{v}</span>
+    </div>
+  )
 }
 
 function collectProblems(ctx) {
@@ -61,14 +112,15 @@ function collectProblems(ctx) {
   if (result?.trace) {
     for (const t of result.trace) {
       if (t.error) {
-        const detail = t.errorDetail
+        const detail = t.errorDetail || {}
         let msg = t.error
-        if (detail?.url) msg += ` — ${detail.method || 'GET'} ${detail.url}`
-        if (detail?.status) msg += ` (HTTP ${detail.status})`
+        if (detail.url) msg += ` — ${detail.method || 'GET'} ${detail.url}`
+        if (detail.status) msg += ` (HTTP ${detail.status})`
         problems.push({
           severity: 'error',
           node: t.title || t.nodeId,
           message: msg,
+          detail,
         })
       }
     }
