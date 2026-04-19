@@ -34,6 +34,8 @@ export default function AgentBuilderPage() {
   const activeWorkflowId = useWorkspaceStore((s) => s.activeWorkflowId)
   const workflows = useWorkspaceStore((s) => s.workflows)
   const saveWorkflow = useWorkspaceStore((s) => s.saveWorkflow)
+  const syncToServer = useWorkspaceStore((s) => s.syncToServer)
+  const loadFromServer = useWorkspaceStore((s) => s.loadFromServer)
   const createWorkflow = useWorkspaceStore((s) => s.createWorkflow)
   const renameWorkflow = useWorkspaceStore((s) => s.renameWorkflow)
   const teams = useWorkspaceStore((s) => s.teams)
@@ -74,6 +76,14 @@ export default function AgentBuilderPage() {
       initWorkflowTabs(workflows, activeWorkflowId)
     }
   }, [workflows, activeWorkflowId, initWorkflowTabs])
+
+  // Hydrate from server on startup (if backend is available)
+  const serverLoaded = useRef(false)
+  useEffect(() => {
+    if (serverLoaded.current) return
+    serverLoaded.current = true
+    loadFromServer().catch(() => {})
+  }, [loadFromServer])
 
   useEffect(() => {
     if (!activeWorkflowId) return
@@ -195,7 +205,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-btn-primary"
             disabled={!active}
-            onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }); showToast('Workflow saved', 'save') }}
+            onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }); syncToServer(); showToast('Workflow saved', 'save') }}
           >
             Save
           </button>

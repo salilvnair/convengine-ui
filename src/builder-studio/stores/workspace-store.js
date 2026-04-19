@@ -10,6 +10,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { v4 as uuid } from 'uuid'
+import { syncWorkspaceToServer, loadWorkspaceFromServer } from '../api/workspace-client'
 
 /**
  * @typedef {{id: string, name: string, language: 'javascript'|'python', source: string, inputSchema?: object, outputSchema?: object}} Skill
@@ -389,6 +390,57 @@ export const useWorkspaceStore = create()(
             workflows: s.workflows.filter((w) => w.id !== id),
             activeWorkflowId: s.activeWorkflowId === id ? null : s.activeWorkflowId,
           }))
+        },
+
+        // ---------- Server sync (dual-persistence) ----------
+
+        /**
+         * Pushes the current store snapshot to Postgres.
+         * Called alongside localStorage persist (e.g. on Save button).
+         * Fire-and-forget — returns { ok } but doesn't block the UI.
+         */
+        async syncToServer() {
+          const s = get()
+          const workspaceId = s.activeWorkspaceId || 'ws_default'
+          const snapshot = {
+            activeWorkspaceId: s.activeWorkspaceId,
+            activeWorkflowId: s.activeWorkflowId,
+            workspaces: s.workspaces,
+            teams: s.teams,
+            agentPools: s.agentPools,
+            agents: s.agents,
+            skills: s.skills,
+            workflows: s.workflows,
+          }
+          return syncWorkspaceToServer(workspaceId, snapshot)
+        },
+
+        /**
+         * Loads the workspace from Postgres and merges into the store.
+         * Called on app startup when localStorage is empty.
+         * Returns true if server data was loaded, false otherwise.
+         */
+        async loadFromServer(workspaceId) {
+          const id = workspaceId || get().activeWorkspaceId || 'ws_default'
+          const snapshot = await loadWorkspaceFromServer(id)
+          if (!snapshot) return false
+          // Only merge if server actually has data
+          const hasData = snapshot.workflows?.length > 0 ||
+                          snapshot.teams?.length > 0 ||
+                          snapshot.agents?.length > 0 ||
+                          snapshot.skills?.length > 0
+          if (!hasData) return false
+          set({
+            activeWorkspaceId: snapshot.activeWorkspaceId || id,
+            activeWorkflowId: snapshot.activeWorkflowId || get().activeWorkflowId,
+            workspaces: snapshot.workspaces?.length ? snapshot.workspaces : get().workspaces,
+            teams: snapshot.teams?.length ? snapshot.teams : get().teams,
+            agentPools: snapshot.agentPools?.length ? snapshot.agentPools : get().agentPools,
+            agents: snapshot.agents?.length ? snapshot.agents : get().agents,
+            skills: snapshot.skills?.length ? snapshot.skills : get().skills,
+            workflows: snapshot.workflows?.length ? snapshot.workflows : get().workflows,
+          })
+          return true
         },
 
         reset() {

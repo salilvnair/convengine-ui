@@ -83,29 +83,65 @@
   content: '📑';
   font-size: 1.1rem;
 }
-.wiki-toc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 32px;
+/* ── Collapsible component ── */
+.wiki-collapsible {
+  border-bottom: 1px solid rgba(99,102,241,.08);
 }
-.wiki-toc-section {
-  font-size: .8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .08em;
+.wiki-collapsible:last-child { border-bottom: none; }
+.wiki-collapsible-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e4e4e7;
+  font-size: .95rem;
+  font-weight: 600;
+  text-align: left;
+  transition: color .15s;
+}
+.wiki-collapsible-toggle:hover { color: #a5b4fc; }
+.wiki-collapsible-chevron {
+  flex-shrink: 0;
   color: #818cf8;
-  margin: 16px 0 8px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(99,102,241,.1);
+  transition: transform .2s ease;
 }
-.wiki-toc-section:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+.wiki-collapsible-chevron.open { transform: rotate(90deg); }
+.wiki-collapsible-icon {
+  font-size: .9rem;
+  flex-shrink: 0;
+}
+.wiki-collapsible-title { flex: 1; }
+.wiki-collapsible-body {
+  padding: 0 0 8px 26px;
+}
+/* Nested collapsible inside TOC */
+.wiki-toc-nested .wiki-collapsible-toggle {
+  font-size: .85rem;
+  font-weight: 600;
+  padding: 8px 4px;
+  color: #c4c4cc;
+}
+.wiki-toc-nested .wiki-collapsible-body {
+  padding-left: 20px;
+}
+.wiki-toc-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .wiki-toc a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 5px 12px;
   border-radius: 8px;
   color: #a1a1aa;
   text-decoration: none;
-  font-size: .88rem;
+  font-size: .86rem;
   line-height: 1.6;
   transition: all .15s;
 }
@@ -117,8 +153,29 @@
   background: rgba(99,102,241,.1);
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: .82rem;
+  font-size: .78rem;
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  color: #71717a;
+}
+.wiki-toc-block-name {
+  flex: 1;
+}
+
+/* ── Block group collapsible ── */
+.wiki-block-group {
+  margin: 24px 0;
+  border: 1px solid rgba(99,102,241,.1);
+  border-radius: 12px;
+  padding: 0 20px;
+  background: rgba(255,255,255,.015);
+}
+.wiki-block-group > .wiki-collapsible-toggle {
+  padding: 16px 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.wiki-block-group > .wiki-collapsible-body {
+  padding: 0 0 16px 0;
 }
 
 /* ── Section headers ── */
@@ -522,6 +579,23 @@
 .light .wiki-toc a { color: #4b5563; }
 [data-theme="light"] .wiki-toc a:hover,
 .light .wiki-toc a:hover { color: #1e1e2e; background: rgba(99,102,241,.06); }
+[data-theme="light"] .wiki-toc a code,
+.light .wiki-toc a code { color: #6b7280; }
+[data-theme="light"] .wiki-collapsible-toggle,
+.light .wiki-collapsible-toggle { color: #1e1e2e; }
+[data-theme="light"] .wiki-collapsible-toggle:hover,
+.light .wiki-collapsible-toggle:hover { color: #4338ca; }
+[data-theme="light"] .wiki-collapsible-chevron,
+.light .wiki-collapsible-chevron { color: #4338ca; }
+[data-theme="light"] .wiki-collapsible,
+.light .wiki-collapsible { border-bottom-color: rgba(99,102,241,.1); }
+[data-theme="light"] .wiki-toc-nested .wiki-collapsible-toggle,
+.light .wiki-toc-nested .wiki-collapsible-toggle { color: #374151; }
+[data-theme="light"] .wiki-block-group,
+.light .wiki-block-group {
+  border-color: rgba(99,102,241,.12);
+  background: rgba(99,102,241,.02);
+}
 [data-theme="light"] .wiki-block-card,
 .light .wiki-block-card {
   background: #f8f9fc;

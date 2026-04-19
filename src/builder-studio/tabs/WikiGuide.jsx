@@ -47,6 +47,23 @@ function Step({ num, title, children }) {
   )
 }
 
+/* ── Collapsible section ── */
+function Collapsible({ title, icon, defaultOpen = false, children, className = '' }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`wiki-collapsible ${className}`}>
+      <button className="wiki-collapsible-toggle" onClick={() => setOpen(!open)}>
+        <svg className={`wiki-collapsible-chevron ${open ? 'open' : ''}`} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        {icon && <span className="wiki-collapsible-icon">{icon}</span>}
+        <span className="wiki-collapsible-title">{title}</span>
+      </button>
+      {open && <div className="wiki-collapsible-body">{children}</div>}
+    </div>
+  )
+}
+
 /* ── Block card visual ── */
 function BlockCard({ block }) {
   const cat = block.category === 'tools' ? 'tool' : block.category === 'triggers' ? 'trigger' : 'core'
@@ -102,34 +119,29 @@ function BlockCard({ block }) {
   )
 }
 
-/* ── Table of contents data ── */
-const TOC = [
-  { section: 'Part 1 — Concepts', items: [
-    { id: 'c-hier', label: 'Workspace hierarchy' },
-    { id: 'c-exec', label: 'Workflow execution model' },
-    { id: 'c-dock', label: 'Run dock panels' },
-    { id: 'c-insp', label: 'Inspector' },
-    { id: 'c-ext', label: 'Extensions pattern' },
-  ]},
-  { section: 'Part 2 — Block reference', items: 'blocks' },
-  { section: 'Part 3 — Demo workflows', items: [
-    { id: 'w-seed', label: 'Seeded · URL → Summary' },
-    { id: 'w-url', label: 'URL summariser' },
-    { id: 'w-csv', label: 'CSV extract-and-mail' },
-    { id: 'w-triage', label: 'Branching triage' },
-  ]},
-  { section: 'Part 4 — Appendix', items: [
-    { id: 'a-keys', label: 'Keyboard shortcuts' },
-    { id: 'a-layout', label: 'File layout' },
-    { id: 'a-custom', label: 'Writing a custom block' },
-    { id: 'a-trouble', label: 'Troubleshooting' },
-  ]},
-]
+/* ── Category labels (matches BlockPalette) ── */
+const CATEGORY_LABELS = {
+  blocks: 'Core Blocks',
+  tools: 'Tools & Integrations',
+  triggers: 'Triggers',
+  custom: 'Custom',
+}
+
+const CATEGORY_ORDER = ['blocks', 'tools', 'triggers', 'custom']
 
 /* ── Main component ── */
 export default function WikiGuide() {
   const blocks = useMemo(() => getAllBlocks(), [])
-  const [activeSection, setActiveSection] = useState(null)
+
+  const groupedBlocks = useMemo(() => {
+    const groups = {}
+    for (const b of blocks) {
+      const cat = b.category || 'custom'
+      if (!groups[cat]) groups[cat] = []
+      groups[cat].push(b)
+    }
+    return groups
+  }, [blocks])
 
   const scrollTo = (id) => {
     const el = document.getElementById(id)
@@ -154,30 +166,60 @@ export default function WikiGuide() {
         {/* Table of Contents */}
         <div className="wiki-toc">
           <h2>Table of Contents</h2>
-          <div className="wiki-toc-grid">
-            {TOC.map((sec) => (
-              <div key={sec.section}>
-                <div className="wiki-toc-section">{sec.section}</div>
-                {sec.items === 'blocks'
-                  ? blocks.map((b) => (
-                      <a key={b.type} href={`#b-${b.type}`} onClick={(e) => { e.preventDefault(); scrollTo(`b-${b.type}`) }}>
-                        <code>{b.type}</code> {b.name}
-                      </a>
-                    ))
-                  : sec.items.map((it) => (
-                      <a key={it.id} href={`#${it.id}`} onClick={(e) => { e.preventDefault(); scrollTo(it.id) }}>
-                        {it.label}
-                      </a>
-                    ))
-                }
-              </div>
-            ))}
-          </div>
+
+          <Collapsible title="Concepts" icon="💡">
+            <div className="wiki-toc-items">
+              <a href="#c-hier" onClick={(e) => { e.preventDefault(); scrollTo('c-hier') }}>Workspace hierarchy</a>
+              <a href="#c-exec" onClick={(e) => { e.preventDefault(); scrollTo('c-exec') }}>Workflow execution model</a>
+              <a href="#c-dock" onClick={(e) => { e.preventDefault(); scrollTo('c-dock') }}>Run dock panels</a>
+              <a href="#c-insp" onClick={(e) => { e.preventDefault(); scrollTo('c-insp') }}>Inspector</a>
+              <a href="#c-ext" onClick={(e) => { e.preventDefault(); scrollTo('c-ext') }}>Extensions pattern</a>
+            </div>
+          </Collapsible>
+
+          <Collapsible title="Block Reference" icon="🧱">
+            <div className="wiki-toc-items">
+              {CATEGORY_ORDER.map((cat) => {
+                const catBlocks = groupedBlocks[cat]
+                if (!catBlocks || catBlocks.length === 0) return null
+                return (
+                  <Collapsible key={cat} title={CATEGORY_LABELS[cat]} className="wiki-toc-nested">
+                    <div className="wiki-toc-items">
+                      {catBlocks.map((b) => (
+                        <a key={b.type} href={`#b-${b.type}`} onClick={(e) => { e.preventDefault(); scrollTo(`b-${b.type}`) }}>
+                          <span className="wiki-toc-block-name">{b.name}</span>
+                          <code>{b.type}</code>
+                        </a>
+                      ))}
+                    </div>
+                  </Collapsible>
+                )
+              })}
+            </div>
+          </Collapsible>
+
+          <Collapsible title="Demo Workflows" icon="🚀">
+            <div className="wiki-toc-items">
+              <a href="#w-seed" onClick={(e) => { e.preventDefault(); scrollTo('w-seed') }}>Seeded · URL → Summary</a>
+              <a href="#w-url" onClick={(e) => { e.preventDefault(); scrollTo('w-url') }}>URL summariser</a>
+              <a href="#w-csv" onClick={(e) => { e.preventDefault(); scrollTo('w-csv') }}>CSV extract-and-mail</a>
+              <a href="#w-triage" onClick={(e) => { e.preventDefault(); scrollTo('w-triage') }}>Branching triage</a>
+            </div>
+          </Collapsible>
+
+          <Collapsible title="Appendix" icon="📎">
+            <div className="wiki-toc-items">
+              <a href="#a-keys" onClick={(e) => { e.preventDefault(); scrollTo('a-keys') }}>Keyboard shortcuts</a>
+              <a href="#a-layout" onClick={(e) => { e.preventDefault(); scrollTo('a-layout') }}>File layout</a>
+              <a href="#a-custom" onClick={(e) => { e.preventDefault(); scrollTo('a-custom') }}>Writing a custom block</a>
+              <a href="#a-trouble" onClick={(e) => { e.preventDefault(); scrollTo('a-trouble') }}>Troubleshooting</a>
+            </div>
+          </Collapsible>
         </div>
 
-        {/* ═══ Part 1 — Concepts ═══ */}
+        {/* ═══ Concepts ═══ */}
         <div className="wiki-section" id="part1">
-          <h2>Part 1 — Concepts</h2>
+          <h2>Concepts</h2>
 
           <h3 id="c-hier">1.1 Workspace hierarchy</h3>
           <p>
@@ -260,9 +302,9 @@ export default function WikiGuide() {
 
         <div className="wiki-divider" />
 
-        {/* ═══ Part 2 — Block Reference ═══ */}
+        {/* ═══ Block Reference ═══ */}
         <div className="wiki-section" id="part2">
-          <h2>Part 2 — Block Reference</h2>
+          <h2>Block Reference</h2>
           <p>
             Every built-in block with its fields, inputs, outputs, execution notes, and a canvas card preview.
             There are currently <strong>{blocks.length}</strong> blocks across three categories:
@@ -271,81 +313,85 @@ export default function WikiGuide() {
             <span className="wiki-cat trigger">triggers</span>
           </p>
 
-          {blocks.map((b) => {
-            const cat = b.category === 'tools' ? 'tool' : b.category === 'triggers' ? 'trigger' : 'core'
-            const inputEntries = b.inputs ? Object.entries(b.inputs) : []
-            const outputEntries = b.outputs ? Object.entries(b.outputs) : []
+          {CATEGORY_ORDER.map((cat) => {
+            const catBlocks = groupedBlocks[cat]
+            if (!catBlocks || catBlocks.length === 0) return null
+            const catClass = cat === 'tools' ? 'tool' : cat === 'triggers' ? 'trigger' : 'core'
             return (
-              <div key={b.type} id={`b-${b.type}`} className="wiki-block-anchor" style={{ marginTop: 48 }}>
-                <h3>
-                  <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: b.bgColor, verticalAlign: 'middle', marginRight: 8 }} />
-                  {b.name}
-                  <code style={{ marginLeft: 8, fontSize: '.8rem' }}>{b.type}</code>
-                  <span className={`wiki-cat ${cat}`}>{b.category}</span>
-                </h3>
-                <p>{b.longDescription || b.description}</p>
+              <Collapsible key={cat} title={CATEGORY_LABELS[cat]} className="wiki-block-group" defaultOpen={false}>
+                {catBlocks.map((b) => {
+                  const inputEntries = b.inputs ? Object.entries(b.inputs) : []
+                  const outputEntries = b.outputs ? Object.entries(b.outputs) : []
+                  return (
+                    <div key={b.type} id={`b-${b.type}`} className="wiki-block-anchor" style={{ marginTop: 32 }}>
+                      <h3>
+                        <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: b.bgColor, verticalAlign: 'middle', marginRight: 8 }} />
+                        {b.name}
+                        <code style={{ marginLeft: 8, fontSize: '.8rem' }}>{b.type}</code>
+                        <span className={`wiki-cat ${catClass}`}>{b.category}</span>
+                      </h3>
+                      <p>{b.longDescription || b.description}</p>
 
-                {/* Canvas card preview */}
-                <BlockCard block={b} />
+                      <BlockCard block={b} />
 
-                {/* Fields */}
-                {b.subBlocks && b.subBlocks.length > 0 && (
-                  <>
-                    <h4>Fields</h4>
-                    <table>
-                      <thead><tr><th>Field</th><th>Type</th><th>Details</th></tr></thead>
-                      <tbody>
-                        {b.subBlocks.map((f) => (
-                          <tr key={f.id}>
-                            <td><code>{f.id}</code>{f.required && <> <Badge type="required">required</Badge></>}{f.mode === 'advanced' && <> <Badge type="advanced">advanced</Badge></>}</td>
-                            <td><code>{f.type}</code></td>
-                            <td>{f.title}{f.placeholder ? ` — ${f.placeholder}` : ''}{f.defaultValue != null ? ` (default: ${f.defaultValue})` : ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
+                      {b.subBlocks && b.subBlocks.length > 0 && (
+                        <>
+                          <h4>Fields</h4>
+                          <table>
+                            <thead><tr><th>Field</th><th>Type</th><th>Details</th></tr></thead>
+                            <tbody>
+                              {b.subBlocks.map((f) => (
+                                <tr key={f.id}>
+                                  <td><code>{f.id}</code>{f.required && <> <Badge type="required">required</Badge></>}{f.mode === 'advanced' && <> <Badge type="advanced">advanced</Badge></>}</td>
+                                  <td><code>{f.type}</code></td>
+                                  <td>{f.title}{f.placeholder ? ` — ${f.placeholder}` : ''}{f.defaultValue != null ? ` (default: ${f.defaultValue})` : ''}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
 
-                {/* Inputs */}
-                {inputEntries.length > 0 && (
-                  <>
-                    <h4>Inputs</h4>
-                    <table>
-                      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
-                      <tbody>
-                        {inputEntries.map(([k, v]) => (
-                          <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
+                      {inputEntries.length > 0 && (
+                        <>
+                          <h4>Inputs</h4>
+                          <table>
+                            <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+                            <tbody>
+                              {inputEntries.map(([k, v]) => (
+                                <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
 
-                {/* Outputs */}
-                {outputEntries.length > 0 && (
-                  <>
-                    <h4>Outputs</h4>
-                    <table>
-                      <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
-                      <tbody>
-                        {outputEntries.map(([k, v]) => (
-                          <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-              </div>
+                      {outputEntries.length > 0 && (
+                        <>
+                          <h4>Outputs</h4>
+                          <table>
+                            <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+                            <tbody>
+                              {outputEntries.map(([k, v]) => (
+                                <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </Collapsible>
             )
           })}
         </div>
 
         <div className="wiki-divider" />
 
-        {/* ═══ Part 3 — Demo Workflows ═══ */}
+        {/* ═══ Demo Workflows ═══ */}
         <div className="wiki-section" id="part3">
-          <h2>Part 3 — Demo Workflows</h2>
+          <h2>Demo Workflows</h2>
 
           {/* A. Seeded URL → Summary */}
           <h3 id="w-seed">A. Seeded · URL → Summary</h3>
@@ -434,9 +480,9 @@ export default function WikiGuide() {
 
         <div className="wiki-divider" />
 
-        {/* ═══ Part 4 — Appendix ═══ */}
+        {/* ═══ Appendix ═══ */}
         <div className="wiki-section" id="part4">
-          <h2>Part 4 — Appendix</h2>
+          <h2>Appendix</h2>
 
           <h3 id="a-keys">4.1 Keyboard shortcuts</h3>
           <h4>Canvas</h4>
