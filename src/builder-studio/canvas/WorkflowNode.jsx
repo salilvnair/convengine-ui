@@ -81,6 +81,7 @@ function WorkflowNode({ id, data, selected }) {
   const DEFAULT_H = cfg?.defaultHeight || undefined // auto if not set
   const MIN_W = 200
   const MIN_H = 80
+  const nodeRef = useRef(null)
 
   const [nodeW, setNodeW] = useState(data.width || DEFAULT_W)
   const [nodeH, setNodeH] = useState(data.height || DEFAULT_H)
@@ -105,6 +106,9 @@ function WorkflowNode({ id, data, selected }) {
     const startY = e.clientY
     const startW = nodeW || DEFAULT_W
     const startH = nodeH || 200
+    // Measure the node's natural content height as the floor
+    const contentH = nodeRef.current ? nodeRef.current.scrollHeight : MIN_H
+    const minH = Math.max(MIN_H, contentH)
 
     function onMove(ev) {
       ev.preventDefault()
@@ -114,8 +118,8 @@ function WorkflowNode({ id, data, selected }) {
       let h = startH
       if (edges.includes('e')) w = Math.max(MIN_W, startW + dx)
       if (edges.includes('w')) w = Math.max(MIN_W, startW - dx)
-      if (edges.includes('s')) h = Math.max(MIN_H, startH + dy)
-      if (edges.includes('n')) h = Math.max(MIN_H, startH - dy)
+      if (edges.includes('s')) h = Math.max(minH, startH + dy)
+      if (edges.includes('n')) h = Math.max(minH, startH - dy)
       setNodeW(w)
       setNodeH(h)
     }
@@ -225,6 +229,7 @@ function WorkflowNode({ id, data, selected }) {
   return (
     <>
       <div
+        ref={nodeRef}
         className={[
           'bs-node',
           selected ? 'bs-node-selected' : '',
@@ -242,7 +247,6 @@ function WorkflowNode({ id, data, selected }) {
             ? { minHeight: nodeH || undefined, height: 'auto' }
             : { height: nodeH || undefined }),
         }}
-        onClick={() => selectNode(id)}
         onContextMenu={openMenu}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
       >

@@ -247,3 +247,26 @@ export const KeyboardIcon = (p) => (
 
 // Aliases for blocks that use different icon names in sim but share our base set
 export const RouterIcon = ConnectIcon
+
+// ── Utility block icons ──
+export const JsonMapIcon = (p) => (
+  <I {...p}>
+    <path d="M4 6h6" /><path d="M14 6h6" /><circle cx="12" cy="6" r="1.2" fill="currentColor" />
+    <path d="M4 12h6" /><path d="M14 12h6" /><circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    <path d="M4 18h6" /><path d="M14 18h6" /><circle cx="12" cy="18" r="1.2" fill="currentColor" />
+  </I>
+)
+
+export const TextTemplateIcon = (p) => (
+  <I {...p}>
+    <path d="M4 6h16" /><path d="M4 10h12" /><path d="M4 14h14" /><path d="M4 18h8" />
+  </I>
+)
+
+export const JsonPathIcon = (p) => (
+  <I {...p}>
+    <path d="M8 3v4a2 2 0 0 1-2 2H4" /><path d="M20 9h-2a2 2 0 0 1-2-2V3" />
+    <path d="M4 15h2a2 2 0 0 1 2 2v4" /><path d="M16 21v-4a2 2 0 0 1 2-2h2" />
+    <circle cx="12" cy="12" r="2" />
+  </I>
+)

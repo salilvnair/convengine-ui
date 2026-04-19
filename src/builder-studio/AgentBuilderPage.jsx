@@ -197,7 +197,7 @@ export default function AgentBuilderPage() {
             <SettingsIcon className="bs-ico-sm" />
           </button>
           <button
-            className={`bs-btn-ghost bs-topbar-toggle ${rOpen ? 'is-on' : ''}`}
+            className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
             title={rOpen ? 'Hide inspector (⌘.)' : 'Show inspector (⌘.)'}
           >

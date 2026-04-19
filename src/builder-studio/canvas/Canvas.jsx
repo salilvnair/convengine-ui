@@ -10,7 +10,7 @@
  * (Both are suppressed while typing inside inputs/textareas/contentEditable.)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow } from 'reactflow'
+import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, updateEdge } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
@@ -51,6 +51,41 @@ function CanvasInner() {
   const nodesById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes])
   const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
   const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
+  const edgeUpdateSuccessful = useRef(true)
+
+  // Edge update (drag an edge endpoint to a different handle)
+  const onEdgeUpdateStart = useCallback(() => {
+    edgeUpdateSuccessful.current = false
+  }, [])
+  const onEdgeUpdate = useCallback(
+    (oldEdge, newConnection) => {
+      edgeUpdateSuccessful.current = true
+      onEdgesChange(
+        edges
+          .map((e) => {
+            if (e.id === oldEdge.id) {
+              return {
+                ...e,
+                source: newConnection.source,
+                sourceHandle: newConnection.sourceHandle,
+                target: newConnection.target,
+                targetHandle: newConnection.targetHandle,
+              }
+            }
+            return e
+          })
+          .map((e) => ({ id: e.id, type: 'reset', item: e }))
+      )
+    },
+    [edges, onEdgesChange]
+  )
+  const onEdgeUpdateEnd = useCallback(
+    (_, edge) => {
+      if (!edgeUpdateSuccessful.current) removeEdge(edge.id)
+      edgeUpdateSuccessful.current = true
+    },
+    [removeEdge]
+  )
 
   // Right-click or click on an edge → show "Remove connection" menu
   const onEdgeContextMenu = useCallback((e, edge) => {
@@ -189,8 +224,14 @@ function CanvasInner() {
         onConnect={onConnect}
         onEdgesDelete={onEdgesDelete}
         onEdgeContextMenu={onEdgeContextMenu}
+        onEdgeUpdateStart={onEdgeUpdateStart}
+        onEdgeUpdate={onEdgeUpdate}
+        onEdgeUpdateEnd={onEdgeUpdateEnd}
         onPaneClick={() => { selectNode(null); window.dispatchEvent(new Event('bs:close-context-menus')) }}
+        onNodeClick={(_, node) => selectNode(node.id)}
         nodeTypes={memoNodeTypes}
+        multiSelectionKeyCode="Shift"
+        selectionOnDrag
         edgesUpdatable
         fitView
         proOptions={{ hideAttribution: true }}

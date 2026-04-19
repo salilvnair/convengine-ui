@@ -50,6 +50,14 @@ const DebugPanel = {
           </button>
         </div>
         <div className="bs-run-log">
+          <div className="bs-run-log-row bs-run-log-head">
+            <span className="bs-run-log-caret" />
+            <span className="bs-run-log-dot" />
+            <span className="bs-run-log-time">Time</span>
+            <span className="bs-run-log-block">Block</span>
+            <span className="bs-run-log-node">Card</span>
+            <span className="bs-run-log-state">Status</span>
+          </div>
           {progress.map((p, i) => {
             const key = `dbg:${i}`
             const isOpen = !!expanded[key]

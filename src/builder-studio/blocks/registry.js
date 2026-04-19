@@ -35,6 +35,9 @@ const registry = {
   for_each: Core.ForEachBlock,
   save_to_files: Core.SaveToFilesBlock,
   show_preview: Core.ShowPreviewBlock,
+  json_map: Core.JsonMapBlock,
+  text_template: Core.TextTemplateBlock,
+  json_path: Core.JsonPathBlock,
 }
 
 /**

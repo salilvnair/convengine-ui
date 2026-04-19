@@ -54,9 +54,9 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         meta: { source: 'RunPanel input', value: outputs[n.id] },
       })
       started.add(n.id)
-      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'user_input' })
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'user_input', title: n.data?.title })
       try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
-      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'user_input', output: outputs[n.id] })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'user_input', title: n.data?.title, output: outputs[n.id] })
     } else if (n.data?.blockType === 'starter') {
       outputs[n.id] = null
       trace.push({
@@ -64,8 +64,8 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         input: null, output: null, ms: 0, meta: { source: 'graph root' },
       })
       started.add(n.id)
-      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter' })
-      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', output: null })
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter', title: n.data?.title })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', title: n.data?.title, output: null })
     }
   }
 
@@ -202,6 +202,12 @@ async function runNode({ node, values, input, outputs }) {
       // Preview-only sink — pass the upstream payload through untouched so
       // the card's json-preview body can render it (see WorkflowNode).
       return input
+    case 'json_map':
+      return runJsonMapNode({ values, input })
+    case 'text_template':
+      return runTextTemplateNode({ values, input })
+    case 'json_path':
+      return runJsonPathNode({ values, input })
     default:
       // Unknown block type: pass input through so the graph keeps moving.
       return input
@@ -498,3 +504,49 @@ function jsonPath(obj, path) {
   return parts.reduce((a, k) => (a == null ? a : a[k]), obj)
 }
 function eval_safe(expr, input) { try { return new Function('input', `return (${expr})`)(input) } catch { return undefined } }
+
+/* ── JSON Map block ────────────────────────────────────────────────────────── */
+function runJsonMapNode({ values, input }) {
+  let obj = typeof input === 'string' ? safeJson(input) : input
+  if (obj == null) obj = {}
+  let mappings = values.mappings
+  if (typeof mappings === 'string') {
+    try { mappings = JSON.parse(mappings) } catch (e) {
+      throw new Error(`JSON Map: mappings is not valid JSON — ${e.message}`)
+    }
+  }
+  if (!Array.isArray(mappings) || mappings.length === 0) return obj
+  const result = {}
+  for (const m of mappings) {
+    const key = m.key || m.k
+    const path = m.path || m.p || m.jsonPath
+    if (!key) continue
+    const val = path === '$' ? obj : jsonPath(obj, path)
+    result[key] = val !== undefined ? val : null
+  }
+  return result
+}
+
+/* ── Text Template block ───────────────────────────────────────────────────── */
+function runTextTemplateNode({ values, input }) {
+  const template = values.template || '{{input}}'
+  const bag = { input: typeof input === 'string' ? input : JSON.stringify(input ?? '') }
+  // If input is an object, merge its keys as template vars
+  const obj = typeof input === 'string' ? safeJson(input) : input
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+    for (const [k, v] of Object.entries(obj)) bag[k] = v
+  }
+  return interpolateBag(template, bag)
+}
+
+/* ── JSON Path block ───────────────────────────────────────────────────────── */
+function runJsonPathNode({ values, input }) {
+  let obj = typeof input === 'string' ? safeJson(input) : input
+  if (obj == null) obj = {}
+  const path = values.path || '$'
+  const result = path === '$' ? obj : jsonPath(obj, path)
+  if (result === undefined && values.fallback != null && values.fallback !== '') {
+    return values.fallback
+  }
+  return result !== undefined ? result : null
+}

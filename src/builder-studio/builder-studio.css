@@ -629,6 +629,13 @@
 }
 .bs-run-log-row.is-clickable { cursor: pointer; }
 .bs-run-log-row.is-clickable:hover { background: rgba(99,102,241,0.06); }
+.bs-run-log-head {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #64748b; border-bottom: 1px solid rgba(148,163,184,0.12);
+  position: sticky; top: 0; background: var(--ce-surface, #1e293b); z-index: 1;
+}
+.bs-run-log-head .bs-run-log-dot,
+.bs-run-log-head .bs-run-log-caret { visibility: hidden; }
 .bs-run-log-caret { color: #64748b; width: 14px; text-align: center; font-size: 10px; }
 .bs-run-log-item:last-child .bs-run-log-row { border-bottom: none; }
 

@@ -59,6 +59,10 @@ const cardPortOverrides = {
   webhook_request: { inputs: [],  outputs: 'auto' },
   schedule:      { inputs: [],  outputs: 'auto' },
   variables:     { inputs: [],  outputs: [] },
+  // Agent — one input (upstream text/json), one output (response content)
+  agent:         { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'response', type: 'string' }] },
+  // Function — one input, one output
+  function:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] },
   // If/Else family — multi-output branching, handled by outputHandles
   if_else:       { inputs: 'auto', outputs: [] },
   if_elseif_else:{ inputs: 'auto', outputs: [] },
