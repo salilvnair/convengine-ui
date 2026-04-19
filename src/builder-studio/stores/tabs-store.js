@@ -84,9 +84,48 @@ export const useTabsStore = create((set, get) => ({
       activeId: SETTINGS_TAB_ID,
     }))
   },
+
+  /** Focus (or open) the singleton Wiki tab. */
+  openWiki() {
+    const existing = get().tabs.find((t) => t.id === WIKI_TAB_ID)
+    if (existing) { set({ activeId: WIKI_TAB_ID }); return }
+    set((s) => ({
+      tabs: [...s.tabs, { id: WIKI_TAB_ID, kind: 'wiki', title: 'Wiki' }],
+      activeId: WIKI_TAB_ID,
+    }))
+  },
+
+  /** Close all workflow tabs except the pinned one. */
+  closeAllWorkflowTabs() {
+    set((s) => {
+      const kept = s.tabs.filter((t) => t.kind !== 'workflow' || t.id === s.pinnedWorkflowTabId)
+      let activeId = s.activeId
+      if (!kept.find((t) => t.id === activeId)) {
+        activeId = kept[0]?.id || null
+      }
+      return { tabs: kept, activeId }
+    })
+  },
+
+  /** Close all tabs except the pinned workflow tab. */
+  closeAllTabs() {
+    set((s) => {
+      const kept = s.tabs.filter((t) => t.id === s.pinnedWorkflowTabId)
+      return { tabs: kept, activeId: kept[0]?.id || null }
+    })
+  },
+
+  /** Close all tabs except the given one (and the pinned workflow tab). */
+  closeOtherTabs(id) {
+    set((s) => {
+      const kept = s.tabs.filter((t) => t.id === id || t.id === s.pinnedWorkflowTabId)
+      return { tabs: kept, activeId: id }
+    })
+  },
 }))
 
 export const SETTINGS_TAB_ID = 'settings'
+export const WIKI_TAB_ID = 'wiki'
 export function workflowTabId(wfId) { return `workflow:${wfId}` }
 export function workflowIdFromTab(tabId) { return tabId?.startsWith('workflow:') ? tabId.slice(9) : null }
 export function agentTabId(agentId) { return `agent:${agentId}` }

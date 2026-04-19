@@ -23,6 +23,7 @@ import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
 import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
+import { BookIcon } from './tabs/WikiGuide'
 import './builder-studio.css'
 
 const R_MIN = 280
@@ -42,6 +43,7 @@ export default function AgentBuilderPage() {
   const edges = useWorkflowStore((s) => s.edges)
   const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
   const openSettings = useTabsStore((s) => s.openSettings)
+  const openWiki = useTabsStore((s) => s.openWiki)
   const initWorkflowTabs = useTabsStore((s) => s.initWorkflowTabs)
   const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
   const renameTab = useTabsStore((s) => s.renameTab)
@@ -188,6 +190,13 @@ export default function AgentBuilderPage() {
             onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }) }}
           >
             Save
+          </button>
+          <button
+            className="bs-btn-ghost bs-topbar-toggle"
+            onClick={() => openWiki()}
+            title="Wiki — Agent Builder Studio Guide"
+          >
+            <BookIcon className="bs-ico-sm" />
           </button>
           <button
             className="bs-btn-ghost bs-topbar-toggle"

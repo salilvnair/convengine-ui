@@ -7,12 +7,86 @@
 /* Third-party editor themes (scoped under .jse-theme-dark / .bs-cm). */
 @import 'vanilla-jsoneditor/themes/jse-theme-dark.css';
 
+/* ---------- Builder-Studio theme tokens (light defaults) ---------- */
+:root {
+  --bs-editor-bg: #f8fafc;
+  --bs-editor-hover-border: #cbd5e1;
+  --bs-preview-bg: #f1f5f9;
+  --bs-preview-head-bg: #e2e8f0;
+  --bs-input-bg: #f1f5f9;
+  --bs-input-hover-bg: #e2e8f0;
+  --bs-input-focus-bg: #f8fafc;
+  --bs-input-color: #1e293b;
+  --bs-input-border: rgba(0,0,0,0.12);
+  --bs-input-hover-border: rgba(0,0,0,0.18);
+  --bs-input-placeholder: #94a3b8;
+  --bs-label-color: #475569;
+  --bs-field-dot: #cbd5e1;
+  --bs-alert-error-text: #dc2626;
+  --bs-alert-warn-text: #a16207;
+  --bs-alert-success-text: #15803d;
+  --bs-alert-info-text: #4338ca;
+  --bs-json-key: #4338ca;
+  --bs-json-str: #15803d;
+  --bs-json-num: #a16207;
+  --bs-json-bool: #be185d;
+  --bs-json-punct: #94a3b8;
+  --bs-muted: #64748b;
+  --bs-accent: #4f46e5;
+  --bs-trace-head-bg: #e2e8f0;
+  --bs-trace-expand-bg: #f1f5f9;
+  --bs-log-expand-bg: #f1f5f9;
+  --bs-log-head-bg: #f1f5f9;
+  --bs-splitter-tip-bg: rgba(255,255,255,0.96);
+  --bs-run-dot-shadow: rgba(255,255,255,0.8);
+  --bs-jse-theme-color: #f1f5f9;
+  --bs-jse-bg: #f8fafc;
+  --bs-jse-panel-bg: #f1f5f9;
+  --bs-jse-text: #1e293b;
+}
+[data-theme='dark'] {
+  --bs-editor-bg: #0b1020;
+  --bs-editor-hover-border: #334155;
+  --bs-preview-bg: rgba(11,16,32,0.6);
+  --bs-preview-head-bg: rgba(15,23,42,0.6);
+  --bs-input-bg: rgba(15,23,42,0.7);
+  --bs-input-hover-bg: rgba(15,23,42,0.85);
+  --bs-input-focus-bg: rgba(15,23,42,0.95);
+  --bs-input-color: #f1f5f9;
+  --bs-input-border: rgba(255,255,255,0.08);
+  --bs-input-hover-border: rgba(255,255,255,0.12);
+  --bs-input-placeholder: #475569;
+  --bs-label-color: #cbd5e1;
+  --bs-field-dot: #334155;
+  --bs-alert-error-text: #fca5a5;
+  --bs-alert-warn-text: #fde68a;
+  --bs-alert-success-text: #86efac;
+  --bs-alert-info-text: #a5b4fc;
+  --bs-json-key: #a5b4fc;
+  --bs-json-str: #86efac;
+  --bs-json-num: #fbbf24;
+  --bs-json-bool: #f472b6;
+  --bs-json-punct: #64748b;
+  --bs-muted: #64748b;
+  --bs-accent: #a5b4fc;
+  --bs-trace-head-bg: rgba(15,23,42,0.85);
+  --bs-trace-expand-bg: rgba(15,23,42,0.5);
+  --bs-log-expand-bg: rgba(15,23,42,0.45);
+  --bs-log-head-bg: var(--ce-surface, #1e293b);
+  --bs-splitter-tip-bg: rgba(15,23,42,0.96);
+  --bs-run-dot-shadow: rgba(15,23,42,0.6);
+  --bs-jse-theme-color: #0f172a;
+  --bs-jse-bg: #0b1020;
+  --bs-jse-panel-bg: #0f172a;
+  --bs-jse-text: #e5e7eb;
+}
+
 /* ---------- Embedded editors (CodeMirror + JSON tree) ---------- */
 .bs-cm {
   border: 1px solid var(--ce-border, #1f2937);
   border-radius: 8px;
   overflow: hidden;
-  background: #0b1020;
+  background: var(--bs-editor-bg);
 }
 .bs-cm:focus-within {
   border-color: #6366f1;
@@ -39,11 +113,11 @@
   border: 1px solid var(--ce-border, #1f2937);
   border-radius: 10px;
   overflow: hidden;
-  background: #0b1020;
+  background: var(--bs-editor-bg);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-.bs-jsoneditor:hover { border-color: #334155; }
+.bs-jsoneditor:hover { border-color: var(--bs-editor-hover-border); }
 .bs-jsoneditor:focus-within {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
@@ -57,12 +131,12 @@
 }
 .bs-jsoneditor.jse-theme-dark,
 .bs-jsoneditor { /* fallback when we forget to add .jse-theme-dark */
-  --jse-theme-color: #0f172a;
+  --jse-theme-color: var(--bs-jse-theme-color);
   --jse-theme-color-highlight: #6366f1;
-  --jse-background-color: #0b1020;
-  --jse-panel-background: #0f172a;
-  --jse-text-color: #e5e7eb;
-  --jse-text-color-inverse: #e5e7eb;
+  --jse-background-color: var(--bs-jse-bg);
+  --jse-panel-background: var(--bs-jse-panel-bg);
+  --jse-text-color: var(--bs-jse-text);
+  --jse-text-color-inverse: var(--bs-jse-text);
   --jse-delimiter-color: #6366f1;
   --jse-selection-background-color: rgba(99,102,241,0.25);
 }
@@ -366,28 +440,28 @@
 }
 .bs-alert-error {
   background: rgba(239, 68, 68, 0.06);
-  color: #fca5a5;
+  color: var(--bs-alert-error-text);
   border: 1px solid rgba(239, 68, 68, 0.15);
   box-shadow: 0 1px 4px rgba(239, 68, 68, 0.08);
 }
 .bs-alert-error::before { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
 .bs-alert-warn {
   background: rgba(251, 191, 36, 0.06);
-  color: #fde68a;
+  color: var(--bs-alert-warn-text);
   border: 1px solid rgba(251, 191, 36, 0.15);
   box-shadow: 0 1px 4px rgba(251, 191, 36, 0.08);
 }
 .bs-alert-warn::before { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.4); }
 .bs-alert-success {
   background: rgba(34, 197, 94, 0.06);
-  color: #86efac;
+  color: var(--bs-alert-success-text);
   border: 1px solid rgba(34, 197, 94, 0.15);
   box-shadow: 0 1px 4px rgba(34, 197, 94, 0.08);
 }
 .bs-alert-success::before { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
 .bs-alert-info {
   background: rgba(99, 102, 241, 0.06);
-  color: #a5b4fc;
+  color: var(--bs-alert-info-text);
   border: 1px solid rgba(99, 102, 241, 0.15);
   box-shadow: 0 1px 4px rgba(99, 102, 241, 0.08);
 }
@@ -395,7 +469,7 @@
 .bs-run-result { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .bs-run-result .bs-panel-subtitle {
   font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
-  color: #64748b;
+  color: var(--bs-muted);
 }
 .bs-run-tab-run .bs-alert { margin-top: 4px; }
 .bs-run-tab-run .bs-run-empty { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
@@ -460,7 +534,7 @@
 }
 .bs-run-dock-tabcount {
   font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums;
-  background: rgba(99,102,241,0.18); color: #a5b4fc;
+  background: rgba(99,102,241,0.18); color: var(--bs-accent);
   padding: 0 6px; border-radius: 999px; min-width: 18px; text-align: center;
 }
 .bs-run-dock-state { display: flex; align-items: center; }
@@ -482,11 +556,18 @@
 .bs-json-wrap::-webkit-scrollbar-track { background: transparent; }
 .bs-json-wrap::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 4px; }
 .bs-json-wrap::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
-/* Inspector-level preview: taller, fills available space */
+/* Inspector-level preview: let the OUTER inspector body own the scroll so
+   the user gets a single scrollbar pinned to the right edge. Without this
+   override the wrap's own `overflow: auto; max-height: 320px` creates a
+   nested scroller mid-panel, and the wheel only scrolls when the cursor
+   is over that inner region (not the empty space to the right). */
 .bs-inspector-body .bs-json-wrap {
-  max-height: 480px; min-height: 180px;
-  flex: 1 1 auto;
+  max-height: none;
+  min-height: 180px;
+  overflow: visible;
+  flex: 0 0 auto;
 }
+.bs-inspector-body .bs-json-wrap .bs-json-view { max-height: none; overflow: visible; }
 .bs-json-wrap-wordwrap .bs-json-view { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
 .bs-json-view {
   margin: 0; padding: 10px 12px;
@@ -496,24 +577,24 @@
   white-space: pre;
 }
 .bs-json-line { display: block; }
-.bs-json-key { color: #a5b4fc; }
-.bs-json-str { color: #86efac; }
-.bs-json-num { color: #fbbf24; }
-.bs-json-bool { color: #f472b6; }
+.bs-json-key { color: var(--bs-json-key); }
+.bs-json-str { color: var(--bs-json-str); }
+.bs-json-num { color: var(--bs-json-num); }
+.bs-json-bool { color: var(--bs-json-bool); }
 .bs-json-null { color: #94a3b8; font-style: italic; }
-.bs-json-punct { color: #64748b; }
+.bs-json-punct { color: var(--bs-json-punct); }
 .bs-json-indent { white-space: pre; }
 
 /* Expandable Trace rows */
-.bs-run-log-time { color: #64748b; font-variant-numeric: tabular-nums; font-size: 11px; }
-.bs-run-trace-caret { color: #64748b; width: 14px; text-align: center; font-size: 10px; }
+.bs-run-log-time { color: var(--bs-muted); font-variant-numeric: tabular-nums; font-size: 11px; }
+.bs-run-trace-caret { color: var(--bs-muted); width: 14px; text-align: center; font-size: 10px; }
 .bs-run-trace-head, .bs-run-trace-row {
   grid-template-columns: 22px 160px 1fr 64px !important;
 }
 .bs-run-trace-row.is-clickable { cursor: pointer; }
 .bs-run-trace-row.is-clickable:hover { background: rgba(99,102,241,0.06); }
 .bs-run-trace-expand {
-  background: rgba(15,23,42,0.5);
+  background: var(--bs-trace-expand-bg);
   padding: 10px 14px;
   border-bottom: 1px solid rgba(148,163,184,0.06);
   display: flex; flex-direction: column; gap: 6px;
@@ -538,10 +619,10 @@
 .bs-run-dock-pill {
   font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
   padding: 2px 8px; border-radius: 999px;
-  background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+  background: rgba(99,102,241,0.15); color: var(--bs-accent); border: 1px solid rgba(99,102,241,0.3);
 }
-.bs-run-dock-pill.is-ok { background: rgba(34,197,94,0.15); color: #86efac; border-color: rgba(34,197,94,0.3); }
-.bs-run-dock-pill.is-error { background: rgba(239,68,68,0.15); color: #fca5a5; border-color: rgba(239,68,68,0.35); }
+.bs-run-dock-pill.is-ok { background: rgba(34,197,94,0.15); color: var(--bs-alert-success-text); border-color: rgba(34,197,94,0.3); }
+.bs-run-dock-pill.is-error { background: rgba(239,68,68,0.15); color: var(--bs-alert-error-text); border-color: rgba(239,68,68,0.35); }
 .bs-run-dock-actions { display: flex; gap: 4px; align-items: center; }
 
 .bs-run-dock-body {
@@ -569,11 +650,11 @@
   font-size: 12px; font-weight: 500;
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   text-transform: none; letter-spacing: 0;
-  color: #cbd5e1;
+  color: var(--bs-label-color);
 }
 .bs-field-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: #334155; flex-shrink: 0;
+  background: var(--bs-field-dot); flex-shrink: 0;
   transition: background 180ms ease, box-shadow 180ms ease;
 }
 .bs-field-dot.is-req { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.35); }
@@ -587,26 +668,26 @@
   font-size: 13.5px;
   padding: 10px 14px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(15,23,42,0.7);
-  color: #f1f5f9;
+  border: 1px solid var(--bs-input-border);
+  background: var(--bs-input-bg);
+  color: var(--bs-input-color);
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.15), 0 0 0 0 transparent;
   transition: border-color 150ms, box-shadow 150ms, background 150ms;
 }
 .bs-field-row .bs-input:hover,
 .bs-field-row .bs-textarea:hover {
-  border-color: rgba(255,255,255,0.12);
-  background: rgba(15,23,42,0.85);
+  border-color: var(--bs-input-hover-border);
+  background: var(--bs-input-hover-bg);
 }
 .bs-field-row .bs-input:focus,
 .bs-field-row .bs-textarea:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99,102,241,0.15), inset 0 1px 2px rgba(0,0,0,0.1);
-  background: rgba(15,23,42,0.95);
+  background: var(--bs-input-focus-bg);
 }
 .bs-field-row .bs-input::placeholder,
 .bs-field-row .bs-textarea::placeholder {
-  color: #475569; font-weight: 400;
+  color: var(--bs-input-placeholder); font-weight: 400;
 }
 
 /* Streaming log rows — proper flex + gap so block/node/state don't smash
@@ -631,18 +712,18 @@
 .bs-run-log-row.is-clickable:hover { background: rgba(99,102,241,0.06); }
 .bs-run-log-head {
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-  color: #64748b; border-bottom: 1px solid rgba(148,163,184,0.12);
-  position: sticky; top: 0; background: var(--ce-surface, #1e293b); z-index: 1;
+  color: var(--bs-muted); border-bottom: 1px solid rgba(148,163,184,0.12);
+  position: sticky; top: 0; background: var(--bs-log-head-bg); z-index: 1;
 }
 .bs-run-log-head .bs-run-log-dot,
 .bs-run-log-head .bs-run-log-caret { visibility: hidden; }
-.bs-run-log-caret { color: #64748b; width: 14px; text-align: center; font-size: 10px; }
+.bs-run-log-caret { color: var(--bs-muted); width: 14px; text-align: center; font-size: 10px; }
 .bs-run-log-item:last-child .bs-run-log-row { border-bottom: none; }
 
 /* Debug / Trace — expanded "wiki of details" pane under a clicked row. */
 .bs-run-log-expand {
   padding: 10px 14px 14px;
-  background: rgba(15,23,42,0.45);
+  background: var(--bs-log-expand-bg);
   border-bottom: 1px solid rgba(148,163,184,0.06);
   display: flex; flex-direction: column; gap: 8px;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -665,7 +746,7 @@
 .bs-run-log-kv-v { color: var(--text-primary, #e5e7eb); word-break: break-word; }
 .bs-run-log-kv-v code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 11px; color: #a5b4fc;
+  font-size: 11px; color: var(--bs-accent);
   background: rgba(99,102,241,0.1); padding: 1px 6px; border-radius: 4px;
 }
 .bs-run-log-pre {
@@ -681,18 +762,18 @@
 }
 .bs-run-log-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #64748b;
-  box-shadow: 0 0 0 2px rgba(15,23,42,0.6);
+  background: var(--bs-muted);
+  box-shadow: 0 0 0 2px var(--bs-run-dot-shadow);
 }
 .bs-run-log-dot.is-start { background: #eab308; animation: bs-node-pulse 1.2s ease-in-out infinite; }
 .bs-run-log-dot.is-done  { background: #22c55e; }
 .bs-run-log-dot.is-error { background: #ef4444; }
-.bs-run-log-block { color: #a5b4fc; font-weight: 600; text-transform: lowercase; }
+.bs-run-log-block { color: var(--bs-accent); font-weight: 600; text-transform: lowercase; }
 .bs-run-log-node  { color: var(--text-secondary, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-run-log-state { color: var(--text-secondary, #94a3b8); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; text-align: right; }
 .bs-run-log-state.is-start { color: #fbbf24; }
 .bs-run-log-state.is-done  { color: #4ade80; }
-.bs-run-log-state.is-error { color: #fca5a5; }
+.bs-run-log-state.is-error { color: var(--bs-alert-error-text); }
 
 /* Final-trace grid — column-aligned like a table, proper sans font. */
 .bs-run-trace-grid {
@@ -709,7 +790,7 @@
   align-items: center;
 }
 .bs-run-trace-head {
-  background: rgba(15,23,42,0.85);
+  background: var(--bs-trace-head-bg);
   color: var(--text-secondary, #94a3b8);
   font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
   border-bottom: 1px solid var(--ce-border, #1f2937);
@@ -717,7 +798,7 @@
 .bs-run-trace-row { border-bottom: 1px solid rgba(148,163,184,0.06); }
 .bs-run-trace-row:last-child { border-bottom: none; }
 .bs-run-trace-row.is-error { background: rgba(239,68,68,0.06); }
-.bs-run-trace-row .bs-run-trace-node { color: #a5b4fc; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-run-trace-row .bs-run-trace-node { color: var(--bs-accent); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-run-trace-row .bs-run-trace-io { font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text-primary, #e5e7eb); }
 .bs-run-trace-row .bs-run-trace-ms { color: var(--text-secondary, #94a3b8); font-variant-numeric: tabular-nums; text-align: right; font-size: 11px; }
 
@@ -766,7 +847,7 @@
 .bs-rail-btn:hover { background: rgba(99,102,241,0.08); color: var(--text-primary, #e5e7eb); }
 .bs-rail-btn.is-active {
   background: rgba(99,102,241,0.18);
-  color: #a5b4fc;
+  color: var(--bs-accent);
   border-color: rgba(99,102,241,0.45);
   box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25);
 }
@@ -839,7 +920,7 @@
   top: 50%;
   left: 16px;
   transform: translateY(-50%);
-  background: rgba(15, 23, 42, 0.96);
+  background: var(--bs-splitter-tip-bg);
   color: var(--text-primary, #e5e7eb);
   font-size: 12px;
   padding: 8px 10px;
@@ -920,7 +1001,7 @@
 }
 .bs-add-btn:hover {
   border-color: #6366f1;
-  color: #a5b4fc;
+  color: var(--bs-accent);
   background: rgba(99,102,241,0.06);
 }
 
@@ -936,10 +1017,10 @@
   cursor: pointer;
   transition: all 120ms ease;
 }
-.bs-icon-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+.bs-icon-btn:hover { border-color: #6366f1; color: var(--bs-accent); }
 .bs-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .bs-icon-btn-danger { color: #f87171; }
-.bs-icon-btn-danger:hover { border-color: #ef4444; color: #fca5a5; background: rgba(239,68,68,0.08); }
+.bs-icon-btn-danger:hover { border-color: #ef4444; color: var(--bs-alert-error-text); background: rgba(239,68,68,0.08); }
 
 /* Row list */
 .bs-rows { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -960,7 +1041,7 @@
   border-color: rgba(99,102,241,0.4);
 }
 .bs-row-lead { color: var(--text-secondary, #94a3b8); flex-shrink: 0; }
-.bs-row.is-active .bs-row-lead { color: #a5b4fc; }
+.bs-row.is-active .bs-row-lead { color: var(--bs-accent); }
 .bs-row-main { flex: 1 1 auto; min-width: 0; }
 .bs-row-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-row-meta { font-size: 11px; color: var(--text-secondary, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1058,8 +1139,8 @@
   opacity: 0.55;
 }
 .bs-input:hover, .bs-textarea:hover, .bs-code:hover {
-  border-color: #334155;
-  background: #131b2e;
+  border-color: var(--bs-editor-hover-border);
+  background: var(--bs-input-hover-bg);
 }
 .bs-textarea { resize: vertical; min-height: 72px; }
 .bs-code {
@@ -1072,7 +1153,7 @@
 .bs-input:focus, .bs-textarea:focus, .bs-code:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99,102,241,0.18), inset 0 1px 0 rgba(255,255,255,0.02);
-  background: #111a2e;
+  background: var(--bs-input-focus-bg);
 }
 
 /* Native <select> rendered with .bs-input gets a single SVG chevron.
@@ -1092,18 +1173,18 @@ select.bs-input {
 }
 select.bs-input:hover {
   background:
-    #131b2e
+    var(--bs-input-hover-bg)
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")
     no-repeat right 10px center / 12px 12px;
 }
 select.bs-input:focus {
   background:
-    #111a2e
+    var(--bs-input-focus-bg)
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23c7d2fe' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")
     no-repeat right 10px center / 12px 12px;
 }
 select.bs-input option {
-  background-color: #0f172a;
+  background-color: var(--bg-primary, #0f172a);
   color: var(--text-primary, #e5e7eb);
 }
 .bs-input-sm { padding: 6px 10px; padding-right: 28px; font-size: 12px; }
@@ -1233,7 +1314,7 @@ select.bs-input option {
 .bs-btn-danger-ghost:hover {
   background: rgba(239,68,68,0.10);
   border-color: #ef4444;
-  color: #fca5a5;
+  color: var(--bs-alert-error-text);
 }
 .bs-btn-danger-ghost:active { background: rgba(239,68,68,0.18); }
 
@@ -1306,7 +1387,7 @@ select.bs-input option {
   padding: 1px 5px;
   border-radius: 4px;
   background: rgba(99,102,241,0.12);
-  color: #c7d2fe;
+  color: var(--bs-accent);
   border: 1px solid rgba(99,102,241,0.2);
 }
 
@@ -1654,7 +1735,7 @@ select.bs-input option {
   transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 .bs-node-row-edit:hover .bs-node-chip {
-  color: #c7d2fe;
+  color: var(--bs-accent);
   border-color: rgba(99,102,241,0.45);
   background: rgba(99,102,241,0.1);
 }
@@ -1808,7 +1889,7 @@ select.bs-input option {
    style secondary CTAs. Tinted indigo on a transparent base. */
 .bs-btn-accent {
   border-color: rgba(99,102,241,0.45);
-  color: #c7d2fe;
+  color: var(--bs-accent);
   background: rgba(99,102,241,0.10);
 }
 .bs-btn-accent:hover {
@@ -1817,7 +1898,7 @@ select.bs-input option {
   color: #ffffff;
 }
 .bs-mcp-error {
-  color: #fca5a5;
+  color: var(--bs-alert-error-text);
   background: rgba(239,68,68,0.08);
   border: 1px solid rgba(239,68,68,0.3);
   padding: 6px 10px;
@@ -2039,7 +2120,7 @@ select.bs-input option {
 .bs-port-branch-true   { color: #10b981; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.1); }
 .bs-port-branch-false  { color: #ef4444; border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.1);  }
 .bs-port-branch-else   { color: #f59e0b; border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.1); }
-.bs-port-branch-case   { color: #a5b4fc; border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.1); }
+.bs-port-branch-case   { color: var(--bs-accent); border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.1); }
 .bs-port-branch-default { color: #94a3b8; border-color: rgba(148,163,184,0.4); background: rgba(148,163,184,0.1); }
 
 .bs-port-dot-true   { background: #10b981; }
@@ -2087,7 +2168,7 @@ select.bs-input option {
   border: 1px solid var(--ce-border, #1f2937); cursor: pointer;
 }
 .bs-inspector-mode-active { color: var(--text-primary, #e5e7eb); border-color: #6366f1; }
-.bs-inspector-body { overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.bs-inspector-body { overflow-y: auto; overscroll-behavior: contain; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
 
 .bs-field { display: flex; flex-direction: column; gap: 6px; }
 .bs-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary, #94a3b8); }
@@ -2114,7 +2195,7 @@ select.bs-input option {
 .bs-io-hint code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10.5px; padding: 1px 5px; border-radius: 4px;
-  background: rgba(99,102,241,0.1); color: #a5b4fc;
+  background: rgba(99,102,241,0.1); color: var(--bs-accent);
 }
 .bs-io-slots { display: flex; flex-direction: column; gap: 3px; }
 .bs-io-slot {
@@ -2156,10 +2237,10 @@ select.bs-input option {
   border: 1px solid;
 }
 .bs-io-chip-in {
-  background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2); color: #a5b4fc;
+  background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.2); color: var(--bs-accent);
 }
 .bs-io-chip-out {
-  background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); color: #86efac;
+  background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); color: var(--bs-alert-success-text);
 }
 /* Template variable rows */
 .bs-io-var-list { display: flex; flex-direction: column; gap: 3px; }
@@ -2171,7 +2252,7 @@ select.bs-input option {
 }
 .bs-io-var-key {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px; color: #c4b5fd; font-weight: 600;
+  font-size: 11.5px; color: var(--bs-accent); font-weight: 600;
 }
 .bs-io-var-from {
   font-size: 10px; color: #475569; margin-left: auto;
@@ -2227,7 +2308,7 @@ select.bs-input option {
   cursor: pointer;
 }
 .bs-ctxmenu-item:hover:not(:disabled) { background: rgba(99,102,241,0.16); }
-.bs-ctxmenu-item.is-danger { color: #fca5a5; }
+.bs-ctxmenu-item.is-danger { color: var(--bs-alert-error-text); }
 .bs-ctxmenu-item.is-danger:hover { background: rgba(239,68,68,0.14); color: #fecaca; }
 .bs-ctxmenu-item:disabled { opacity: 0.4; cursor: not-allowed; }
 .bs-ctxmenu-label { flex: 1 1 auto; }
@@ -2336,7 +2417,7 @@ select.bs-input option {
   margin: 6px 8px 8px;
   border: 1px solid rgba(148,163,184,0.14);
   border-radius: 8px;
-  background: rgba(11,16,32,0.6);
+  background: var(--bs-preview-bg);
   overflow: hidden;
   /* Let the card grow to fit the preview content */
   min-height: 0;
@@ -2345,7 +2426,7 @@ select.bs-input option {
   padding: 5px 10px;
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--text-secondary, #94a3b8);
-  background: rgba(15,23,42,0.6);
+  background: var(--bs-preview-head-bg);
   border-bottom: 1px solid rgba(148,163,184,0.08);
 }
 .bs-node-jsonpreview-body {
@@ -2413,7 +2494,7 @@ select.bs-input option {
 .bs-node-out-label-true { color: #10b981; border-color: rgba(16,185,129,0.4); }
 .bs-node-out-label-false { color: #ef4444; border-color: rgba(239,68,68,0.4); }
 .bs-node-out-label-else { color: #f59e0b; border-color: rgba(245,158,11,0.4); }
-.bs-node-out-label-case { color: #a5b4fc; border-color: rgba(99,102,241,0.4); }
+.bs-node-out-label-case { color: var(--bs-accent); border-color: rgba(99,102,241,0.4); }
 
 /* Multi-handle pins — smaller, colored per branch */
 .react-flow__handle.bs-handle-multi {
@@ -2604,7 +2685,7 @@ select.bs-input option {
 .bs-fsw-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 4px 6px 4px 10px;
-  background: rgba(15,23,42,0.6);
+  background: var(--bs-preview-head-bg);
   border-bottom: 1px solid var(--ce-border, #1f2937);
   min-height: 30px;
 }
@@ -2705,7 +2786,7 @@ select.bs-input option {
   background: rgba(148, 163, 184, 0.08);
 }
 .bs-bottombar-tab.is-active {
-  color: #a5b4fc;
+  color: var(--bs-accent);
   background: rgba(99, 102, 241, 0.12);
 }
 .bs-bottombar-tab.is-active::after {
@@ -2914,7 +2995,7 @@ select.bs-input option {
 .bs-llm-config-desc code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px; padding: 1px 5px; border-radius: 4px;
-  background: rgba(99,102,241,0.12); color: #a5b4fc;
+  background: rgba(99,102,241,0.12); color: var(--bs-accent);
 }
 .bs-llm-config-actions {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -2936,7 +3017,7 @@ select.bs-input option {
 .bs-llm-config-editor {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px; line-height: 1.5;
-  background: #0b1020; color: #e2e8f0;
+  background: var(--bs-editor-bg); color: var(--text-primary, #e2e8f0);
   border: 1px solid var(--ce-border, #1f2937);
   border-radius: 8px; padding: 12px; resize: vertical;
   min-height: 120px; width: 100%; box-sizing: border-box;
@@ -2945,7 +3026,7 @@ select.bs-input option {
   outline: none; border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
 }
-.bs-llm-config-editor::placeholder { color: #334155; }
+.bs-llm-config-editor::placeholder { color: var(--bs-input-placeholder); }
 .bs-llm-config-error {
   font-size: 12px; color: #f87171; padding: 6px 10px;
   background: rgba(248,113,113,0.08); border-radius: 6px;
@@ -2967,7 +3048,7 @@ select.bs-input option {
 }
 .bs-llm-status-badge {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px; color: #a5b4fc; font-weight: 500;
+  font-size: 12px; color: var(--bs-accent); font-weight: 500;
 }
 .bs-llm-status-model { color: #34d399; }
 .bs-llm-model-chips {
@@ -3061,39 +3142,43 @@ select.bs-input option {
   transform: scale(1.05);
 }
 
-/* ── Header ── */
+/* ── Header ──
+   Tighter and more refined: display font for the title, a subtly different
+   serif face for the summary so the two visually separate at a glance. */
 .bsdoc-header {
-  padding: 16px;
-  border-left: 4px solid #6366f1;
+  padding: 12px 14px;
+  border-left: 3px solid #6366f1;
   margin: 0 12px;
-  background: linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(99,102,241,0.01) 100%);
-  border-radius: 0 12px 12px 0;
+  background: linear-gradient(135deg, rgba(99,102,241,0.05) 0%, rgba(99,102,241,0.01) 100%);
+  border-radius: 0 10px 10px 0;
 }
 .bsdoc-header-top {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 .bsdoc-icon {
-  font-size: 24px;
+  font-size: 18px;
   line-height: 1;
 }
 .bsdoc-title {
-  font-size: 18px;
-  font-weight: 800;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
   color: var(--text-primary, #f1f5f9);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   margin: 0;
   flex: 1;
+  line-height: 1.25;
 }
 .bsdoc-cat-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 20px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -3101,10 +3186,14 @@ select.bs-input option {
   flex-shrink: 0;
 }
 .bsdoc-summary {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-secondary, #94a3b8);
+  /* Serif body deliberately contrasts with the sans-serif title so the
+     description reads as "narrative" instead of "UI label". */
+  font-family: ui-serif, Georgia, 'Times New Roman', Cambria, serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary, #b6c2d1);
   margin: 0;
+  font-style: normal;
 }
 
 /* ── Callout boxes (tip, alert) ── */
@@ -3229,7 +3318,7 @@ select.bs-input option {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: rgba(99,102,241,0.1);
-  color: #a5b4fc;
+  color: var(--bs-accent);
   border: 1px solid rgba(99,102,241,0.2);
   white-space: nowrap;
 }
@@ -3251,26 +3340,155 @@ select.bs-input option {
   border-color: rgba(100,116,139,0.2);
 }
 
-/* ── Field description ── */
+/* ── Field description ──
+   Body text uses a clean sans stack, but **bold** names shift to the display
+   font + tighter tracking so they visually separate from the surrounding
+   description (critical for lists like Memory's enum values). */
 .bsdoc-field-desc {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 12px;
   line-height: 1.7;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, #9fb0c3);
   margin: 0;
 }
+.bsdoc-field-para {
+  margin: 0 0 6px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.bsdoc-field-para:last-child { margin-bottom: 0; }
+.bsdoc-strong {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  color: var(--text-primary, #e8eef7);
+  letter-spacing: -0.005em;
+}
+
+/* Plain backtick `code`: indigo chip (existing vibe, slightly darker bg). */
 .bsdoc-inline-code {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11px;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(99,102,241,0.1);
-  color: #a5b4fc;
+  background: rgba(99,102,241,0.14);
+  color: var(--bs-accent);
+  border: 1px solid rgba(99,102,241,0.22);
 }
+
+/* <agent.field> template refs — dark blue palette. Deliberately distinct
+   from generic inline code so the reader can scan a paragraph and spot
+   "this is a live variable reference". */
+.bsdoc-inline-ref {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(30,58,138,0.35);
+  color: #93c5fd;
+  border: 1px solid rgba(30,58,138,0.55);
+}
+
+/* {role, content} structure hints — dark maroon palette. Used for
+   record/object shape hints so they stand apart from refs + code. */
+.bsdoc-inline-shape {
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(127,29,29,0.35);
+  color: var(--bs-alert-error-text);
+  border: 1px solid rgba(127,29,29,0.55);
+}
+
 .bsdoc-bullet {
   color: #6366f1;
   font-weight: 700;
   margin-right: 4px;
 }
+
+/* ── Enum value table ──
+   Rendered when a field description lists several "• **Name** — desc" lines.
+   Gives each option a bullet column, a name column (display font), and a
+   description column (body font) so the two are typographically distinct. */
+.bsdoc-enum-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  margin: 2px 0 6px;
+  font-size: 12px;
+}
+.bsdoc-enum-table td {
+  padding: 6px 8px;
+  background: rgba(99,102,241,0.04);
+  border-top: 1px solid rgba(99,102,241,0.08);
+  border-bottom: 1px solid rgba(99,102,241,0.08);
+  vertical-align: top;
+}
+.bsdoc-enum-table tr td:first-child {
+  border-left: 1px solid rgba(99,102,241,0.08);
+  border-radius: 8px 0 0 8px;
+  width: 18px;
+  padding-right: 0;
+}
+.bsdoc-enum-table tr td:last-child {
+  border-right: 1px solid rgba(99,102,241,0.08);
+  border-radius: 0 8px 8px 0;
+}
+.bsdoc-enum-bullet-cell { text-align: center; }
+.bsdoc-enum-bullet {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #818cf8, #4f46e5 70%);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.18);
+  margin-top: 4px;
+}
+.bsdoc-enum-name-cell {
+  white-space: nowrap;
+  width: 1%;
+  padding-right: 4px !important;
+}
+.bsdoc-enum-name {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary, #f1f5f9);
+  letter-spacing: -0.005em;
+}
+.bsdoc-enum-desc {
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-secondary, #9fb0c3);
+}
+
+/* Light-theme equivalents — keep the three chip palettes distinguishable
+   on white too (they were all indigo before). */
+[data-theme="light"] .bsdoc-inline-code,
+.light .bsdoc-inline-code {
+  background: #eef2ff; color: #4338ca; border-color: #c7d2fe;
+}
+[data-theme="light"] .bsdoc-inline-ref,
+.light .bsdoc-inline-ref {
+  background: #dbeafe; color: #1e3a8a; border-color: #93c5fd;
+}
+[data-theme="light"] .bsdoc-inline-shape,
+.light .bsdoc-inline-shape {
+  background: #fee2e2; color: #7f1d1d; border-color: #fca5a5;
+}
+[data-theme="light"] .bsdoc-enum-table td,
+.light .bsdoc-enum-table td {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+[data-theme="light"] .bsdoc-enum-name,
+.light .bsdoc-enum-name { color: #1e293b; }
+[data-theme="light"] .bsdoc-enum-desc,
+.light .bsdoc-enum-desc { color: #475569; }
+[data-theme="light"] .bsdoc-strong,
+.light .bsdoc-strong { color: #1e293b; }
 
 /* ── Default value ── */
 .bsdoc-field-default {
@@ -3315,7 +3533,7 @@ select.bs-input option {
 .bsdoc-empty-hint code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px; padding: 1px 5px; border-radius: 4px;
-  background: rgba(99,102,241,0.1); color: #a5b4fc;
+  background: rgba(99,102,241,0.1); color: var(--bs-accent);
 }
 
 /* ── About icon button (in Inspector header) ── */
@@ -3337,13 +3555,13 @@ select.bs-input option {
 .bsdoc-about-btn:hover {
   background: rgba(99,102,241,0.15);
   border-color: rgba(99,102,241,0.35);
-  color: #a5b4fc;
+  color: var(--bs-accent);
   transform: scale(1.05);
 }
 .bsdoc-about-btn.bsdoc-about-active {
   background: rgba(99,102,241,0.2);
   border-color: #6366f1;
-  color: #c7d2fe;
+  color: var(--bs-accent);
   box-shadow: 0 0 8px rgba(99,102,241,0.2);
 }
 
@@ -3459,4 +3677,146 @@ select.bs-input option {
   background: rgba(99,102,241,0.12);
   border-color: #6366f1;
   color: #4f46e5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Settings — left sidebar + right content layout
+   ═══════════════════════════════════════════════════════════════════════ */
+.bs-settings-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.bs-settings-sidebar {
+  width: 240px;
+  min-width: 240px;
+  border-right: 1px solid var(--ce-border, rgba(148,163,184,0.12));
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  overflow-y: auto;
+  background: var(--bg-secondary, rgba(15,23,42,0.4));
+}
+
+.bs-settings-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #e5e7eb);
+  letter-spacing: -0.01em;
+}
+
+.bs-settings-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary, #94a3b8);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.bs-settings-sidebar-item:hover {
+  background: rgba(99,102,241,0.06);
+  color: var(--text-primary, #e5e7eb);
+}
+
+.bs-settings-sidebar-item.is-active {
+  background: rgba(99,102,241,0.1);
+  color: #818cf8;
+  border-left-color: #6366f1;
+  font-weight: 600;
+}
+
+.bs-settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.bs-settings-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Light theme overrides for settings sidebar */
+[data-theme="light"] .bs-settings-sidebar,
+.light .bs-settings-sidebar {
+  background: rgba(241,245,249,0.6);
+  border-right-color: #e2e8f0;
+}
+
+[data-theme="light"] .bs-settings-sidebar-head,
+.light .bs-settings-sidebar-head {
+  color: #1e293b;
+}
+
+[data-theme="light"] .bs-settings-sidebar-item,
+.light .bs-settings-sidebar-item {
+  color: #64748b;
+}
+
+[data-theme="light"] .bs-settings-sidebar-item:hover,
+.light .bs-settings-sidebar-item:hover {
+  background: rgba(99,102,241,0.06);
+  color: #334155;
+}
+
+[data-theme="light"] .bs-settings-sidebar-item.is-active,
+.light .bs-settings-sidebar-item.is-active {
+  background: rgba(99,102,241,0.08);
+  color: #4f46e5;
+  border-left-color: #6366f1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Wiki Guide — iframe viewer
+   ═══════════════════════════════════════════════════════════════════════ */
+.bs-wiki-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.bs-wiki-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #e5e7eb);
+  border-bottom: 1px solid var(--ce-border, rgba(148,163,184,0.12));
+  background: var(--bg-secondary, rgba(15,23,42,0.4));
+  flex-shrink: 0;
+}
+
+.bs-wiki-title {
+  letter-spacing: -0.01em;
+}
+
+.bs-wiki-iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
+  background: #fff;
+}
+
+[data-theme="light"] .bs-wiki-header,
+.light .bs-wiki-header {
+  background: rgba(241,245,249,0.6);
+  border-bottom-color: #e2e8f0;
+  color: #1e293b;
 }

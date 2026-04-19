@@ -486,15 +486,12 @@ function AgentsPanel() {
 function SkillsPanel() {
   const skills = useWorkspaceStore((s) => s.skills)
   const createSkill = useWorkspaceStore((s) => s.createSkill)
-  const updateSkill = useWorkspaceStore((s) => s.updateSkill)
   const deleteSkill = useWorkspaceStore((s) => s.deleteSkill)
   const duplicateSkill = useWorkspaceStore((s) => s.duplicateSkill)
   const openTab = useTabsStore((s) => s.openTab)
   const [name, setName] = useState('')
-  const [editingId, setEditingId] = useState(null)
   const [menu, setMenu] = useCtxMenu()
   const [pendingDelete, setPendingDelete] = useState(null) // { id, name }
-  const editing = skills.find((k) => k.id === editingId)
 
   return (
     <div className="bs-sec">
@@ -502,7 +499,7 @@ function SkillsPanel() {
         <input className="bs-input" placeholder="Skill name" value={name} onChange={(e) => setName(e.target.value)} />
         <button
           className="bs-icon-btn"
-          onClick={() => { if (name.trim()) { const s = createSkill({ name: name.trim() }); setEditingId(s.id); setName('') } }}
+          onClick={() => { if (name.trim()) { const s = createSkill({ name: name.trim() }); openTab({ id: skillTabId(s.id), kind: 'skill', entityId: s.id, title: name.trim() }); setName('') } }}
           title="Add skill"
         >
           <PlusIcon className="bs-ico-sm" />
@@ -512,8 +509,8 @@ function SkillsPanel() {
         {skills.map((k) => (
           <li
             key={k.id}
-            className={`bs-row ${k.id === editingId ? 'is-active' : ''}`}
-            onClick={() => { setEditingId(k.id); openTab({ id: skillTabId(k.id), kind: 'skill', entityId: k.id, title: k.name }) }}
+            className="bs-row"
+            onClick={() => openTab({ id: skillTabId(k.id), kind: 'skill', entityId: k.id, title: k.name })}
             onContextMenu={(e) => {
               e.preventDefault()
               setMenu({
@@ -537,21 +534,6 @@ function SkillsPanel() {
         ))}
         {skills.length === 0 && <li className="bs-empty">No skills yet.</li>}
       </ul>
-      {editing && (
-        <Collapsible title={`Edit · ${editing.name}`} defaultOpen>
-          <input className="bs-input" value={editing.name} onChange={(e) => updateSkill(editing.id, { name: e.target.value })} />
-          <select className="bs-input" value={editing.language} onChange={(e) => updateSkill(editing.id, { language: e.target.value })}>
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-          </select>
-          <textarea
-            className="bs-code"
-            rows={10}
-            value={editing.source}
-            onChange={(e) => updateSkill(editing.id, { source: e.target.value })}
-          />
-        </Collapsible>
-      )}
       {menu}
       {pendingDelete && (
         <ConfirmModal
@@ -561,7 +543,6 @@ function SkillsPanel() {
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => {
             deleteSkill(pendingDelete.id)
-            if (editingId === pendingDelete.id) setEditingId(null)
             setPendingDelete(null)
           }}
         />

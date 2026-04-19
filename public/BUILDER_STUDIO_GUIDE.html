@@ -1,0 +1,2130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>ConvEngine Agent Builder Studio — Complete Guide</title>
+<style>
+@page { size: A4; margin: 16mm 14mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #0f172a;
+  background: white;
+  font-size: 10.5pt;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { color: #1e293b; letter-spacing: -0.01em; margin: 0 0 8px; }
+h1 { font-size: 22pt; }
+h2 { font-size: 16pt; margin-top: 14pt; border-bottom: 2px solid #6366f1; padding-bottom: 4px; }
+h3 { font-size: 13pt; margin-top: 12pt; }
+h4 { font-size: 11pt; margin-top: 10pt; color: #334155; }
+p  { margin: 0 0 8px; }
+a  { color: #6366f1; text-decoration: none; }
+ul, ol { margin: 4px 0 10px 20px; padding: 0; }
+li { margin: 2px 0; }
+hr { border: none; border-top: 1px solid #cbd5e1; margin: 14px 0; }
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: #f1f5f9; color: #334155;
+  padding: 1px 5px; border-radius: 3px; font-size: 9.5pt;
+}
+pre {
+  background: #0f172a; color: #e2e8f0;
+  padding: 10px 12px; border-radius: 6px;
+  font-size: 9pt; overflow-x: hidden; white-space: pre-wrap;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  margin: 6px 0 10px;
+}
+
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; }
+th, td {
+  border: 1px solid #cbd5e1; padding: 5px 8px;
+  text-align: left; font-size: 9.5pt; vertical-align: top;
+}
+th { background: #e0e7ff; font-weight: 600; }
+tbody tr:nth-child(even) { background: #f8fafc; }
+
+.block-card, table, pre { page-break-inside: avoid; }
+.page-break { page-break-before: always; }
+h2.part-break, h2.block-head { page-break-before: always; }
+
+.cover { text-align: center; padding: 80px 40px; }
+.cover h1 { font-size: 32pt; margin-bottom: 16px; }
+.cover .date { color: #6366f1; font-size: 14pt; margin-bottom: 30px; }
+.cover .blurb { max-width: 540px; margin: 0 auto; font-size: 11pt; color: #334155; }
+
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  background: #e0e7ff; color: #3730a3; font-size: 8.5pt;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  margin-left: 6px;
+}
+.pill-tools { background: #fef3c7; color: #92400e; }
+.pill-triggers { background: #dcfce7; color: #166534; }
+
+.swatch {
+  display: inline-block; width: 14px; height: 14px;
+  border-radius: 3px; vertical-align: middle;
+  margin-right: 6px; border: 1px solid rgba(0,0,0,0.1);
+}
+
+.block-head-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; background: #f8fafc;
+  border-left: 4px solid #6366f1; border-radius: 4px;
+  margin-bottom: 8px;
+}
+.block-head-row .ttl { font-size: 14pt; font-weight: 700; color: #1e293b; }
+.block-head-row .tid { font-family: ui-monospace, Menlo, monospace;
+  font-size: 9pt; color: #475569; background: #e2e8f0;
+  padding: 1px 6px; border-radius: 3px; }
+
+.callout {
+  padding: 8px 12px; margin: 8px 0; border-radius: 4px;
+  border-left: 4px solid; font-size: 9.8pt;
+}
+.callout-tip  { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+.callout-warn { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+.callout-note { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+
+.toc-list { columns: 2; column-gap: 24px; font-size: 10pt; }
+.toc-list a { display: block; padding: 2px 0; color: #334155; }
+
+.svg-wrap { text-align: center; margin: 10px 0; }
+.svg-wrap svg { max-width: 100%; height: auto; }
+
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 2px 10px; font-size: 10pt; }
+.kv dt { color: #475569; }
+.kv dd { margin: 0; }
+
+.muted { color: #64748b; }
+.center { text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<section class="cover">
+  <h1>ConvEngine Agent Builder Studio</h1>
+  <div class="date">Complete Guide · 2026-04-19</div>
+  <p class="blurb">
+    A field guide to ConvEngine's visual agent builder. It covers the full workspace
+    hierarchy (teams → agent pools → agents → skills → workflows), the client-side
+    graph execution model, every built-in block with its fields, inputs, outputs and
+    execution semantics, four end-to-end workflow recipes, and an appendix with
+    keyboard shortcuts, file layout, extension authoring, and debugging tips.
+  </p>
+</section>
+
+<!-- ============================== TOC ============================== -->
+<h2 class="part-break" id="toc">Table of Contents</h2>
+<div class="toc-list">
+<a href="#part1">Part 1 — Concepts</a>
+<a href="#c-hier">&nbsp;&nbsp;Workspace hierarchy</a>
+<a href="#c-exec">&nbsp;&nbsp;Workflow execution model</a>
+<a href="#c-dock">&nbsp;&nbsp;Run dock panels</a>
+<a href="#c-insp">&nbsp;&nbsp;Inspector</a>
+<a href="#c-ext">&nbsp;&nbsp;Extensions pattern</a>
+<a href="#part2">Part 2 — Block reference</a>
+<a href="#b-starter">&nbsp;&nbsp;starter</a>
+<a href="#b-user_input">&nbsp;&nbsp;user_input</a>
+<a href="#b-agent">&nbsp;&nbsp;agent</a>
+<a href="#b-function">&nbsp;&nbsp;function</a>
+<a href="#b-condition">&nbsp;&nbsp;condition</a>
+<a href="#b-router_v2">&nbsp;&nbsp;router_v2</a>
+<a href="#b-api">&nbsp;&nbsp;api</a>
+<a href="#b-response">&nbsp;&nbsp;response</a>
+<a href="#b-loop">&nbsp;&nbsp;loop</a>
+<a href="#b-parallel">&nbsp;&nbsp;parallel</a>
+<a href="#b-postgresql">&nbsp;&nbsp;postgresql</a>
+<a href="#b-mcp">&nbsp;&nbsp;mcp</a>
+<a href="#b-smtp">&nbsp;&nbsp;smtp</a>
+<a href="#b-variables">&nbsp;&nbsp;variables</a>
+<a href="#b-webhook_request">&nbsp;&nbsp;webhook_request</a>
+<a href="#b-schedule">&nbsp;&nbsp;schedule</a>
+<a href="#b-wait">&nbsp;&nbsp;wait</a>
+<a href="#b-table">&nbsp;&nbsp;table</a>
+<a href="#b-if_else">&nbsp;&nbsp;if_else</a>
+<a href="#b-if_elseif_else">&nbsp;&nbsp;if_elseif_else</a>
+<a href="#b-switch">&nbsp;&nbsp;switch</a>
+<a href="#b-for_loop">&nbsp;&nbsp;for_loop</a>
+<a href="#b-for_each">&nbsp;&nbsp;for_each</a>
+<a href="#b-save_to_files">&nbsp;&nbsp;save_to_files</a>
+<a href="#b-show_preview">&nbsp;&nbsp;show_preview</a>
+<a href="#b-json_map">&nbsp;&nbsp;json_map</a>
+<a href="#b-text_template">&nbsp;&nbsp;text_template</a>
+<a href="#b-json_path">&nbsp;&nbsp;json_path</a>
+<a href="#part3">Part 3 — Demo workflows</a>
+<a href="#w-seed">&nbsp;&nbsp;Seeded · URL → Summary</a>
+<a href="#w-url">&nbsp;&nbsp;URL summariser</a>
+<a href="#w-csv">&nbsp;&nbsp;CSV extract-and-mail</a>
+<a href="#w-triage">&nbsp;&nbsp;Branching triage</a>
+<a href="#part4">Part 4 — Appendix</a>
+<a href="#a-keys">&nbsp;&nbsp;Keyboard shortcuts</a>
+<a href="#a-layout">&nbsp;&nbsp;File layout</a>
+<a href="#a-custom">&nbsp;&nbsp;Writing a custom block</a>
+<a href="#a-trouble">&nbsp;&nbsp;Troubleshooting</a>
+</div>
+
+<!-- ============================== PART 1 ============================== -->
+<h2 class="part-break" id="part1">Part 1 — Concepts</h2>
+
+<h3 id="c-hier">1.1 Workspace hierarchy</h3>
+<p>
+The Builder Studio organises everything a user builds inside a single
+<b>Workspace</b>. The persistent model, defined in
+<code>stores/workspace-store.js</code>, forms a four-level tree.
+</p>
+
+<table>
+<thead><tr><th>Level</th><th>What it is</th><th>SideNav location</th></tr></thead>
+<tbody>
+<tr><td><b>Workspace</b></td><td>Top-level container. One per app install; seeded as <code>Default</code> with id <code>ws_default</code>.</td><td>Workspace switcher (top-left of SideNav).</td></tr>
+<tr><td><b>Team</b></td><td>Logical grouping of agent pools owned by a squad. The seed ships with one team — <code>fullstack builders</code>.</td><td>SideNav → <b>Teams</b> section, click to open <code>TeamEditor</code>.</td></tr>
+<tr><td><b>Agent Pool</b></td><td>A roster of related agents that collaborate (e.g. the default pool holds the URL extractor + summariser).</td><td>Nested inside each team card. Click the pool row to expose its agents.</td></tr>
+<tr><td><b>Agent</b></td><td>An LLM wrapper with system/user prompts, input/output JSON Schemas, a chosen model, and a list of attached skill ids. Rendered/edited in <code>AgentEditor.jsx</code>.</td><td>Under a pool; click to open the editor in the CenterPane.</td></tr>
+<tr><td><b>Skill</b></td><td>A reusable JavaScript (or Python) function stored alongside the workspace. Skills have a source body, an <code>inputSchema</code>, and an <code>outputSchema</code>. Agents attach skills via <code>attachedSkillIds</code>.</td><td>SideNav → <b>Skills</b>. Opens <code>SkillEditor</code>.</td></tr>
+<tr><td><b>Workflow</b></td><td>A canvas of nodes + edges + <code>subBlockValues</code>. Each workflow belongs to a team and has <code>metadata</code> (timeout, retries, failFast, logLevel, tags) surfaced in the <code>WorkflowInspector</code>.</td><td>SideNav → <b>Workflows</b>. Click to load it into the canvas.</td></tr>
+</tbody>
+</table>
+
+<p>
+Agents and skills are <i>referenced by id</i> from workflow nodes — editing an
+agent in one place propagates to every workflow that cites it. Teams are pure
+organisational units: they don't execute anything, but they scope which agent
+pools (and therefore which agents) surface in the block inspector's combo boxes.
+</p>
+
+<h3 id="c-exec">1.2 Workflow execution model</h3>
+<p>
+<code>run/graph-runner.js</code> drives every run in the browser. The algorithm
+is a <b>topological BFS with readiness gating</b>:
+</p>
+
+<ol>
+<li><b>Seed phase.</b> Every <code>starter</code> node's output is set to
+  <code>null</code>; every <code>user_input</code> node's output is set to the
+  value the Run dialog collected (or its <code>defaultValue</code>). Both are
+  marked <i>started</i> and emit <code>start</code>+<code>done</code> events
+  so their cards turn green on the canvas.</li>
+<li><b>Ready set.</b> A node is ready when every incoming edge is "live":
+  its source has finished <em>and</em> either the source is a single-output
+  block or the edge's <code>sourceHandle</code> matches the
+  <code>chosenHandle</code> the source picked. Branching nodes
+  (<code>if_else</code>, <code>if_elseif_else</code>, <code>switch</code>)
+  record their chosen handle here; non-matching edges are silently skipped.</li>
+<li><b>Concurrent dispatch.</b> All ready nodes are awaited via
+  <code>Promise.all</code>. Siblings run in parallel; chains stay sequential
+  because a downstream node blocks on the upstream's output.</li>
+<li><b>Per-node execution.</b> <code>runNode()</code> switches on
+  <code>blockType</code>. Pure control-flow and utility blocks execute
+  locally; the only type that currently hops to the convengine backend is
+  <code>agent</code> (POST <code>/api/v1/builder-studio/agent</code>).</li>
+<li><b>Output shape.</b> Most blocks return a raw value. Agent (and MCP) nodes
+  return <code>{ __meta, value }</code>; the runner unwraps <code>value</code>
+  onto <code>outputs[nodeId]</code> and keeps <code>__meta</code> on the trace
+  row + the <code>onProgress done</code> event. Branching blocks return
+  <code>{ branch, value }</code> — the runner stores the chosen handle on
+  <code>chosenHandle[nodeId]</code> and forwards the payload only along edges
+  leaving that handle.</li>
+<li><b>Final output.</b> When no more nodes become ready, the runner returns
+  <code>{ output, trace }</code> where <code>output</code> is the
+  <code>response</code> node's output if present, otherwise the last trace
+  row's output.</li>
+</ol>
+
+<h4>Templating</h4>
+<p>
+Agent nodes build a <b>template bag</b> — an object seeded with
+<code>{ input }</code> (plus <code>{ url }</code> when the upstream looks
+like an HTTP URL), extended with every key of the upstream JSON if the
+upstream is an object, and further extended with each executed skill's
+return value. <code>interpolateBag()</code> then substitutes
+<code>{{key}}</code> tokens in <code>systemPrompt</code> and
+<code>userPrompt</code>. Unresolved tokens are left verbatim so typos show up
+in the Debug panel.
+</p>
+<p>
+<code>response</code> nodes use a simpler <code>interpolate()</code> that
+substitutes <code>{{input}}</code> and <code>&lt;nodeId.output&gt;</code>
+references against the <code>outputs</code> map.
+</p>
+
+<h4>Agent call envelope</h4>
+<p>The <code>{ __meta, value }</code> contract is what powers the rich Debug
+panel: every agent run records the <em>rendered</em> system and user prompts
+(i.e. post-templating), the model, temperature, the list of skill ids
+attached, the per-skill call log (<code>skillRuns</code> — one entry per skill
+with <code>{ skillId, name, params, output }</code> or
+<code>{ error }</code>), and the raw agent provider response. The Inspector
+surfaces <code>values</code> (what the user authored) alongside
+<code>meta</code> (what actually ran), which is invaluable for spotting
+"why did my prompt look different at runtime?" bugs.</p>
+
+<h3 id="c-dock">1.3 Run dock panels</h3>
+<p>
+The bottom <b>Run Dock</b> aggregates four panels. They share the same
+<code>onProgress</code> event stream emitted by the graph runner:
+</p>
+
+<table>
+<thead><tr><th>Panel</th><th>What it shows</th></tr></thead>
+<tbody>
+<tr><td><b>Output</b></td><td>The final <code>result.output</code> formatted with JsonView. Monaco-style colorisation: indigo keys, green strings, amber numbers, pink booleans.</td></tr>
+<tr><td><b>Debug</b></td><td>A chronological event log: one card per <code>start</code>, <code>done</code>, or <code>error</code>. Each card can be expanded; expanded cards reveal the full <code>values</code>, rendered prompts from <code>meta</code>, <code>skillRuns</code>, and the raw provider response.</td></tr>
+<tr><td><b>Trace</b></td><td>A grid, one row per node, columns: title · blockType · input · values · meta · output · ms. Clicking a cell opens a JSON viewer. This is the fastest way to spot which node took too long or produced unexpected output.</td></tr>
+<tr><td><b>Console</b></td><td>Ephemeral <code>console.log</code> capture from <code>function</code> and skill executions (via the <code>stdout</code> output channel on the Function block).</td></tr>
+</tbody>
+</table>
+
+<p>
+Every node card on the canvas has one of four visible states: <b>idle</b>
+(default), <b>active</b> (dashed pulsing green border, triggered on
+<code>start</code>), <b>completed</b> (solid green border with check,
+triggered on <code>done</code>), or <b>error</b> (red ring + tooltip showing
+<code>error.message</code>, triggered on <code>error</code>).
+</p>
+
+<h3 id="c-insp">1.4 Inspector</h3>
+<p>
+<code>panel/Inspector.jsx</code> renders the right rail. When a node is
+selected it looks up the <code>BlockConfig</code> via
+<code>getBlock(blockType)</code> and walks <code>cfg.subBlocks</code>. Each
+sub-block is passed to <code>SubBlockRenderer</code>.
+</p>
+
+<p><b>Basic vs advanced tabs.</b> The header shows a mode pill row when any
+sub-block has <code>mode: 'advanced'</code> (or <code>'trigger-advanced'</code>).
+The <code>visibleSubBlocks</code> memo filters by the active mode
+(<code>matchesMode</code>) plus the field-level <code>condition</code>
+predicate (<code>conditionPasses</code>). A <code>condition</code> can be
+<code>{ field: 'x', value: 'y' }</code>, <code>{ field: 'x', value: ['a','b'] }</code>,
+or <code>{ field: 'x', value: '', not: true }</code> for
+"visible when x is non-empty".</p>
+
+<p><b>Delete-with-confirm.</b> The trashcan icon on the header opens a
+<code>ConfirmModal</code>; only after accept does
+<code>removeNode(selectedNodeId)</code> fire.</p>
+
+<p><b>About icon / docs overlay.</b> A question-mark button toggles
+<code>BlockDocViewer</code>, which reads hand-written entries from
+<code>docs/block-docs-entries.js</code> (field descriptions, tips, alerts).
+This is the source of truth for inline docs; the block source files only
+carry a shallow <code>description</code>.</p>
+
+<p><b>FullscreenWrapper.</b> Response Format fields (type
+<code>response-format</code>) render through
+<code>FullscreenWrapper → JsonEditor</code> so large JSON Schemas can be
+edited against the full viewport without fighting the narrow inspector
+column. Edits stay as a stringified JSON in <code>subBlockValues</code> so
+the backend contract is unchanged.</p>
+
+<p><b>IOPanel.</b> At the bottom of the inspector, an I/O panel
+(<code>panel/io-registry.js</code>) summarises the node's
+<i>connections</i> (incoming/outgoing edges with peer titles),
+<i>template variables</i> (every <code>{{foo}}</code> token found in
+<code>systemPrompt</code> / <code>userPrompt</code> / <code>data</code>
+fields), and the typed <i>inputs</i> + <i>outputs</i> lifted from
+<code>cfg.inputs</code> and <code>cfg.outputs</code>. Template variables
+that don't resolve to an upstream key or a skill output are flagged with a
+yellow warning chip.</p>
+
+<h4>SubBlock type → control mapping</h4>
+<p>Every <code>SubBlockType</code> enum member in <code>blocks/types.js</code>
+maps to a specific editor in <code>SubBlockRenderer.jsx</code>:</p>
+<table>
+<thead><tr><th>Type</th><th>Control</th></tr></thead>
+<tbody>
+<tr><td><code>short-input</code>, selectors (file/sheet/project/channel/user/folder/knowledge-base/document/workflow/table)</td><td>Single-line text input. Password mode if <code>password: true</code>.</td></tr>
+<tr><td><code>long-input</code>, <code>text</code>, <code>eval-input</code></td><td>Textarea.</td></tr>
+<tr><td><code>dropdown</code>, <code>combobox</code></td><td><code>&lt;select&gt;</code> populated from <code>options</code>.</td></tr>
+<tr><td><code>switch</code></td><td>iOS-style toggle (checkbox styled with CSS).</td></tr>
+<tr><td><code>slider</code></td><td><code>&lt;input type="range"&gt;</code> + numeric value readout.</td></tr>
+<tr><td><code>table</code></td><td>Row-based key/value grid. Columns come from <code>sub.columns</code>. <code>+ Add row</code> button. Each row has a delete ×.</td></tr>
+<tr><td><code>code</code>, <code>filter-builder</code>, <code>sort-builder</code>, <code>condition-input</code>, <code>router-input</code>, <code>variables-input</code>, <code>messages-input</code>, <code>webhook-config</code>, <code>workflow-input-mapper</code>, <code>input-mapping</code>, <code>knowledge-tag-filters</code>, <code>document-tag-entry</code>, <code>input-format</code></td><td>CodeMirror editor. Language from <code>sub.language</code> or <code>javascript</code>.</td></tr>
+<tr><td><code>response-format</code></td><td><code>FullscreenWrapper</code> + JSON tree editor.</td></tr>
+<tr><td><code>mcp-server-selector</code></td><td>Dropdown populated from <code>useMcpStore().servers</code>.</td></tr>
+<tr><td><code>mcp-tool-selector</code></td><td>Dropdown populated lazily via <code>loadTools(serverId)</code>. Refresh button.</td></tr>
+<tr><td><code>mcp-dynamic-args</code></td><td>Schema hint table + JSON tree editor, seeded from the selected tool's <code>inputSchema</code>.</td></tr>
+<tr><td><code>tool-input</code>, <code>skill-input</code></td><td>Textarea holding a JSON array of ids.</td></tr>
+<tr><td><code>checkbox-list</code>, <code>grouped-checkbox-list</code></td><td>Column of checkbox rows driven by <code>options</code>.</td></tr>
+<tr><td><code>file-upload</code></td><td><code>&lt;input type="file"&gt;</code>. Files stored as <code>{ name, size, type }</code> descriptors.</td></tr>
+<tr><td><code>schedule-info</code>, <code>time-input</code></td><td><code>datetime-local</code> picker.</td></tr>
+<tr><td><code>json-preview</code> (internal)</td><td>Read-only <code>JsonView</code> of the node's last run output.</td></tr>
+</tbody>
+</table>
+
+<h3 id="c-ext">1.5 Extensions pattern</h3>
+<p>
+Third-party blocks live in <code>convengine-ui/src/builder-studio/extensions/*.js</code>.
+Registry (<code>blocks/registry.js</code>) uses Vite's
+<code>import.meta.glob</code> to eagerly load every extension at boot. Each
+module must expose either a default <code>BlockConfig</code> or a named
+<code>block</code> / <code>&lt;Name&gt;Block</code> export. Any type id that
+collides with a core block is rejected with a console warning.
+</p>
+<p>
+A minimal custom block (see Appendix §4.3 for a full example) exports
+something like:
+</p>
+<pre>export const MyCounterBlock = {
+  type: 'my_counter',
+  name: 'Counter',
+  description: 'Increments a counter',
+  category: 'blocks',
+  bgColor: '#64748b',
+  icon: () =&gt; null,
+  subBlocks: [
+    { id: 'start', title: 'Start', type: 'short-input', defaultValue: '0' },
+  ],
+  tools: { access: [] },
+  inputs: { start: { type: 'number', description: 'Starting value' } },
+  outputs: { value: { type: 'number', description: 'Incremented value' } },
+}
+export default MyCounterBlock</pre>
+
+<p>Drop the file, refresh, and the toolbar auto-discovers it. The manual
+alternative — <code>registerBlock(block)</code> — mirrors ComfyUI's
+<code>registerNode</code> API for URL-loaded plug-ins.</p>
+
+<!-- ============================== PART 2 ============================== -->
+<h2 class="part-break" id="part2">Part 2 — Block reference</h2>
+
+<p>
+Each block is documented from its source in <code>blocks/blocks/*.js</code>
+plus the inline docs in <code>docs/block-docs-entries.js</code>. Control
+mappings reference <code>SubBlockRenderer.jsx</code>. "Execution notes" are
+what <code>graph-runner.js</code> does when the node fires.
+</p>
+<p class="muted">
+Blocks are listed in the exact order of <code>blocks/blocks/index.js</code>.
+</p>
+
+<!-- ─────────── STARTER ─────────── -->
+<h2 class="block-head" id="b-starter">starter</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#2FB3FF"></span>
+  <span class="ttl">Starter</span>
+  <span class="tid">starter</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> The entry point of every workflow. Defines how the
+workflow is launched (manual vs chat) and optionally an <code>Input Format</code>
+schema for structured manual test runs. Hidden from the toolbar because it is
+added automatically on workflow creation.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>input</code></td><td>json</td><td>Workflow input data (reserved; populated when launched via chat/webhook).</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td colspan="3"><i>No declared outputs.</i> The runner seeds <code>outputs[nodeId] = null</code> and emits <code>start</code>+<code>done</code> events so the card flips green.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr>
+<th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th>
+</tr></thead><tbody>
+<tr><td><code>startWorkflow</code></td><td>Start Workflow</td><td>dropdown</td><td>—</td><td>always</td><td><code>manual</code></td><td>Trigger mode: <code>manual</code> opens Run dialog; <code>chat</code> exposes a conversational endpoint.</td></tr>
+<tr><td><code>inputFormat</code></td><td>Input Format</td><td>CodeMirror (input-format)</td><td>—</td><td><code>startWorkflow === 'manual'</code> (advanced tab)</td><td>—</td><td>Name/Type/Value schema for the manual launcher.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Seeded before the BFS loop. <code>runNode()</code> is never called for
+starters; their entry in <code>outputs</code> stays <code>null</code>.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Exactly one starter per workflow. Duplicates are tolerated at runtime but upset the trace ordering.</li>
+<li>Because it's hidden from the toolbar, you can't re-add it after deleting. Use <i>Reset workflow</i> to restore.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "startWorkflow": "manual"
+}</pre>
+
+<!-- ─────────── USER_INPUT ─────────── -->
+<h2 class="block-head" id="b-user_input">user_input</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#FBBF24"></span>
+  <span class="ttl">User Input</span>
+  <span class="tid">user_input</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> A runtime prompt. For each <code>user_input</code>
+node the RunModal collects a value; that value becomes the node's output. If
+<code>defaultValue</code> is filled, the dock skips the prompt and auto-runs.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td colspan="3"><i>None declared.</i></td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>value</code></td><td>string</td><td>The value the user typed in the Run dialog (or the <code>defaultValue</code>).</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>label</code></td><td>Label</td><td>short-input</td><td>—</td><td>always</td><td><code>Input</code></td><td>Label shown next to the input in the Run dialog.</td></tr>
+<tr><td><code>kind</code></td><td>Kind</td><td>dropdown</td><td>—</td><td>always</td><td><code>short-text</code></td><td>Control type: short-text / long-text / url / number.</td></tr>
+<tr><td><code>placeholder</code></td><td>Placeholder</td><td>short-input</td><td>—</td><td>always</td><td><i>empty</i></td><td>Ghost text inside the input when empty.</td></tr>
+<tr><td><code>defaultValue</code></td><td>Value (auto-run)</td><td>short-input</td><td>—</td><td>always</td><td><i>empty</i></td><td>If set, Run dock skips the prompt and auto-runs with this value.</td></tr>
+<tr><td><code>required</code></td><td>Required</td><td>switch</td><td>—</td><td>always</td><td><code>true</code></td><td>When on, the user must provide a value before Run can proceed.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Seeded in the pre-BFS phase: <code>outputs[nodeId] = inputs[nodeId] ?? ''</code>,
+trace records <code>{ source: 'RunPanel input', value }</code> in its
+<code>meta</code>.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li><code>kind</code> controls only the dialog's input widget; the stored
+value is always a string — if you pick <code>number</code>, downstream code
+still sees a string and must parse it.</li>
+<li>If <code>defaultValue</code> is set and <code>required</code> is off, the
+dialog is skipped entirely. Make sure your value is non-empty; empty strings
+would make downstream <code>{{input}}</code> tokens collapse.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "label": "URL",
+  "kind": "url",
+  "placeholder": "https://example.com",
+  "defaultValue": "https://www.salilvnair.com/docs/v2/architecture",
+  "required": true
+}</pre>
+
+<!-- ─────────── AGENT ─────────── -->
+<h2 class="block-head" id="b-agent">agent</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#7A5CFF"></span>
+  <span class="ttl">Agent</span>
+  <span class="tid">agent</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> A wrapper around an LLM provider. Sends
+<code>systemPrompt</code> + <code>userPrompt</code> (both templated against
+the bag) to OpenAI / Anthropic / Google / xAI / DeepSeek, optionally forcing
+structured output via <code>responseFormat</code> + <code>strictOutput</code>,
+and returns the generated content. Attached skills are executed
+<i>client-side before</i> the LLM call; their outputs merge into the template
+bag so prompts can reference skill fields.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>messages</code></td><td>json</td><td>Array of <code>{ role, content }</code> message objects.</td></tr>
+<tr><td><code>memoryType</code></td><td>string</td><td>Memory mode.</td></tr>
+<tr><td><code>conversationId</code></td><td>string</td><td>Grouping key for persisted conversation history.</td></tr>
+<tr><td><code>slidingWindowSize</code></td><td>string</td><td>Count of recent messages to retain.</td></tr>
+<tr><td><code>slidingWindowTokens</code></td><td>string</td><td>Max tokens for windowed history.</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>Model id; the tool router uses the prefix to pick the provider.</td></tr>
+<tr><td><code>apiKey</code></td><td>string</td><td>Override provider API key.</td></tr>
+<tr><td><code>responseFormat</code></td><td>json</td><td>JSON Schema for structured output.</td></tr>
+<tr><td><code>temperature</code></td><td>number</td><td>Randomness (0–2).</td></tr>
+<tr><td><code>maxTokens</code></td><td>number</td><td>Max generated tokens.</td></tr>
+<tr><td><code>reasoningEffort</code> / <code>verbosity</code> / <code>thinkingLevel</code></td><td>string</td><td>Provider-specific knobs.</td></tr>
+<tr><td><code>skills</code></td><td>json</td><td>Array of skill ids to execute before the LLM call.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>content</code></td><td>string</td><td>Generated response content (this is what the runner stores on <code>outputs[nodeId]</code>).</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>Model used for generation.</td></tr>
+<tr><td><code>tokens</code></td><td>json</td><td>Token usage stats.</td></tr>
+<tr><td><code>toolCalls</code></td><td>json</td><td>Tool calls made during generation.</td></tr>
+<tr><td><code>providerTiming</code></td><td>json</td><td>Latency breakdown.</td></tr>
+<tr><td><code>cost</code></td><td>json</td><td>Cost metadata.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>messages</code></td><td>Messages</td><td>CodeMirror (messages-input)</td><td>—</td><td>always</td><td>—</td><td>Role/content conversation array. Wand icon auto-generates from a natural-language prompt.</td></tr>
+<tr><td><code>model</code></td><td>Model</td><td>combobox</td><td>yes</td><td>always</td><td><code>getDefaultModel()</code></td><td>LLM to call; prefix-matched to a provider.</td></tr>
+<tr><td><code>reasoningEffort</code></td><td>Reasoning Effort</td><td>dropdown</td><td>—</td><td>advanced tab</td><td>—</td><td>auto / low / medium / high.</td></tr>
+<tr><td><code>verbosity</code></td><td>Verbosity</td><td>dropdown</td><td>—</td><td>advanced tab</td><td>—</td><td>auto / low / medium / high.</td></tr>
+<tr><td><code>thinkingLevel</code></td><td>Thinking Level</td><td>dropdown</td><td>—</td><td>advanced tab</td><td>—</td><td>none / minimal / low / medium / high / max.</td></tr>
+<tr><td><code>apiKey</code> &amp; provider creds</td><td>(from <code>getProviderCredentialSubBlocks()</code>)</td><td>short-input</td><td>—</td><td>always</td><td>—</td><td>Per-block overrides.</td></tr>
+<tr><td><code>skills</code></td><td>Skills / Tools</td><td>skill-input</td><td>—</td><td>always</td><td><code>[]</code></td><td>JSON array of skill ids; each runs client-side before the LLM call.</td></tr>
+<tr><td><code>memoryType</code></td><td>Memory</td><td>dropdown</td><td>—</td><td>always</td><td><code>none</code></td><td>None / Conversation / Sliding window (messages) / Sliding window (tokens).</td></tr>
+<tr><td><code>conversationId</code></td><td>Conversation ID</td><td>short-input</td><td>yes</td><td><code>memoryType ∈ {conversation, sliding_window, sliding_window_tokens}</code></td><td>—</td><td>Per-user conversation key.</td></tr>
+<tr><td><code>slidingWindowSize</code></td><td>Sliding Window Size</td><td>short-input</td><td>—</td><td><code>memoryType === 'sliding_window'</code></td><td>—</td><td>Recent message count.</td></tr>
+<tr><td><code>slidingWindowTokens</code></td><td>Max Tokens</td><td>short-input</td><td>—</td><td><code>memoryType === 'sliding_window_tokens'</code></td><td>—</td><td>Token budget.</td></tr>
+<tr><td><code>temperature</code></td><td>Temperature</td><td>slider 0..2</td><td>—</td><td>advanced tab</td><td><code>0.3</code></td><td>Sampling randomness.</td></tr>
+<tr><td><code>maxTokens</code></td><td>Max Output Tokens</td><td>short-input</td><td>—</td><td>advanced tab</td><td>—</td><td>Hard cap on output length.</td></tr>
+<tr><td><code>responseFormat</code></td><td>Response Format</td><td>FullscreenWrapper + JSON tree</td><td>—</td><td>always</td><td>—</td><td>JSON Schema for structured output.</td></tr>
+<tr><td><code>strictOutput</code></td><td>Strict JSON</td><td>switch</td><td>—</td><td><code>responseFormat</code> non-empty (advanced)</td><td><code>false</code></td><td>Calls provider's strict json_schema mode.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<ol>
+<li>Skill ids are parsed from <code>values.skills</code> (and legacy <code>values.tools</code>).</li>
+<li>The bag is seeded; <code>inputStr</code> is JSON-stringified if not a string.</li>
+<li>Each skill runs via <code>new Function('params', skill.source)</code>; its output replaces <code>inputStr</code> and, if object-shaped, merges into the bag.</li>
+<li><code>systemPrompt</code> and <code>userPrompt</code> are templated via <code>interpolateBag</code>.</li>
+<li>POST <code>/api/v1/builder-studio/agent</code> → <code>{ __meta, value }</code>. <code>value</code> is the LLM's output string (or parsed JSON when strict).</li>
+</ol>
+
+<div class="callout callout-tip"><b>Tip.</b> Prefer attaching skills here over
+creating separate integration blocks; only move to a dedicated block when you
+need full determinism over the API call.</div>
+<div class="callout callout-warn"><b>Warning.</b> <code>strictOutput</code>
+only fires when <code>responseFormat</code> is set. Not every provider +
+model combination supports strict mode.</div>
+
+<h4>Gotchas</h4>
+<ul>
+<li>The backend currently drops unknown fields — anything outside <code>model</code>, <code>systemPrompt</code>, <code>userPrompt</code>, <code>responseFormat</code>, <code>strictOutput</code> is ignored server-side. Skills are why the runner executes them client-side.</li>
+<li>Template tokens that don't resolve are left verbatim; check the rendered prompt in the Debug panel's <code>meta.userPrompt</code> before blaming the model.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a concise summarisation agent. Produce 3-5 bullets.",
+  "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
+  "temperature": 0.3,
+  "responseFormat": "{\n  \"type\": \"object\",\n  \"properties\": { \"summary\": { \"type\": \"string\" } },\n  \"required\": [\"summary\"]\n}",
+  "strictOutput": true,
+  "skills": "[]"
+}</pre>
+
+<!-- ─────────── FUNCTION ─────────── -->
+<h2 class="block-head" id="b-function">function</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#FF402F"></span>
+  <span class="ttl">Function</span>
+  <span class="tid">function</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Runs arbitrary JavaScript or Python. In the Builder
+Studio runtime the code is wrapped as <code>new Function('input', 'values', src)</code>
+and executed in-browser; Python routing exists in the schema but is handled
+server-side in production deployments.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>code</code></td><td>string</td><td>Function body.</td></tr>
+<tr><td><code>language</code></td><td>string</td><td><code>javascript</code> or <code>python</code>.</td></tr>
+<tr><td><code>timeout</code></td><td>number</td><td>Execution timeout.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>result</code></td><td>json</td><td>Return value of the function.</td></tr>
+<tr><td><code>stdout</code></td><td>string</td><td>Captured console output.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>language</code></td><td>Language</td><td>dropdown</td><td>—</td><td>always</td><td><code>javascript</code></td><td>Chooses the runtime.</td></tr>
+<tr><td><code>code</code></td><td>Code</td><td>CodeMirror (javascript)</td><td>—</td><td>always</td><td>—</td><td>Function body. Has access to <code>input</code> and <code>values</code>. Must <code>return</code> the downstream payload. Wand icon generates from NL.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runFunctionNode</code> does <code>new Function('input', 'values', src)(input, values)</code>. No sandbox. The return value becomes <code>outputs[nodeId]</code>.</p>
+
+<div class="callout callout-warn"><b>Security.</b> Because the code runs in
+the user's browser with full DOM access, Function blocks should never
+execute untrusted source. If you host a shared builder, proxy these through
+a server sandbox.</div>
+
+<h4>Gotchas</h4>
+<ul>
+<li>No <code>async</code> wrapper by default — if you need to <code>await fetch()</code>, wrap your body with <code>return (async ()=&gt; { … })()</code>.</li>
+<li>Reference upstream data via the <code>input</code> arg; the alternative <code>&lt;blockName.output&gt;</code> placeholder syntax is only honoured in the Response block.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "language": "javascript",
+  "code": "const rows = (input || '').split(/\\n/).filter(Boolean).map((l) =&gt; l.split(','));\nreturn { rows, count: rows.length };"
+}</pre>
+
+<!-- ─────────── CONDITION ─────────── -->
+<h2 class="block-head" id="b-condition">condition</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#FF752F"></span>
+  <span class="ttl">Condition</span>
+  <span class="tid">condition</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Evaluates one or more predicates (AND/OR) and emits
+a boolean + selected path. This is the legacy condition block — for new
+workflows prefer <code>if_else</code> (binary) or <code>if_elseif_else</code>
+(N-ary).</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td colspan="3"><i>None declared; input flows through from upstream.</i></td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>conditionResult</code></td><td>boolean</td><td>Overall truthiness.</td></tr>
+<tr><td><code>selectedPath</code></td><td>json</td><td>Which branch was taken.</td></tr>
+<tr><td><code>selectedOption</code></td><td>string</td><td>Id of the matching condition row.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>conditions</code></td><td>Conditions</td><td>CodeMirror (condition-input)</td><td>—</td><td>always</td><td>—</td><td>Field / operator / value rows combined with AND/OR.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Not handled by <code>graph-runner</code>'s explicit switch — falls into
+the default "pass through" branch. For branching behaviour wire to an
+<code>if_else</code> instead.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Use <code>if_else</code> / <code>switch</code> in new builds; <code>condition</code> remains for sim-compat.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "conditions": [{ "field": "status", "op": "equals", "value": 200 }] }</pre>
+
+<!-- ─────────── ROUTER V2 ─────────── -->
+<h2 class="block-head" id="b-router_v2">router_v2</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#28C43F"></span>
+  <span class="ttl">Router</span>
+  <span class="tid">router_v2</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> LLM-based routing. Given a <code>context</code>
+string and a list of named <code>routes</code> (each with a description), the
+model picks the best-matching route id, which becomes the node's
+<code>selectedRoute</code> output. Port-based: downstream edges are
+<code>sourceHandle</code>-matched to the route id.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>context</code></td><td>string</td><td>Text the LLM analyses.</td></tr>
+<tr><td><code>routes</code></td><td>json</td><td>Route definitions.</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>LLM to use.</td></tr>
+<tr><td><code>apiKey</code></td><td>string</td><td>Override credential.</td></tr>
+</tbody></table>
+
+<h4>Outputs &amp; handles</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>context</code></td><td>string</td><td>Context echoed back.</td></tr>
+<tr><td><code>model</code></td><td>string</td><td>Model used.</td></tr>
+<tr><td><code>tokens</code></td><td>json</td><td>Token usage.</td></tr>
+<tr><td><code>cost</code></td><td>json</td><td>Cost info.</td></tr>
+<tr><td><code>selectedRoute</code></td><td>string</td><td>Winning route id — drives the canvas <code>sourceHandle</code>.</td></tr>
+<tr><td><code>reasoning</code></td><td>string</td><td>Why this route was chosen.</td></tr>
+<tr><td><code>selectedPath</code></td><td>json</td><td>Normalised routing path.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>context</code></td><td>Context</td><td>textarea (long-input)</td><td>yes</td><td>always</td><td>—</td><td>What the LLM reads to decide.</td></tr>
+<tr><td><code>routes</code></td><td>Routes</td><td>CodeMirror (router-input)</td><td>—</td><td>always</td><td>—</td><td>Named routes with descriptions.</td></tr>
+<tr><td><code>model</code></td><td>Model</td><td>combobox</td><td>yes</td><td>always</td><td>default model</td><td>Classifier LLM.</td></tr>
+<tr><td>provider creds</td><td>(credential fields)</td><td>short-input</td><td>—</td><td>always</td><td>—</td><td>Per-block API key overrides.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Currently executes on the backend via the same <code>/agent</code> route in
+Builder Studio deployments; the router writes its decision into the
+node's <code>sourceHandle</code> branch so non-matching edges are pruned.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Use a small/fast model for routing — it's a classification task.</li>
+<li>Route descriptions should be mutually exclusive; overlapping descriptions cause unstable routing.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "context": "{{userMessage}}",
+  "routes": [
+    { "id": "billing", "description": "Billing, invoices, payments" },
+    { "id": "tech",    "description": "Bugs, errors, outages" },
+    { "id": "sales",   "description": "Pricing, plans, new accounts" }
+  ],
+  "model": "gpt-4o-mini"
+}</pre>
+
+<!-- ─────────── API ─────────── -->
+<h2 class="block-head" id="b-api">api</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#2F55FF"></span>
+  <span class="ttl">API</span>
+  <span class="tid">api</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Generic HTTP request. Supports all standard methods,
+key/value query params and headers, a JSON body, and retry/timeout knobs.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>url</code></td><td>string</td><td>Request URL.</td></tr>
+<tr><td><code>method</code></td><td>string</td><td>HTTP method.</td></tr>
+<tr><td><code>headers</code></td><td>json</td><td>Request headers.</td></tr>
+<tr><td><code>body</code></td><td>json</td><td>Request body.</td></tr>
+<tr><td><code>params</code></td><td>json</td><td>Query parameters.</td></tr>
+<tr><td><code>timeout</code></td><td>number</td><td>Request timeout (ms).</td></tr>
+<tr><td><code>retries</code></td><td>number</td><td>Retry attempts.</td></tr>
+<tr><td><code>retryDelayMs</code></td><td>number</td><td>Initial retry delay.</td></tr>
+<tr><td><code>retryMaxDelayMs</code></td><td>number</td><td>Max retry delay.</td></tr>
+<tr><td><code>retryNonIdempotent</code></td><td>boolean</td><td>Retry POST/PATCH?</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>data</code></td><td>json</td><td>API response body.</td></tr>
+<tr><td><code>status</code></td><td>number</td><td>HTTP status code.</td></tr>
+<tr><td><code>headers</code></td><td>json</td><td>Response headers.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>url</code></td><td>URL</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Target URL; supports template vars.</td></tr>
+<tr><td><code>method</code></td><td>Method</td><td>dropdown</td><td>yes</td><td>always</td><td>—</td><td>GET / POST / PUT / DELETE / PATCH.</td></tr>
+<tr><td><code>params</code></td><td>Query Params</td><td>table (Key / Value)</td><td>—</td><td>always</td><td>—</td><td>Appended as query string.</td></tr>
+<tr><td><code>headers</code></td><td>Headers</td><td>table (Key / Value)</td><td>—</td><td>always</td><td>—</td><td>Request headers.</td></tr>
+<tr><td><code>body</code></td><td>Body</td><td>CodeMirror (json)</td><td>—</td><td>always</td><td>—</td><td>Request body.</td></tr>
+<tr><td><code>timeout</code></td><td>Timeout (ms)</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>300000</code></td><td>Abort after this many ms.</td></tr>
+<tr><td><code>retries</code></td><td>Retries</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>0</code></td><td>Retry count.</td></tr>
+<tr><td><code>retryDelayMs</code></td><td>Retry delay</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>500</code></td><td>Initial backoff.</td></tr>
+<tr><td><code>retryMaxDelayMs</code></td><td>Max retry delay</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>30000</code></td><td>Backoff ceiling.</td></tr>
+<tr><td><code>retryNonIdempotent</code></td><td>Retry non-idempotent</td><td>switch</td><td>—</td><td>advanced tab</td><td>—</td><td>Allow retries for POST/PATCH.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Calls the <code>http_request</code> tool via the backend; the block is
+skipped in the default client runner (falls into the passthrough branch), so
+enable the convengine backend for real HTTP execution.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>For Bearer auth add a header <code>Authorization: Bearer {{token}}</code>.</li>
+<li>Bodies must be valid JSON — malformed JSON shows up as a Debug-panel error before the request goes out.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "url": "https://api.example.com/v1/reports",
+  "method": "GET",
+  "headers": [["Authorization","Bearer {{token}}"]],
+  "params":  [["limit","50"]],
+  "timeout": 20000,
+  "retries": 2
+}</pre>
+
+<!-- ─────────── RESPONSE ─────────── -->
+<h2 class="block-head" id="b-response">response</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#2F55FF"></span>
+  <span class="ttl">Response</span>
+  <span class="tid">response</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Declares the final output of the workflow. Supports
+either a builder mode (JSON tree) or an editor mode (raw JSON with
+<code>{{input}}</code> / <code>&lt;nodeId.output&gt;</code> interpolation).</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>dataMode</code></td><td>string</td><td><code>structured</code> or <code>json</code>.</td></tr>
+<tr><td><code>builderData</code></td><td>json</td><td>Structured response.</td></tr>
+<tr><td><code>data</code></td><td>json</td><td>Raw JSON (editor mode).</td></tr>
+<tr><td><code>status</code></td><td>number</td><td>HTTP status.</td></tr>
+<tr><td><code>headers</code></td><td>json</td><td>Response headers.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>data</code></td><td>json</td><td>The final payload (this is what the dock surfaces as <code>result.output</code>).</td></tr>
+<tr><td><code>status</code></td><td>number</td><td>HTTP status.</td></tr>
+<tr><td><code>headers</code></td><td>json</td><td>Response headers.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>dataMode</code></td><td>Response Data Mode</td><td>dropdown</td><td>—</td><td>always</td><td><code>structured</code></td><td>Picks Builder vs Editor mode.</td></tr>
+<tr><td><code>builderData</code></td><td>Response Structure</td><td>response-format (JSON tree)</td><td>—</td><td><code>dataMode === 'structured'</code></td><td>—</td><td>Tree builder for the payload.</td></tr>
+<tr><td><code>data</code></td><td>Response Data</td><td>CodeMirror (json)</td><td>—</td><td><code>dataMode === 'json'</code></td><td>—</td><td>Raw JSON with interpolation.</td></tr>
+<tr><td><code>status</code></td><td>Status Code</td><td>short-input</td><td>—</td><td>always</td><td><code>200</code></td><td>HTTP status.</td></tr>
+<tr><td><code>headers</code></td><td>Response Headers</td><td>table (Key / Value)</td><td>—</td><td>always</td><td>—</td><td>Response headers.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runNode</code>'s <code>response</code> branch calls
+<code>interpolate(values.data, outputs, input)</code>. The seeded demo sets
+<code>data: "&lt;n_agent2.output&gt;"</code> so the final output is the
+summariser's JSON verbatim.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Builder mode serialises <code>builderData</code> as JSON; switch to Editor mode for interpolation tokens.</li>
+<li>The final output surfaced by the dock is the <code>response</code> node's resolved value — if you don't have a response node, the dock falls back to the last trace row's output.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "dataMode": "json",
+  "data": "&lt;n_agent2.output&gt;",
+  "status": "200"
+}</pre>
+
+<!-- ─────────── LOOP ─────────── -->
+<h2 class="block-head" id="b-loop">loop</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#1F9D7A"></span>
+  <span class="ttl">Loop</span>
+  <span class="tid">loop</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Container block that repeats its nested body either
+N times, once per item of a collection, or while a predicate holds. Use
+<code>&lt;loop.index&gt;</code>, <code>&lt;loop.item&gt;</code>,
+<code>&lt;loop.items&gt;</code> inside the body.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>loopType</code></td><td>string</td><td>for / forEach / while.</td></tr>
+<tr><td><code>iterations</code></td><td>number</td><td>For-loop bound.</td></tr>
+<tr><td><code>collection</code></td><td>json</td><td>Array/object.</td></tr>
+<tr><td><code>whileCondition</code></td><td>string</td><td>JS predicate.</td></tr>
+<tr><td><code>maxIterations</code></td><td>number</td><td>Safety cap.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>iterations</code></td><td>number</td><td>How many iterations ran.</td></tr>
+<tr><td><code>results</code></td><td>array</td><td>Output per iteration.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>loopType</code></td><td>Loop Type</td><td>dropdown</td><td>—</td><td>always</td><td><code>for</code></td><td>Selects the loop variant.</td></tr>
+<tr><td><code>iterations</code></td><td>Iterations</td><td>short-input</td><td>yes</td><td><code>loopType === 'for'</code></td><td>—</td><td>Count.</td></tr>
+<tr><td><code>collection</code></td><td>Collection</td><td>textarea (long-input)</td><td>yes</td><td><code>loopType === 'forEach'</code></td><td>—</td><td>Array/object reference.</td></tr>
+<tr><td><code>whileCondition</code></td><td>While Condition</td><td>textarea (long-input)</td><td>yes</td><td><code>loopType === 'while'</code></td><td>—</td><td>JS predicate.</td></tr>
+<tr><td><code>maxIterations</code></td><td>Max Iterations</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>1000</code></td><td>Runaway safety cap.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>In the current client runner this block is a passthrough — use
+<code>for_loop</code> / <code>for_each</code> (below) for the simplified
+variants the runner actually iterates today.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Always set <code>maxIterations</code> on <code>while</code> loops.</li>
+<li>The referenced <code>&lt;loop.*&gt;</code> tokens are only meaningful for sim-compat import/export.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "loopType": "for", "iterations": 5, "maxIterations": 50 }</pre>
+
+<!-- ─────────── PARALLEL ─────────── -->
+<h2 class="block-head" id="b-parallel">parallel</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#6E7FFF"></span>
+  <span class="ttl">Parallel</span>
+  <span class="tid">parallel</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Fans out to multiple branches concurrently. Collects
+<code>results</code> in "all" mode or picks the first to complete in "race" mode.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>mode</code></td><td>string</td><td><code>all</code> or <code>race</code>.</td></tr>
+<tr><td><code>maxConcurrency</code></td><td>number</td><td>Concurrency cap (0 = unlimited).</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>results</code></td><td>array</td><td>Branch outputs (all mode).</td></tr>
+<tr><td><code>winner</code></td><td>json</td><td>First-complete branch (race mode).</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>mode</code></td><td>Mode</td><td>dropdown</td><td>—</td><td>always</td><td><code>all</code></td><td>Waits for all vs first-wins.</td></tr>
+<tr><td><code>maxConcurrency</code></td><td>Max Concurrency</td><td>short-input</td><td>—</td><td>advanced tab</td><td><code>0</code></td><td>Cap parallel branches.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>The graph runner naturally dispatches sibling downstream nodes in parallel
+via its <code>Promise.all</code>-based ready-set loop; the <code>parallel</code>
+block formalises this and carries a race/all mode. In the default runner it
+falls into the passthrough branch.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>In "race" mode the losing branches still run until they complete — the block just doesn't wait. Use cancellation tokens inside Function branches if that matters.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "mode": "all", "maxConcurrency": 4 }</pre>
+
+<!-- ─────────── POSTGRESQL ─────────── -->
+<h2 class="block-head" id="b-postgresql">postgresql</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#336791"></span>
+  <span class="ttl">PostgreSQL</span>
+  <span class="tid">postgresql</span>
+  <span class="pill pill-tools">tools</span>
+</div>
+<p><b>What it does.</b> Connect to a Postgres server and query / insert / update / delete / execute raw SQL / introspect the schema.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>operation</code></td><td>string</td><td>Operation id.</td></tr>
+<tr><td><code>host</code> / <code>port</code> / <code>database</code> / <code>username</code> / <code>password</code></td><td>string</td><td>Connection details.</td></tr>
+<tr><td><code>ssl</code></td><td>string</td><td>disabled / required / preferred.</td></tr>
+<tr><td><code>table</code></td><td>string</td><td>Target table for DML.</td></tr>
+<tr><td><code>query</code></td><td>string</td><td>SQL text.</td></tr>
+<tr><td><code>data</code></td><td>json</td><td>Row data for insert/update.</td></tr>
+<tr><td><code>where</code></td><td>string</td><td>WHERE clause.</td></tr>
+<tr><td><code>schema</code></td><td>string</td><td>Schema for introspection.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>message</code></td><td>string</td><td>Success / error message.</td></tr>
+<tr><td><code>rows</code></td><td>array</td><td>Query result rows.</td></tr>
+<tr><td><code>rowCount</code></td><td>number</td><td>Rows affected.</td></tr>
+<tr><td><code>tables</code> / <code>schemas</code></td><td>array</td><td>Introspection metadata.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>operation</code></td><td>Operation</td><td>dropdown</td><td>—</td><td>always</td><td><code>query</code></td><td>Selects the tool and drives visibility.</td></tr>
+<tr><td><code>host</code></td><td>Host</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>DB host.</td></tr>
+<tr><td><code>port</code></td><td>Port</td><td>short-input</td><td>yes</td><td>always</td><td><code>5432</code></td><td>DB port.</td></tr>
+<tr><td><code>database</code></td><td>Database Name</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>DB name.</td></tr>
+<tr><td><code>username</code></td><td>Username</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Login.</td></tr>
+<tr><td><code>password</code></td><td>Password</td><td>short-input (masked)</td><td>yes</td><td>always</td><td>—</td><td>Login password.</td></tr>
+<tr><td><code>ssl</code></td><td>SSL Mode</td><td>dropdown</td><td>—</td><td>always</td><td><code>preferred</code></td><td>TLS preference.</td></tr>
+<tr><td><code>table</code> (×3)</td><td>Table Name</td><td>short-input</td><td>yes</td><td><code>operation ∈ {insert, update, delete}</code></td><td>—</td><td>DML target.</td></tr>
+<tr><td><code>query</code> (×2)</td><td>SQL Query</td><td>CodeMirror (json editor)</td><td>yes</td><td><code>operation ∈ {query, execute}</code></td><td>—</td><td>SQL text.</td></tr>
+<tr><td><code>data</code> (×2)</td><td>Data / Update Data (JSON)</td><td>CodeMirror (json)</td><td>yes</td><td><code>operation ∈ {insert, update}</code></td><td>—</td><td>Row payload.</td></tr>
+<tr><td><code>where</code> (×2)</td><td>WHERE Condition</td><td>short-input</td><td>yes</td><td><code>operation ∈ {update, delete}</code></td><td>—</td><td>Filter for DML.</td></tr>
+<tr><td><code>schema</code></td><td>Schema Name</td><td>short-input</td><td>—</td><td><code>operation === 'introspect'</code></td><td><code>public</code></td><td>Introspection target.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>The block config maps <code>operation</code> to one of
+<code>postgresql_query / postgresql_insert / postgresql_update / postgresql_delete / postgresql_execute / postgresql_introspect</code>;
+<code>params()</code> coerces port to a number and parses <code>data</code> if it arrived as a string. Executed via the backend tool runner.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li><code>data</code> fields must be JSON objects / arrays, not SQL literals.</li>
+<li>The Builder Studio browser runtime does not actually open a Postgres socket; the backend must be running for this block to execute.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "operation": "query",
+  "host": "localhost", "port": "5432",
+  "database": "app", "username": "postgres", "password": "secret",
+  "ssl": "preferred",
+  "query": "SELECT id, email FROM users WHERE active = true LIMIT 50"
+}</pre>
+
+<!-- ─────────── MCP ─────────── -->
+<h2 class="block-head" id="b-mcp">mcp</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#181C1E"></span>
+  <span class="ttl">MCP Tool</span>
+  <span class="tid">mcp</span>
+  <span class="pill pill-tools">tools</span>
+</div>
+<p><b>What it does.</b> Executes a tool exposed by a Model-Context-Protocol
+server registered in workspace settings. The inspector shows a server picker,
+a dependent tool picker, and a dynamic JSON arg editor seeded from the tool's
+<code>inputSchema</code>.</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>server</code></td><td>string</td><td>MCP server id.</td></tr>
+<tr><td><code>tool</code></td><td>string</td><td>Tool name.</td></tr>
+<tr><td><code>arguments</code></td><td>json</td><td>Tool call arguments.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>content</code></td><td>array</td><td>Typical MCP content array: <code>[{ type: 'text', text: '...' }, ...]</code>.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>server</code></td><td>MCP Server</td><td>mcp-server-selector</td><td>yes</td><td>always</td><td>—</td><td>Dropdown fed by <code>useMcpStore().servers</code>.</td></tr>
+<tr><td><code>tool</code></td><td>Tool</td><td>mcp-tool-selector</td><td>yes</td><td><code>server</code> non-empty</td><td>—</td><td>Lazy-loaded tool list for the selected server.</td></tr>
+<tr><td><code>arguments</code></td><td>(no title)</td><td>mcp-dynamic-args</td><td>—</td><td><code>tool</code> non-empty</td><td>—</td><td>Schema hint + JSON tree editor; auto-skeleton on empty.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runMcpNode</code> substitutes <code>{{input}}</code> in the arguments
+JSON with the upstream (escaped), parses it, and calls
+<code>callTool(serverId, tool, args)</code>. Returns <code>resp.result</code>.
+Errors surface as "MCP block: …" messages in the Debug panel.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Arguments field is JSON — keep string values quoted. The tree editor enforces this.</li>
+<li>The <code>tool</code> id in the registry may be prefixed with the server id; the config strips that prefix before invocation.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "server": "github-mcp",
+  "tool":   "list_issues",
+  "arguments": "{\n  \"owner\": \"salilvnair\",\n  \"repo\":  \"convengine\",\n  \"state\": \"open\"\n}"
+}</pre>
+
+<!-- ─────────── SMTP ─────────── -->
+<h2 class="block-head" id="b-smtp">smtp</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#2D3748"></span>
+  <span class="ttl">SMTP</span>
+  <span class="tid">smtp</span>
+  <span class="pill pill-tools">tools</span>
+</div>
+<p><b>What it does.</b> Sends emails through any SMTP mail server.
+Supports TLS/SSL/None, plain-text or HTML bodies, CC/BCC, and file
+attachments (either uploaded or referenced from upstream blocks via
+canonical id <code>attachments</code>).</p>
+
+<h4>Inputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>smtpHost</code>/<code>smtpPort</code>/<code>smtpUsername</code>/<code>smtpPassword</code>/<code>smtpSecure</code></td><td>mixed</td><td>Transport details.</td></tr>
+<tr><td><code>from</code>, <code>to</code>, <code>subject</code>, <code>body</code>, <code>contentType</code></td><td>string</td><td>Message.</td></tr>
+<tr><td><code>fromName</code>, <code>cc</code>, <code>bcc</code>, <code>replyTo</code></td><td>string</td><td>Address overrides.</td></tr>
+<tr><td><code>attachments</code></td><td>array</td><td>Normalised file refs.</td></tr>
+</tbody></table>
+
+<h4>Outputs</h4>
+<table><thead><tr><th>key</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>success</code></td><td>boolean</td><td>Send status.</td></tr>
+<tr><td><code>messageId</code></td><td>string</td><td>Server message id.</td></tr>
+<tr><td><code>to</code> / <code>subject</code></td><td>string</td><td>Echo of the sent message headers.</td></tr>
+<tr><td><code>error</code></td><td>string</td><td>Error if any.</td></tr>
+</tbody></table>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>smtpHost</code></td><td>SMTP Host</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Server hostname.</td></tr>
+<tr><td><code>smtpPort</code></td><td>SMTP Port</td><td>short-input</td><td>yes</td><td>always</td><td><code>587</code></td><td>Server port.</td></tr>
+<tr><td><code>smtpUsername</code></td><td>SMTP Username</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Login.</td></tr>
+<tr><td><code>smtpPassword</code></td><td>SMTP Password</td><td>short-input (masked)</td><td>yes</td><td>always</td><td>—</td><td>Login password.</td></tr>
+<tr><td><code>smtpSecure</code></td><td>Security Mode</td><td>dropdown</td><td>yes</td><td>always</td><td><code>TLS</code></td><td>TLS / SSL / None.</td></tr>
+<tr><td><code>from</code></td><td>From</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Envelope sender.</td></tr>
+<tr><td><code>to</code></td><td>To</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Recipients.</td></tr>
+<tr><td><code>subject</code></td><td>Subject</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>Message subject.</td></tr>
+<tr><td><code>body</code></td><td>Body</td><td>textarea (long-input)</td><td>yes</td><td>always</td><td>—</td><td>Message body.</td></tr>
+<tr><td><code>contentType</code></td><td>Content Type</td><td>dropdown</td><td>—</td><td>always</td><td><code>text</code></td><td>Plain text / HTML.</td></tr>
+<tr><td><code>attachmentFiles</code></td><td>Attachments (upload)</td><td>file-upload (multiple)</td><td>—</td><td>basic tab</td><td>—</td><td>Attach local files.</td></tr>
+<tr><td><code>attachments</code></td><td>Attachments (reference)</td><td>short-input</td><td>—</td><td>advanced tab</td><td>—</td><td>Reference upstream files.</td></tr>
+<tr><td><code>fromName</code>, <code>cc</code>, <code>bcc</code>, <code>replyTo</code></td><td>headers</td><td>short-input</td><td>—</td><td>advanced tab</td><td>—</td><td>Display name + extra recipients.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>Tool id is fixed to <code>smtp_send_mail</code>. The config's
+<code>params()</code> coerces the port to a number and funnels attachments
+through <code>normalizeFileInput()</code> so both upload and reference modes
+converge on the same array shape.</p>
+
+<h4>Gotchas</h4>
+<ul>
+<li>Gmail needs an app password — the regular password is rejected.</li>
+<li>If <code>contentType</code> is HTML, wrap lines in <code>&lt;br/&gt;</code> — the renderer doesn't auto-convert newlines.</li>
+</ul>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "smtpHost":"smtp.gmail.com","smtpPort":"587","smtpSecure":"TLS",
+  "smtpUsername":"bot@example.com","smtpPassword":"app-password",
+  "from":"bot@example.com","to":"ops@example.com",
+  "subject":"Nightly report · {{date}}",
+  "body":"&lt;report.output&gt;",
+  "contentType":"html"
+}</pre>
+
+<!-- ─────────── VARIABLES ─────────── -->
+<h2 class="block-head" id="b-variables">variables</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#8B5CF6"></span>
+  <span class="ttl">Variables</span>
+  <span class="tid">variables</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Sets workflow-scoped variables. Every variables
+block shares one namespace; any downstream block can reference them via
+<code>&lt;variable.name&gt;</code>.</p>
+
+<h4>Inputs / Outputs</h4>
+<p>Inputs: <code>variables</code> (json — array of <code>{ name, value }</code>).
+Outputs: none declared; side-effect only.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>variables</code></td><td>Variable Assignments</td><td>CodeMirror (variables-input)</td><td>—</td><td>always</td><td>—</td><td>Name/value pairs assigned before downstream nodes run.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "variables": [
+    { "name": "apiBase", "value": "https://api.example.com" },
+    { "name": "retries", "value": 3 }
+  ]
+}</pre>
+
+<!-- ─────────── WEBHOOK_REQUEST ─────────── -->
+<h2 class="block-head" id="b-webhook_request">webhook_request</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#0EA5E9"></span>
+  <span class="ttl">Webhook</span>
+  <span class="tid">webhook_request</span>
+  <span class="pill pill-triggers">triggers</span>
+</div>
+<p><b>What it does.</b> A trigger block that registers a webhook URL; when
+called, it starts the workflow with the request body, headers, and query as
+outputs.</p>
+
+<h4>Inputs / Outputs</h4>
+<p>Inputs: <code>method</code> (string). Outputs: <code>body</code> / <code>headers</code> / <code>query</code> (all json).</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>webhook</code></td><td>Webhook Config</td><td>CodeMirror (webhook-config)</td><td>—</td><td>always</td><td>—</td><td>Editor for endpoint id, secret, headers.</td></tr>
+<tr><td><code>method</code></td><td>Method</td><td>dropdown</td><td>—</td><td>always</td><td><code>POST</code></td><td>Expected HTTP method.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "method": "POST" }</pre>
+
+<!-- ─────────── SCHEDULE ─────────── -->
+<h2 class="block-head" id="b-schedule">schedule</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#F59E0B"></span>
+  <span class="ttl">Schedule</span>
+  <span class="tid">schedule</span>
+  <span class="pill pill-triggers">triggers</span>
+</div>
+<p><b>What it does.</b> Cron-driven trigger. Emits <code>firedAt</code>
+(ISO timestamp) on each fire.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>cron</code></td><td>Cron Expression</td><td>short-input</td><td>yes</td><td>always</td><td>—</td><td>e.g. <code>0 */5 * * *</code>.</td></tr>
+<tr><td><code>timezone</code></td><td>Timezone</td><td>short-input</td><td>—</td><td>always</td><td><code>UTC</code></td><td>IANA timezone id.</td></tr>
+<tr><td><code>scheduleInfo</code></td><td>Schedule</td><td>datetime-local</td><td>—</td><td>always</td><td>—</td><td>Pickable next-fire preview.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p>In the client runner the schedule block behaves like a starter — its
+output is seeded with the current timestamp when the workflow is launched
+manually, so you can test downstream chains without waiting for a real cron
+fire.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "cron": "0 8 * * *", "timezone": "Asia/Kolkata" }</pre>
+
+<!-- ─────────── WAIT ─────────── -->
+<h2 class="block-head" id="b-wait">wait</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#6B7280"></span>
+  <span class="ttl">Wait</span>
+  <span class="tid">wait</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Pauses execution for a duration or until a timestamp.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>mode</code></td><td>Mode</td><td>dropdown</td><td>—</td><td>always</td><td><code>duration</code></td><td>Duration vs until.</td></tr>
+<tr><td><code>duration</code></td><td>Duration (ms)</td><td>short-input</td><td>—</td><td><code>mode === 'duration'</code></td><td>—</td><td>ms to sleep.</td></tr>
+<tr><td><code>until</code></td><td>Until</td><td>short-input</td><td>—</td><td><code>mode === 'until'</code></td><td>—</td><td>ISO 8601 timestamp.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "mode": "duration", "duration": "1500" }</pre>
+
+<!-- ─────────── TABLE ─────────── -->
+<h2 class="block-head" id="b-table">table</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#14B8A6"></span>
+  <span class="ttl">Table</span>
+  <span class="tid">table</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Read/write structured rows from a workspace table.
+Backed by <code>table-selector</code> + a filter/sort builder; DML rows are
+supplied as JSON.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>operation</code></td><td>Operation</td><td>dropdown</td><td>—</td><td>always</td><td><code>read</code></td><td>read / insert / update.</td></tr>
+<tr><td><code>table</code></td><td>Table</td><td>table-selector</td><td>yes</td><td>always</td><td>—</td><td>Target table id.</td></tr>
+<tr><td><code>filters</code></td><td>Filters</td><td>CodeMirror (filter-builder)</td><td>—</td><td><code>operation ∈ {read, update}</code></td><td>—</td><td>Predicate tree.</td></tr>
+<tr><td><code>sort</code></td><td>Sort</td><td>CodeMirror (sort-builder)</td><td>—</td><td><code>operation === 'read'</code></td><td>—</td><td>Sort clauses.</td></tr>
+<tr><td><code>data</code></td><td>Data</td><td>CodeMirror (json)</td><td>—</td><td><code>operation ∈ {insert, update}</code></td><td>—</td><td>Row payload.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "operation": "read", "table": "orders",
+  "filters": { "all": [ { "field": "status", "op": "eq", "value": "paid" } ] },
+  "sort":    [ { "field": "createdAt", "dir": "desc" } ] }</pre>
+
+<!-- ─────────── IF_ELSE ─────────── -->
+<h2 class="block-head" id="b-if_else">if_else</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#F59E0B"></span>
+  <span class="ttl">If / Else</span>
+  <span class="tid">if_else</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Binary branch. One input, two outputs
+(<code>true</code>, <code>false</code>). A JS expression against
+<code>input</code> decides which handle fires.</p>
+
+<h4>Outputs / handles</h4>
+<p><b>Handles</b>: <code>true</code>, <code>false</code>. Each carries the upstream
+payload to downstream edges that target it.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>expression</code></td><td>Condition</td><td>CodeMirror (javascript)</td><td>—</td><td>always</td><td>—</td><td>JS expression; truthy picks <code>true</code> handle.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runIfElseNode</code> evaluates the expression via
+<code>new Function('input', 'return (expr)')(input)</code>, wraps the result
+in <code>{ branch: truthy ? 'true' : 'false', value: input }</code>. The
+runner records <code>chosenHandle[nodeId]</code> and suppresses edges on the
+losing handle.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "expression": "input?.status === 200" }</pre>
+
+<!-- ─────────── IF_ELSEIF_ELSE ─────────── -->
+<h2 class="block-head" id="b-if_elseif_else">if_elseif_else</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#F59E0B"></span>
+  <span class="ttl">If / Else-If / Else</span>
+  <span class="tid">if_elseif_else</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> N-way branch. One input, N outputs
+(<code>branch_1</code> … <code>branch_N</code>) plus a trailing
+<code>else</code> handle. Rows evaluate top-to-bottom; first match wins.</p>
+
+<h4>Handles</h4>
+<p>Driven by <code>outputHandlesFromValues(values)</code> →
+<code>['branch_1', …, 'branch_N', 'else']</code>, where N = <code>branches</code>
+(1..8).</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>branches</code></td><td>Branch count</td><td>slider 1..8</td><td>—</td><td>always</td><td><code>2</code></td><td>How many if/else-if arms.</td></tr>
+<tr><td><code>conditions</code></td><td>Conditions</td><td>table (Label / Expression)</td><td>—</td><td>always</td><td>—</td><td>One JS expression per arm.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "branches": 3,
+  "conditions": [
+    ["billing", "input.category === 'billing'"],
+    ["tech",    "input.category === 'tech'"],
+    ["sales",   "input.category === 'sales'"]
+  ]
+}</pre>
+
+<!-- ─────────── SWITCH ─────────── -->
+<h2 class="block-head" id="b-switch">switch</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#0EA5E9"></span>
+  <span class="ttl">Switch</span>
+  <span class="tid">switch</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Dispatches on a key. A <code>keyExpr</code> is
+evaluated against <code>input</code> and stringified; each case row declares
+a literal to match. Trailing <code>default</code> handle if no case matches.</p>
+
+<h4>Handles</h4>
+<p><code>outputHandlesFromValues</code> →
+<code>['case_1', …, 'case_N', 'default']</code>.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>keyExpr</code></td><td>Key expression</td><td>short-input</td><td>—</td><td>always</td><td>—</td><td>JS expression; stringified for comparison.</td></tr>
+<tr><td><code>caseCount</code></td><td>Case count</td><td>slider 1..12</td><td>—</td><td>always</td><td><code>3</code></td><td>Number of named case handles.</td></tr>
+<tr><td><code>cases</code></td><td>Cases</td><td>table (Match / Label)</td><td>—</td><td>always</td><td>—</td><td>One row per case.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "keyExpr": "input.kind",
+  "caseCount": 3,
+  "cases": [["free","Free tier"], ["pro","Pro tier"], ["ent","Enterprise"]]
+}</pre>
+
+<!-- ─────────── FOR_LOOP ─────────── -->
+<h2 class="block-head" id="b-for_loop">for_loop</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#8B5CF6"></span>
+  <span class="ttl">For Loop</span>
+  <span class="tid">for_loop</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Runs the enclosed sub-flow <code>count</code> times
+with a counter variable (default <code>i</code>).</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>count</code></td><td>Count</td><td>short-input</td><td>—</td><td>always</td><td><code>10</code></td><td>Iteration count.</td></tr>
+<tr><td><code>indexVar</code></td><td>Index var</td><td>short-input</td><td>—</td><td>always</td><td><code>i</code></td><td>Name exposed to nested blocks.</td></tr>
+<tr><td><code>maxConcurrency</code></td><td>Max concurrency</td><td>slider 1..10</td><td>—</td><td>advanced tab</td><td><code>1</code></td><td>Parallel iteration cap.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "count": 5, "indexVar": "i", "maxConcurrency": 2 }</pre>
+
+<!-- ─────────── FOR_EACH ─────────── -->
+<h2 class="block-head" id="b-for_each">for_each</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#6366F1"></span>
+  <span class="ttl">ForEach Loop</span>
+  <span class="tid">for_each</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Iterates each item of a collection
+(array or object). <code>itemVar</code> is exposed to the body.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>collection</code></td><td>Collection</td><td>short-input</td><td>—</td><td>always</td><td>—</td><td>JSON or JSONPath reference.</td></tr>
+<tr><td><code>itemVar</code></td><td>Item var</td><td>short-input</td><td>—</td><td>always</td><td><code>item</code></td><td>Per-iteration variable name.</td></tr>
+<tr><td><code>maxConcurrency</code></td><td>Max concurrency</td><td>slider 1..10</td><td>—</td><td>advanced tab</td><td><code>1</code></td><td>Parallel cap.</td></tr>
+</tbody></table>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "collection": "&lt;n_agent1.output.items&gt;", "itemVar": "row" }</pre>
+
+<!-- ─────────── SAVE_TO_FILES ─────────── -->
+<h2 class="block-head" id="b-save_to_files">save_to_files</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#0EA5E9"></span>
+  <span class="ttl">Save To Files</span>
+  <span class="tid">save_to_files</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Terminal node that optionally downloads the upstream
+payload as a file and always previews it inline on the node card. Great for
+debugging: place after a Response and see the final JSON without leaving the
+canvas.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>path</code></td><td>Output path</td><td>short-input</td><td>—</td><td>always</td><td>—</td><td>Blank = preview only; non-blank = trigger browser download.</td></tr>
+<tr><td><code>format</code></td><td>Format</td><td>dropdown</td><td>—</td><td>always</td><td><code>json</code></td><td>JSON-pretty vs raw string.</td></tr>
+<tr><td><code>overwrite</code></td><td>Overwrite existing</td><td>switch</td><td>—</td><td>always</td><td><code>true</code></td><td>Allow overwrite (browser sandbox).</td></tr>
+<tr><td><code>__preview</code></td><td>Preview</td><td>json-preview</td><td>—</td><td>always</td><td>—</td><td>Live view of the most recent payload this block received.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runSaveToFiles</code> builds a <code>Blob</code> with the serialised
+payload; if <code>path</code> is non-blank it clicks a synthetic
+<code>&lt;a download&gt;</code>. Regardless, it passes the input through so
+the <code>json-preview</code> sub-block paints the card body.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "path": "reports/nightly.json", "format": "json", "overwrite": true }</pre>
+
+<!-- ─────────── SHOW_PREVIEW ─────────── -->
+<h2 class="block-head" id="b-show_preview">show_preview</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#14B8A6"></span>
+  <span class="ttl">Show Preview</span>
+  <span class="tid">show_preview</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Canvas-only sink. Takes whatever it receives and
+renders it as a live, colorised JSON body on the card. No file side-effects.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>label</code></td><td>Label</td><td>short-input</td><td>—</td><td>always</td><td><code>Final output</code></td><td>Heading above the preview.</td></tr>
+<tr><td><code>__preview</code></td><td>Preview</td><td>json-preview</td><td>—</td><td>always</td><td>—</td><td>Last payload this block received.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runNode</code>'s <code>show_preview</code> case returns
+<code>input</code> untouched. The card's custom renderer picks up the value
+via <code>useWorkflowStore().lastOutputs[nodeId]</code>.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "label": "Final summary" }</pre>
+
+<!-- ─────────── JSON_MAP ─────────── -->
+<h2 class="block-head" id="b-json_map">json_map</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#0ea5e9"></span>
+  <span class="ttl">JSON Map</span>
+  <span class="tid">json_map</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Plucks a flat key-value map out of a JSON object via
+JSONPath expressions. Useful right before an Agent to surface prompt
+variables like <code>{{title}}</code> and <code>{{author}}</code>.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>mappings</code></td><td>Mappings</td><td>CodeMirror (json)</td><td>—</td><td>always</td><td><code>[{"key":"value","path":"$"}]</code></td><td>Array of <code>{ key, path }</code>.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runJsonMapNode</code> parses the mappings, evaluates each
+<code>path</code> against the input (dot/bracket notation), and returns a flat
+<code>{ key: value }</code> object. Path <code>$</code> returns the root.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{
+  "mappings": "[\n  { \"key\": \"title\",  \"path\": \"$.article.title\" },\n  { \"key\": \"author\", \"path\": \"$.article.metadata.author\" }\n]"
+}</pre>
+
+<!-- ─────────── TEXT_TEMPLATE ─────────── -->
+<h2 class="block-head" id="b-text_template">text_template</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#f59e0b"></span>
+  <span class="ttl">Text Template</span>
+  <span class="tid">text_template</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Interpolates <code>{{vars}}</code> into a template
+string. The upstream JSON's fields become template variables; if the upstream
+is a plain string, use <code>{{input}}</code>.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>template</code></td><td>Template</td><td>CodeMirror (plaintext)</td><td>—</td><td>always</td><td><code>{{input}}</code></td><td>Template body.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runTextTemplateNode</code> seeds the bag with <code>{ input }</code>
+(stringifying non-strings) and merges in the upstream's own keys when it is
+an object. Returns the interpolated string.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "template": "Title: {{title}}\nAuthor: {{author}}\nSummary: {{input}}" }</pre>
+
+<!-- ─────────── JSON_PATH ─────────── -->
+<h2 class="block-head" id="b-json_path">json_path</h2>
+<div class="block-head-row">
+  <span class="swatch" style="background:#8b5cf6"></span>
+  <span class="ttl">JSON Path</span>
+  <span class="tid">json_path</span>
+  <span class="pill">blocks</span>
+</div>
+<p><b>What it does.</b> Extracts a single value from a JSON object using a
+JSONPath expression. Falls back to a user-supplied value if the path resolves
+to <code>undefined</code>.</p>
+
+<h4>Fields</h4>
+<table><thead><tr><th>id</th><th>title</th><th>control</th><th>required</th><th>visible when</th><th>default</th><th>what it does</th></tr></thead><tbody>
+<tr><td><code>path</code></td><td>JSONPath</td><td>short-input</td><td>—</td><td>always</td><td><code>$</code></td><td>Path expression.</td></tr>
+<tr><td><code>fallback</code></td><td>Fallback</td><td>short-input</td><td>—</td><td>advanced tab</td><td>—</td><td>Used when the path doesn't resolve.</td></tr>
+</tbody></table>
+
+<h4>Execution notes</h4>
+<p><code>runJsonPathNode</code> does <code>$</code> = root shortcut and
+dot-walks the remaining segments. Returns <code>null</code> if nothing
+resolves and no fallback is supplied.</p>
+
+<h4>Example subBlockValues</h4>
+<pre>{ "path": "$.data.items[0].name", "fallback": "unknown" }</pre>
+
+<!-- ============================== PART 3 ============================== -->
+<h2 class="part-break" id="part3">Part 3 — Demo workflows</h2>
+
+<p>The four recipes below were designed against the real graph runner. The
+first is <b>exactly</b> what ships today in <code>workspace-store.js</code>;
+the other three use only core blocks and can be pasted into the canvas
+verbatim.</p>
+
+<!-- WORKFLOW A · SEEDED DEMO -->
+<h3 id="w-seed">A · Seeded · URL → Summary</h3>
+<p><b>Goal.</b> Paste a URL, have a skill fetch &amp; strip the page, then an
+LLM summarise it in 3–5 bullets. Ships pre-seeded as <code>wf_demo_url_summary</code>.</p>
+<p><b>When you'd use it.</b> Any time you need to fetch-and-summarise
+third-party content. Swap the final agent's prompt to repurpose (translate,
+classify, extract entities, etc.).</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="URL Summariser canvas">
+  <defs>
+    <marker id="arr1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569" />
+    </marker>
+  </defs>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#fff" text-anchor="middle">
+    <rect x="10"  y="120" width="110" height="50" rx="6" fill="#2FB3FF"/><text x="65"  y="150">Start</text>
+    <rect x="150" y="120" width="110" height="50" rx="6" fill="#FBBF24"/><text x="205" y="150">URL</text>
+    <rect x="290" y="120" width="150" height="50" rx="6" fill="#7A5CFF"/><text x="365" y="150">URL Extractor</text>
+    <rect x="470" y="120" width="150" height="50" rx="6" fill="#7A5CFF"/><text x="545" y="150">Summariser</text>
+    <rect x="650" y="120" width="110" height="50" rx="6" fill="#2F55FF"/><text x="705" y="150">Response</text>
+    <rect x="790" y="120" width="100" height="50" rx="6" fill="#14B8A6"/><text x="840" y="150">Preview</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arr1)">
+    <line x1="120" y1="145" x2="150" y2="145"/>
+    <line x1="260" y1="145" x2="290" y2="145"/>
+    <line x1="440" y1="145" x2="470" y2="145"/>
+    <line x1="620" y1="145" x2="650" y2="145"/>
+    <line x1="760" y1="145" x2="790" y2="145"/>
+  </g>
+</svg>
+</div>
+
+<h4>Node-by-node</h4>
+<ul>
+<li><code>n_starter</code> (starter) — emits <code>null</code>, flips green.</li>
+<li><code>n_input</code> (user_input) — carries a <code>defaultValue</code>; RunModal auto-runs with it.</li>
+<li><code>n_agent1</code> (agent, "URL Data Extractor") — attached skill <code>sk_url_extract</code> fetches the URL in-browser and returns <code>{ url, title, text, status }</code>; the LLM reformats as a clean envelope.</li>
+<li><code>n_agent2</code> (agent, "Summarizer") — consumes the envelope (no skills), forces a <code>{ summary, bullets[] }</code> JSON Schema output.</li>
+<li><code>n_response</code> (response) — passes through <code>&lt;n_agent2.output&gt;</code>.</li>
+<li><code>n_preview</code> (show_preview) — final colorised JSON on the card.</li>
+</ul>
+
+<h4>subBlockValues</h4>
+<pre>// n_starter
+{ "startWorkflow": "manual" }</pre>
+<pre>// n_input
+{
+  "label": "URL", "kind": "url",
+  "placeholder": "https://example.com",
+  "defaultValue": "https://www.salilvnair.com/docs/v2/architecture",
+  "required": true
+}</pre>
+<pre>// n_agent1 — URL Data Extractor
+{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.",
+  "userPrompt": "Extract the page at: {{url}}",
+  "temperature": 0.2,
+  "skills": "[\"sk_url_extract\"]",
+  "responseFormat": "{\n  \"type\":\"object\",\n  \"properties\":{\"url\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"text\":{\"type\":\"string\"}},\n  \"required\":[\"text\"]\n}"
+}</pre>
+<pre>// n_agent2 — Summarizer
+{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.",
+  "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
+  "temperature": 0.3,
+  "responseFormat": "{\n  \"type\":\"object\",\n  \"properties\":{\"summary\":{\"type\":\"string\"},\"bullets\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\n  \"required\":[\"summary\"]\n}"
+}</pre>
+<pre>// n_response
+{ "data": "&lt;n_agent2.output&gt;" }</pre>
+<pre>// n_preview
+{ "label": "Final output" }</pre>
+
+<h4>Edges</h4>
+<pre>[
+  { "id": "e_s_in",   "source": "n_starter", "target": "n_input" },
+  { "id": "e_in_a1",  "source": "n_input",   "target": "n_agent1" },
+  { "id": "e_a1_a2",  "source": "n_agent1",  "target": "n_agent2" },
+  { "id": "e_a2_r",   "source": "n_agent2",  "target": "n_response" },
+  { "id": "e_r_prev", "source": "n_response","target": "n_preview" }
+]</pre>
+
+<h4>Expected run output shape</h4>
+<pre>{
+  "summary": "...",
+  "bullets": ["...", "...", "..."]
+}</pre>
+
+<!-- WORKFLOW B · URL SUMMARISER (lean) -->
+<h3 id="w-url">B · URL summariser (lean, no skills)</h3>
+<p><b>Goal.</b> Skip the workspace skill and rely purely on the
+<code>api</code> block to fetch HTML, then hand the body to an agent for
+summarisation. Useful as a minimal example when skills aren't set up yet.</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569" />
+    </marker>
+  </defs>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#fff" text-anchor="middle">
+    <rect x="10"  y="120" width="120" height="50" rx="6" fill="#FBBF24"/><text x="70"  y="150">URL input</text>
+    <rect x="160" y="120" width="120" height="50" rx="6" fill="#2F55FF"/><text x="220" y="150">API GET</text>
+    <rect x="310" y="120" width="150" height="50" rx="6" fill="#7A5CFF"/><text x="385" y="150">Summariser</text>
+    <rect x="490" y="120" width="150" height="50" rx="6" fill="#14B8A6"/><text x="565" y="150">Show Preview</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arr2)">
+    <line x1="130" y1="145" x2="160" y2="145"/>
+    <line x1="280" y1="145" x2="310" y2="145"/>
+    <line x1="460" y1="145" x2="490" y2="145"/>
+  </g>
+</svg>
+</div>
+
+<h4>Node-by-node</h4>
+<ul>
+<li><code>n_url</code> (user_input) — URL input, auto-runs from <code>defaultValue</code>.</li>
+<li><code>n_http</code> (api) — GET request; <code>url</code> = <code>{{input}}</code>.</li>
+<li><code>n_sum</code> (agent) — reads <code>{{body}}</code> from the API response envelope, produces a <code>{ summary, bullets[] }</code>.</li>
+<li><code>n_prev</code> (show_preview) — colourised JSON on the canvas.</li>
+</ul>
+
+<h4>subBlockValues</h4>
+<pre>// n_url
+{
+  "label": "URL", "kind": "url",
+  "defaultValue": "https://example.com",
+  "required": true
+}</pre>
+<pre>// n_http
+{
+  "url": "{{input}}",
+  "method": "GET",
+  "headers": [["Accept","text/html,*/*"]],
+  "timeout": "20000"
+}</pre>
+<pre>// n_sum
+{
+  "model": "gpt-4o-mini",
+  "systemPrompt": "Summarise the HTML body in 3–5 bullets. Strip navigation and ads. Stay faithful to the source.",
+  "userPrompt": "Body:\n{{body}}",
+  "temperature": 0.3,
+  "responseFormat": "{\n  \"type\":\"object\",\n  \"properties\":{\"summary\":{\"type\":\"string\"},\"bullets\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\n  \"required\":[\"summary\"]\n}",
+  "strictOutput": true
+}</pre>
+<pre>// n_prev
+{ "label": "Summary" }</pre>
+
+<h4>Edges</h4>
+<pre>[
+  { "source": "n_url",  "target": "n_http" },
+  { "source": "n_http", "target": "n_sum"  },
+  { "source": "n_sum",  "target": "n_prev" }
+]</pre>
+
+<h4>Expected run output shape</h4>
+<pre>{ "summary": "...", "bullets": ["...","...","..."] }</pre>
+
+<!-- WORKFLOW C · CSV EXTRACT-AND-MAIL -->
+<h3 id="w-csv">C · CSV extract-and-mail (scheduled)</h3>
+<p><b>Goal.</b> Every morning at 08:00, fetch a remote CSV report, parse the
+rows, ask an agent to produce a structured digest, save the digest as JSON,
+then e-mail it to ops.</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr3" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569" />
+    </marker>
+  </defs>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#fff" text-anchor="middle">
+    <rect x="10"  y="120" width="110" height="50" rx="6" fill="#F59E0B"/><text x="65"  y="150">Schedule</text>
+    <rect x="140" y="120" width="110" height="50" rx="6" fill="#2F55FF"/><text x="195" y="150">API · CSV</text>
+    <rect x="270" y="120" width="120" height="50" rx="6" fill="#FF402F"/><text x="330" y="150">Parse rows</text>
+    <rect x="410" y="120" width="140" height="50" rx="6" fill="#7A5CFF"/><text x="480" y="150">Digest agent</text>
+    <rect x="570" y="120" width="120" height="50" rx="6" fill="#0EA5E9"/><text x="630" y="150">Save JSON</text>
+    <rect x="710" y="120" width="120" height="50" rx="6" fill="#2D3748"/><text x="770" y="150">SMTP</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arr3)">
+    <line x1="120" y1="145" x2="140" y2="145"/>
+    <line x1="250" y1="145" x2="270" y2="145"/>
+    <line x1="390" y1="145" x2="410" y2="145"/>
+    <line x1="550" y1="145" x2="570" y2="145"/>
+    <line x1="690" y1="145" x2="710" y2="145"/>
+  </g>
+</svg>
+</div>
+
+<h4>Node-by-node</h4>
+<ul>
+<li><code>n_cron</code> (schedule) — fires at 08:00 IST. Emits <code>firedAt</code>.</li>
+<li><code>n_fetch</code> (api) — GETs the CSV from an internal reports URL.</li>
+<li><code>n_parse</code> (function) — splits the body on newlines, returns <code>{ rows, count }</code>.</li>
+<li><code>n_digest</code> (agent) — <code>responseFormat</code> schema <code>{ date, count, highlights[], riskFlags[] }</code> with <code>strictOutput</code>.</li>
+<li><code>n_save</code> (save_to_files) — writes <code>reports/digest-YYYY-MM-DD.json</code>.</li>
+<li><code>n_mail</code> (smtp) — sends HTML email with the digest inline.</li>
+</ul>
+
+<h4>subBlockValues</h4>
+<pre>// n_cron
+{ "cron": "0 8 * * *", "timezone": "Asia/Kolkata" }</pre>
+<pre>// n_fetch
+{
+  "url": "https://reports.internal/daily.csv",
+  "method": "GET",
+  "headers": [["Authorization","Bearer {{reportsToken}}"]],
+  "timeout": "30000",
+  "retries": "2"
+}</pre>
+<pre>// n_parse
+{
+  "language": "javascript",
+  "code": "const body = typeof input === 'string' ? input : (input?.data ?? '');\nconst [head, ...lines] = body.split(/\\r?\\n/).filter(Boolean);\nconst cols = head.split(',');\nconst rows = lines.map(l =&gt; Object.fromEntries(l.split(',').map((v,i) =&gt; [cols[i], v])));\nreturn { rows, count: rows.length };"
+}</pre>
+<pre>// n_digest
+{
+  "model": "gpt-4o",
+  "systemPrompt": "You are an ops-digest agent. Summarise the day's rows. Flag any row whose 'status' field equals 'failed' under riskFlags.",
+  "userPrompt": "Rows (JSON): {{input}}",
+  "temperature": 0.2,
+  "responseFormat": "{\n  \"type\":\"object\",\n  \"properties\":{\n    \"date\":{\"type\":\"string\"},\n    \"count\":{\"type\":\"number\"},\n    \"highlights\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\n    \"riskFlags\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}\n  },\n  \"required\":[\"date\",\"count\",\"highlights\"]\n}",
+  "strictOutput": true
+}</pre>
+<pre>// n_save
+{ "path": "reports/digest.json", "format": "json", "overwrite": true }</pre>
+<pre>// n_mail
+{
+  "smtpHost": "smtp.gmail.com", "smtpPort": "587", "smtpSecure": "TLS",
+  "smtpUsername": "bot@example.com", "smtpPassword": "{{smtpPass}}",
+  "from": "bot@example.com", "to": "ops@example.com",
+  "subject": "Daily digest · {{date}}",
+  "body": "&lt;pre&gt;{{input}}&lt;/pre&gt;",
+  "contentType": "html"
+}</pre>
+
+<h4>Edges</h4>
+<pre>[
+  { "source": "n_cron",   "target": "n_fetch" },
+  { "source": "n_fetch",  "target": "n_parse" },
+  { "source": "n_parse",  "target": "n_digest" },
+  { "source": "n_digest", "target": "n_save" },
+  { "source": "n_save",   "target": "n_mail" }
+]</pre>
+
+<h4>Expected run output shape</h4>
+<pre>{
+  "success": true,
+  "messageId": "&lt;abc123@smtp.gmail.com&gt;",
+  "to": "ops@example.com",
+  "subject": "Daily digest · 2026-04-19"
+}</pre>
+
+<!-- WORKFLOW D · BRANCHING TRIAGE -->
+<h3 id="w-triage">D · Branching triage</h3>
+<p><b>Goal.</b> A customer types a message. A classifier agent categorises
+it as <code>billing</code> / <code>tech</code> / <code>sales</code>. An
+<code>if_elseif_else</code> branches to one of three specialist agents; all
+three rejoin in a single <code>response</code>.</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr4" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#475569" />
+    </marker>
+  </defs>
+  <g font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#fff" text-anchor="middle">
+    <rect x="10"  y="145" width="120" height="50" rx="6" fill="#FBBF24"/><text x="70"  y="175">Message</text>
+    <rect x="160" y="145" width="140" height="50" rx="6" fill="#7A5CFF"/><text x="230" y="175">Classifier</text>
+    <rect x="330" y="145" width="140" height="50" rx="6" fill="#F59E0B"/><text x="400" y="175">If/Else-If/Else</text>
+    <rect x="510" y="40"  width="140" height="50" rx="6" fill="#7A5CFF"/><text x="580" y="70" >Billing agent</text>
+    <rect x="510" y="145" width="140" height="50" rx="6" fill="#7A5CFF"/><text x="580" y="175">Tech agent</text>
+    <rect x="510" y="250" width="140" height="50" rx="6" fill="#7A5CFF"/><text x="580" y="280">Sales agent</text>
+    <rect x="690" y="145" width="120" height="50" rx="6" fill="#2F55FF"/><text x="750" y="175">Response</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" fill="none" marker-end="url(#arr4)">
+    <line x1="130" y1="170" x2="160" y2="170"/>
+    <line x1="300" y1="170" x2="330" y2="170"/>
+    <line x1="470" y1="170" x2="510" y2="65"/>
+    <line x1="470" y1="170" x2="510" y2="170"/>
+    <line x1="470" y1="170" x2="510" y2="275"/>
+    <line x1="650" y1="65"  x2="690" y2="170"/>
+    <line x1="650" y1="170" x2="690" y2="170"/>
+    <line x1="650" y1="275" x2="690" y2="170"/>
+  </g>
+</svg>
+</div>
+
+<h4>Node-by-node</h4>
+<ul>
+<li><code>n_msg</code> (user_input, long-text) — the customer message.</li>
+<li><code>n_class</code> (agent) — <code>Response Format { category }</code>, <code>strictOutput: true</code>.</li>
+<li><code>n_branch</code> (if_elseif_else) — 3 arms, one per category; runner sets <code>chosenHandle</code> and only the matching edge is live.</li>
+<li><code>n_billing</code> / <code>n_tech</code> / <code>n_sales</code> (agent) — specialists with tailored system prompts.</li>
+<li><code>n_resp</code> (response) — final envelope <code>{ category, reply }</code>; resolves via <code>&lt;nodeId.output&gt;</code> of whichever specialist fired.</li>
+</ul>
+
+<h4>subBlockValues</h4>
+<pre>// n_msg
+{
+  "label": "Customer message", "kind": "long-text",
+  "placeholder": "Describe your issue…", "required": true
+}</pre>
+<pre>// n_class
+{
+  "model": "gpt-4o-mini",
+  "systemPrompt": "Classify the customer message into exactly one of: billing, tech, sales.",
+  "userPrompt": "Message: {{input}}",
+  "temperature": 0,
+  "responseFormat": "{\n  \"type\":\"object\",\n  \"properties\":{\"category\":{\"type\":\"string\",\"enum\":[\"billing\",\"tech\",\"sales\"]}},\n  \"required\":[\"category\"]\n}",
+  "strictOutput": true
+}</pre>
+<pre>// n_branch
+{
+  "branches": 3,
+  "conditions": [
+    ["billing", "input.category === 'billing'"],
+    ["tech",    "input.category === 'tech'"],
+    ["sales",   "input.category === 'sales'"]
+  ]
+}</pre>
+<pre>// n_billing
+{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a billing specialist. Answer questions about invoices, refunds, and payments. Reference &lt;billing docs&gt; when relevant.",
+  "userPrompt": "Customer: {{input}}",
+  "temperature": 0.3
+}</pre>
+<pre>// n_tech
+{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a tech-support engineer. Ask for reproduction steps if the description is vague. Offer a workaround when possible.",
+  "userPrompt": "Ticket: {{input}}",
+  "temperature": 0.3
+}</pre>
+<pre>// n_sales
+{
+  "model": "claude-sonnet-4-6",
+  "systemPrompt": "You are a friendly sales consultant. Propose the best plan, but never hard-sell.",
+  "userPrompt": "Lead: {{input}}",
+  "temperature": 0.5
+}</pre>
+<pre>// n_resp
+{
+  "dataMode": "json",
+  "data": "{ \"category\": \"&lt;n_class.output&gt;.category\", \"reply\": \"&lt;n_billing.output&gt;&lt;n_tech.output&gt;&lt;n_sales.output&gt;\" }",
+  "status": "200"
+}</pre>
+
+<h4>Edges</h4>
+<pre>[
+  { "source": "n_msg",     "target": "n_class" },
+  { "source": "n_class",   "target": "n_branch" },
+  { "source": "n_branch",  "sourceHandle": "branch_1", "target": "n_billing" },
+  { "source": "n_branch",  "sourceHandle": "branch_2", "target": "n_tech" },
+  { "source": "n_branch",  "sourceHandle": "branch_3", "target": "n_sales" },
+  { "source": "n_billing", "target": "n_resp" },
+  { "source": "n_tech",    "target": "n_resp" },
+  { "source": "n_sales",   "target": "n_resp" }
+]</pre>
+
+<h4>Expected run output shape</h4>
+<pre>{
+  "category": "billing",
+  "reply": "Thanks for reaching out — I see your invoice from … "
+}</pre>
+
+<!-- ============================== PART 4 ============================== -->
+<h2 class="part-break" id="part4">Part 4 — Appendix</h2>
+
+<h3 id="a-keys">4.1 Keyboard shortcuts</h3>
+<p>Source: <code>tabs/SettingsTab.jsx</code> (<code>SHORTCUTS</code>). <code>MOD</code> is <code>⌘</code> on macOS, <code>Ctrl</code> elsewhere.</p>
+
+<h4>Canvas</h4>
+<table>
+<thead><tr><th>Keys</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><code>Delete</code> / <code>Backspace</code></td><td>Delete the selected node</td></tr>
+<tr><td><code>MOD + D</code></td><td>Duplicate the selected node</td></tr>
+<tr><td><code>F2</code> / <code>Enter</code></td><td>Rename the selected node</td></tr>
+<tr><td><code>Esc</code></td><td>Deselect / cancel rename</td></tr>
+<tr><td><code>↑ ↓ ← →</code></td><td>Nudge selected node by 10px</td></tr>
+<tr><td><code>Shift + Arrow</code></td><td>Nudge by 50px</td></tr>
+<tr><td>Double-click</td><td>Inline rename the node title</td></tr>
+<tr><td>Right-click</td><td>Open block context menu (Open / Rename / Duplicate / Disconnect / Copy ID / Delete)</td></tr>
+</tbody>
+</table>
+
+<h4>Workspace</h4>
+<table>
+<thead><tr><th>Keys</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><code>MOD + .</code></td><td>Toggle inspector panel</td></tr>
+<tr><td><code>MOD + ,</code></td><td>Open Settings</td></tr>
+<tr><td><code>?</code></td><td>Open Settings (shortcuts cheat-sheet)</td></tr>
+</tbody>
+</table>
+
+<h4>Edges</h4>
+<table>
+<thead><tr><th>Keys</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>Click</td><td>Select an edge</td></tr>
+<tr><td><code>Delete</code></td><td>Delete the selected edge</td></tr>
+<tr><td>Drag handle</td><td>Connect two blocks</td></tr>
+</tbody>
+</table>
+
+<h3 id="a-layout">4.2 File layout of <code>builder-studio/</code></h3>
+<pre>builder-studio/
+├── AgentBuilderPage.jsx          // top-level page: SideNav + Canvas + Inspector + Run Dock
+├── DEMO_WALKTHROUGH.md
+├── builder-studio.css            // all bs-* classes
+├── blocks/
+│   ├── registry.js               // core + extension registry; getBlock(), registerBlock()
+│   ├── types.js                  // SubBlockType enum + JSDoc typedefs
+│   ├── utils.js                  // shared LLM model helpers, provider creds, wand configs
+│   ├── blocks/
+│   │   ├── index.js              // barrel export of every core block
+│   │   └── &lt;name&gt;.js             // one file per BlockConfig
+│   └── ...
+├── canvas/                       // React Flow canvas + node/edge renderers
+├── components/                   // icons, CodeEditor, JsonEditor, FullscreenWrapper, ConfirmModal
+├── docs/
+│   ├── block-docs-registry.js    // registerBlockDocs / hasBlockDocs
+│   ├── block-docs-entries.js     // hand-written docs per block (tips, alerts, field copy)
+│   └── BlockDocViewer.jsx        // inspector overlay
+├── extensions/                   // drop-in user blocks (Vite glob)
+├── mcp/                          // MCP client + zustand store
+├── panel/
+│   ├── Inspector.jsx             // right rail
+│   ├── SubBlockRenderer.jsx      // sub-block type → control
+│   ├── WorkflowInspector.jsx     // workflow-level metadata editor
+│   └── io-registry.js            // connections / template vars / typed IO
+├── run/
+│   ├── BottomToolbar.jsx
+│   ├── RunModal.jsx              // prompt-dock launcher
+│   ├── graph-runner.js           // topological BFS executor
+│   ├── input-registry.js
+│   ├── JsonView.jsx
+│   ├── panel-registry.js         // Output / Debug / Trace / Console
+│   └── panels/
+│       ├── run-panel.jsx         // Output
+│       ├── debug-panel.jsx
+│       ├── trace-panel.jsx
+│       ├── problems-panel.jsx    // Console
+│       └── todo-panel.jsx
+├── sidenav/                      // Teams / Pools / Agents / Skills / Workflows tree
+├── stores/
+│   ├── llm-config-store.js       // Settings → LLM provider config
+│   ├── tabs-store.js
+│   ├── workflow-store.js         // open workflow canvas state (nodes, edges, lastOutputs)
+│   └── workspace-store.js        // persistent teams / pools / agents / skills / workflows
+└── tabs/                         // AgentEditor, SkillEditor, TeamEditor, SettingsTab, McpServersPanel
+</pre>
+
+<h3 id="a-custom">4.3 Writing a custom block</h3>
+<p>Two steps: write a <code>BlockConfig</code>, drop it in
+<code>builder-studio/extensions/</code>. The registry auto-discovers it on
+the next dev-server reload.</p>
+
+<pre>// convengine-ui/src/builder-studio/extensions/slugify.js
+import { VariableIcon } from '../components/icons'
+
+export const SlugifyBlock = {
+  type: 'slugify',                // must be unique; can't shadow core
+  name: 'Slugify',
+  description: 'Normalise a string to a URL slug',
+  category: 'blocks',
+  bgColor: '#64748b',
+  icon: VariableIcon,
+  subBlocks: [
+    {
+      id: 'lowercase',
+      title: 'Lower-case',
+      type: 'switch',
+      defaultValue: true,
+    },
+    {
+      id: 'separator',
+      title: 'Separator',
+      type: 'short-input',
+      defaultValue: '-',
+    },
+  ],
+  tools: { access: [] },
+  inputs:  { input: { type: 'string', description: 'String to slugify' } },
+  outputs: { result: { type: 'string', description: 'Slugified output' } },
+}
+
+export default SlugifyBlock</pre>
+
+<p>For branching behaviour, add <code>outputHandles</code> or
+<code>outputHandlesFromValues(values)</code>. To implement the block's
+runtime, add a case to <code>graph-runner.js</code>'s <code>runNode</code>
+switch (or, for production extensions, wire a small adapter module that
+patches the registry + runner at boot).</p>
+
+<p>To register at runtime (e.g. from a user-supplied URL), call
+<code>registerBlock(block)</code>; listeners subscribed via
+<code>onRegistryChange()</code> re-render the toolbar.</p>
+
+<h3 id="a-trouble">4.4 Troubleshooting</h3>
+
+<table>
+<thead><tr><th>Symptom in the Debug panel</th><th>Likely cause &amp; fix</th></tr></thead>
+<tbody>
+<tr>
+  <td><b>"No content provided to summarize"</b> (or similar LLM refusal)</td>
+  <td>Template variable didn't resolve. Expand the row, inspect <code>meta.userPrompt</code> — if you see literal <code>{{foo}}</code>, the key wasn't in the bag. Upstream must emit a JSON object or a URL, and <code>foo</code> must appear either as a top-level key or as the <code>input</code> alias.</td>
+</tr>
+<tr>
+  <td><b>"MCP block: arguments is not valid JSON — Unexpected token …"</b></td>
+  <td>The arguments JSON is malformed (often caused by raw quotes inside a <code>{{input}}</code> replacement). Wrap the <code>{{input}}</code> in an explicit string context: <code>{"query": "{{input}}"}</code> instead of <code>"{{input}}"</code> alone.</td>
+</tr>
+<tr>
+  <td><b>Node stays "active" forever</b></td>
+  <td>A preceding branch block didn't pick a live edge. Open the Trace panel and check if the upstream's <code>chosenHandle</code> matches any outgoing edge's <code>sourceHandle</code>. If not, add an <code>else</code> / <code>default</code> branch or fix the expression.</td>
+</tr>
+<tr>
+  <td><b>"TypeError: fn is not a function"</b> from a Function block</td>
+  <td>The code body isn't an expression that evaluates to a value. Wrap it with <code>return …</code>. Remember: it's a body, not an arrow function — plain statements + a <code>return</code>.</td>
+</tr>
+<tr>
+  <td><b>Skill output ignored; agent still sees the raw URL</b></td>
+  <td>The field is <code>values.skills</code>, not <code>values.tools</code> (both are accepted, but the Inspector writes to <code>skills</code>). Confirm the node's <code>subBlockValues</code> has a <code>skills</code> JSON array with valid ids.</td>
+</tr>
+<tr>
+  <td><b>Response Format schema ignored</b></td>
+  <td>Both <code>responseFormat</code> must be set AND <code>strictOutput</code> must be on to get provider-enforced JSON. Without strict mode, some models will produce drift; turn it on in the Agent's advanced tab.</td>
+</tr>
+<tr>
+  <td><b>"Invalid JSON data format: …"</b> from PostgreSQL insert</td>
+  <td>The <code>data</code> field is not valid JSON. Open the editor (JSON tree) and fix the offending row.</td>
+</tr>
+<tr>
+  <td><b>CORS errors on the demo's URL extractor skill</b></td>
+  <td><code>fetch()</code> is subject to CORS; most docs sites permit cross-origin GET but some don't. Either proxy the request through the convengine backend or switch to the API block which goes server-side.</td>
+</tr>
+<tr>
+  <td><b>Nothing runs on Run — dock shows no trace</b></td>
+  <td>No starter/user_input exists. The BFS has no seed nodes. Every workflow needs at least one of those two types to produce a ready set.</td>
+</tr>
+<tr>
+  <td><b>"Extension at … tried to overwrite core block"</b> in console</td>
+  <td>An extension's <code>type</code> collides with a core id. Pick a different id; the registry rejects overwrites to prevent accidental shadowing.</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout callout-note">
+<b>Reading material.</b> <code>DEMO_WALKTHROUGH.md</code> reproduces the
+seeded workflow step-by-step. For the authoritative field list on any
+block, look at <code>blocks/blocks/&lt;name&gt;.js</code>; for the
+authoritative field <i>copy</i>, look at
+<code>docs/block-docs-entries.js</code>.
+</div>
+
+<p class="muted center" style="margin-top:24px">
+ConvEngine Agent Builder Studio — generated 2026-04-19 from source at commit HEAD.
+</p>
+
+</body>
+</html>

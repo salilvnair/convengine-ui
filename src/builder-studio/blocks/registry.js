@@ -38,6 +38,19 @@ const registry = {
   json_map: Core.JsonMapBlock,
   text_template: Core.TextTemplateBlock,
   json_path: Core.JsonPathBlock,
+  http_response: Core.HttpResponseBlock,
+  error_handler: Core.ErrorHandlerBlock,
+  merge: Core.MergeBlock,
+  delay: Core.DelayBlock,
+  filter: Core.FilterBlock,
+  sub_workflow: Core.SubWorkflowBlock,
+  crypto: Core.CryptoBlock,
+  sort: Core.SortBlock,
+  aggregate: Core.AggregateBlock,
+  redis: Core.RedisBlock,
+  mongodb: Core.MongoDbBlock,
+  slack: Core.SlackBlock,
+  ai_classifier: Core.AiClassifierBlock,
 }
 
 /**

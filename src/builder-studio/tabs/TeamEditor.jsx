@@ -13,6 +13,7 @@
 import { useMemo, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useTabsStore, agentTabId } from '../stores/tabs-store'
+import ConfirmModal from '../components/ConfirmModal'
 import {
   TeamsIcon,
   AgentsIcon,
@@ -53,6 +54,7 @@ export default function TeamEditor({ teamId }) {
   )
 
   const [newPoolName, setNewPoolName] = useState('')
+  const [pendingDeletePool, setPendingDeletePool] = useState(null) // { id, name }
   const totalAgents = useMemo(
     () => agents.filter((a) => pools.some((p) => p.id === a.poolId)).length,
     [agents, pools]
@@ -137,7 +139,7 @@ export default function TeamEditor({ teamId }) {
                     </button>
                     <button
                       className="bs-btn-ghost bs-danger"
-                      onClick={() => deleteAgentPool(p.id)}
+                      onClick={() => setPendingDeletePool({ id: p.id, name: p.name })}
                       title="Delete pool"
                     >
                       <TrashIcon className="bs-ico-xs" />
@@ -214,6 +216,16 @@ export default function TeamEditor({ teamId }) {
           </ul>
         )}
       </section>
+
+      {pendingDeletePool && (
+        <ConfirmModal
+          title="Delete agent pool?"
+          message={`"${pendingDeletePool.name}" will be removed. Agents inside the pool remain, but become orphaned until reassigned.`}
+          confirmLabel="Delete pool"
+          onCancel={() => setPendingDeletePool(null)}
+          onConfirm={() => { deleteAgentPool(pendingDeletePool.id); setPendingDeletePool(null) }}
+        />
+      )}
     </div>
   )
 }

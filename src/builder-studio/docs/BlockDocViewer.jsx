@@ -151,33 +151,113 @@ function FieldCard({ field }) {
 }
 
 /**
- * Render description with basic markdown-like formatting:
- * **bold**, `code`, and \n\n for paragraphs, • for bullets
+ * Render a description string with light-markdown formatting.
+ *
+ * Supported tokens (all within the same string — no nested parsing):
+ *   **bold**               → <strong> in the display font
+ *   `code`                 → inline code chip (indigo)
+ *   <agent.field>          → template-ref chip (dark blue)  — matches <\w+\.\w+...>
+ *   {role, content}        → shape chip (dark maroon)        — matches {non-empty-non-newline}
+ *   newlines               → <br>
+ *
+ * Additionally: when the description contains a run of lines that each start
+ * with "• **Name** — description", those lines are lifted out into a real
+ * table with a colored bullet, a bold name (display font), and the rest as
+ * the regular description (body font). Remaining non-bullet text above/below
+ * the run is rendered inline as usual. This is what the user asked for for
+ * fields like the agent's `memoryType` enum list.
  */
 function renderDescription(text) {
   if (!text) return null
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|• )/)
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>
+  // Normalize so each "• **X** — Y" bullet sits on its own line. Some doc
+  // entries keep them on the same paragraph without a \n separator.
+  const lines = text.split(/\n+/).flatMap((block) =>
+    block.includes('• ') ? block.split(/(?=• \*\*)/) : [block]
+  ).map((l) => l.trim()).filter(Boolean)
+
+  const ENUM_RE = /^•\s*\*\*([^*]+)\*\*\s*[—-]\s*(.*)$/
+  const out = []
+  let buf = []
+  let enumRows = []
+  const flushText = () => {
+    if (buf.length === 0) return
+    out.push(<p key={`p-${out.length}`} className="bsdoc-field-para">{renderInline(buf.join('\n'))}</p>)
+    buf = []
+  }
+  const flushEnum = () => {
+    if (enumRows.length === 0) return
+    out.push(
+      <table key={`tbl-${out.length}`} className="bsdoc-enum-table">
+        <tbody>
+          {enumRows.map((row, i) => (
+            <tr key={i}>
+              <td className="bsdoc-enum-bullet-cell"><span className="bsdoc-enum-bullet" /></td>
+              <td className="bsdoc-enum-name-cell"><span className="bsdoc-enum-name">{row.name}</span></td>
+              <td className="bsdoc-enum-desc-cell"><span className="bsdoc-enum-desc">{renderInline(row.desc)}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+    enumRows = []
+  }
+
+  for (const line of lines) {
+    const m = line.match(ENUM_RE)
+    if (m) {
+      flushText()
+      enumRows.push({ name: m[1].trim(), desc: m[2].trim() })
+    } else {
+      flushEnum()
+      buf.push(line)
     }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return <code key={i} className="bsdoc-inline-code">{part.slice(1, -1)}</code>
+  }
+  flushEnum()
+  flushText()
+  return out
+}
+
+/**
+ * Inline formatter for a single chunk of text (no bullet handling, no
+ * paragraph splitting). Recognises bold / backtick-code / <refs> / {shapes}
+ * and keeps everything else as plain text with <br> on newlines.
+ */
+function renderInline(text) {
+  if (!text) return null
+  // Single regex with alternation so we preserve order.
+  const RE = /(\*\*[^*]+\*\*|`[^`]+`|<[A-Za-z_][\w.]*(?:\.[\w.]+)?>|\{[^{}\n]{1,80}\})/g
+  const pieces = []
+  let last = 0
+  let m
+  let i = 0
+  while ((m = RE.exec(text)) !== null) {
+    if (m.index > last) pieces.push(renderPlain(text.slice(last, m.index), `t-${i++}`))
+    const tok = m[0]
+    if (tok.startsWith('**')) {
+      pieces.push(<strong key={`b-${i++}`} className="bsdoc-strong">{tok.slice(2, -2)}</strong>)
+    } else if (tok.startsWith('`')) {
+      pieces.push(<code key={`c-${i++}`} className="bsdoc-inline-code">{tok.slice(1, -1)}</code>)
+    } else if (tok.startsWith('<')) {
+      pieces.push(<code key={`r-${i++}`} className="bsdoc-inline-ref">{tok}</code>)
+    } else if (tok.startsWith('{')) {
+      pieces.push(<code key={`s-${i++}`} className="bsdoc-inline-shape">{tok}</code>)
     }
-    if (part === '• ') {
-      return <span key={i} className="bsdoc-bullet">•</span>
-    }
-    // Handle newlines
-    if (part.includes('\n')) {
-      return part.split('\n').map((line, j) => (
-        <span key={`${i}-${j}`}>
-          {j > 0 && <br />}
-          {line}
-        </span>
-      ))
-    }
-    return part
-  })
+    last = m.index + tok.length
+  }
+  if (last < text.length) pieces.push(renderPlain(text.slice(last), `t-${i++}`))
+  return pieces
+}
+
+function renderPlain(s, key) {
+  if (!s.includes('\n')) return <span key={key}>{s}</span>
+  const parts = s.split('\n')
+  return (
+    <span key={key}>
+      {parts.map((p, j) => (
+        <span key={j}>{j > 0 && <br />}{p}</span>
+      ))}
+    </span>
+  )
 }
 
 /* ── SVG Icons ──────────────────────────────────────────────────────── */

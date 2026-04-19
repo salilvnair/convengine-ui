@@ -6,7 +6,7 @@
  * AgentBuilderPage.jsx only needs a corresponding row here.
  */
 import { useState, useMemo, useCallback } from 'react'
-import { SettingsIcon, KeyboardIcon } from '../components/icons'
+import { SettingsIcon, KeyboardIcon, McpIcon } from '../components/icons'
 import McpServersPanel from './McpServersPanel'
 import { useLlmConfigStore } from '../stores/llm-config-store'
 
@@ -44,95 +44,145 @@ const SHORTCUTS = [
   },
 ]
 
+/* ── Sidebar tab definitions ─────────────────────────────────────────── */
+const TipsIcon = (p) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="16" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+)
+
+const LlmIcon = (p) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <rect x="4" y="6" width="16" height="12" rx="3" />
+    <circle cx="9" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="15" cy="12" r="1.2" fill="currentColor" />
+    <path d="M12 3v3" />
+  </svg>
+)
+
+const SETTINGS_TABS = [
+  { id: 'shortcuts', label: 'Keyboard Shortcuts', Icon: KeyboardIcon },
+  { id: 'mcp', label: 'MCP Servers', Icon: McpIcon },
+  { id: 'tips', label: 'Tips & Tricks', Icon: TipsIcon },
+  { id: 'llm', label: 'LLM Provider Configuration', Icon: LlmIcon },
+]
+
 export default function SettingsTab() {
+  const [activeSection, setActiveSection] = useState('shortcuts')
+
   return (
-    <div className="bs-editor">
-      <header className="bs-editor-head">
-        <SettingsIcon className="bs-editor-ico" />
-        <div className="bs-editor-heading">
-          <div className="bs-editor-title">Settings</div>
-          <div className="bs-editor-sub">Preferences & keyboard shortcuts</div>
+    <div className="bs-settings-layout">
+      {/* Left sidebar */}
+      <nav className="bs-settings-sidebar">
+        <div className="bs-settings-sidebar-head">
+          <SettingsIcon className="bs-ico-sm" />
+          <span>Settings</span>
         </div>
-      </header>
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            className={`bs-settings-sidebar-item ${activeSection === tab.id ? 'is-active' : ''}`}
+            onClick={() => setActiveSection(tab.id)}
+          >
+            <tab.Icon className="bs-ico-sm" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
 
-      <section className="bs-editor-section">
-        <div className="bs-settings-section-head">
-          <KeyboardIcon className="bs-ico-sm" />
-          <h3 className="bs-settings-h3">Keyboard shortcuts</h3>
-        </div>
-        <div className="bs-settings-shortcuts">
-          {SHORTCUTS.map((g) => (
-            <div key={g.group} className="bs-settings-group">
-              <div className="bs-settings-group-title">{g.group}</div>
-              <table className="bs-kbd-table">
-                <tbody>
-                  {g.items.map((it, i) => (
-                    <tr key={i}>
-                      <td className="bs-kbd-cell">
-                        <KeyCombo keys={it.keys} />
-                        {it.or && (
-                          <>
-                            <span className="bs-kbd-or">or</span>
-                            <KeyCombo keys={it.or} />
-                          </>
-                        )}
-                      </td>
-                      <td className="bs-kbd-desc">{it.desc}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Right content area */}
+      <div className="bs-settings-content">
+        {activeSection === 'shortcuts' && <KeyboardShortcutsSection />}
+        {activeSection === 'mcp' && <McpServersPanel />}
+        {activeSection === 'tips' && <TipsAndTricksSection />}
+        {activeSection === 'llm' && <LlmConfigPanel />}
+      </div>
+    </div>
+  )
+}
 
-      <section className="bs-editor-section">
-        <McpServersPanel />
-      </section>
+/* ── Keyboard Shortcuts Section ──────────────────────────────────────── */
+function KeyboardShortcutsSection() {
+  return (
+    <div className="bs-settings-pane">
+      <div className="bs-settings-section-head">
+        <KeyboardIcon className="bs-ico-sm" />
+        <h3 className="bs-settings-h3">Keyboard shortcuts</h3>
+      </div>
+      <div className="bs-settings-shortcuts">
+        {SHORTCUTS.map((g) => (
+          <div key={g.group} className="bs-settings-group">
+            <div className="bs-settings-group-title">{g.group}</div>
+            <table className="bs-kbd-table">
+              <tbody>
+                {g.items.map((it, i) => (
+                  <tr key={i}>
+                    <td className="bs-kbd-cell">
+                      <KeyCombo keys={it.keys} />
+                      {it.or && (
+                        <>
+                          <span className="bs-kbd-or">or</span>
+                          <KeyCombo keys={it.or} />
+                        </>
+                      )}
+                    </td>
+                    <td className="bs-kbd-desc">{it.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-      <section className="bs-editor-section">
+/* ── Tips & Tricks Section ───────────────────────────────────────────── */
+function TipsAndTricksSection() {
+  return (
+    <div className="bs-settings-pane">
+      <div className="bs-settings-section-head">
+        <TipsIcon className="bs-ico-sm" />
         <h3 className="bs-settings-h3">Tips & tricks</h3>
-        <ul className="bs-tips">
-          <li className="bs-tip">
-            <span className="bs-tip-badge bs-tip-badge-input">Input</span>
-            <span className="bs-tip-text">
-              Drop a <b>User Input</b> block into the canvas and the Run dialog collects its value at runtime.
-            </span>
-          </li>
-          <li className="bs-tip">
-            <span className="bs-tip-badge bs-tip-badge-json">JSON</span>
-            <span className="bs-tip-text">
-              Toggle <b>Strict JSON output</b> on an agent to use structured-output mode
-              (OpenAI <code>json_schema</code>).
-            </span>
-          </li>
-          <li className="bs-tip">
-            <span className="bs-tip-badge bs-tip-badge-menu">Menu</span>
-            <span className="bs-tip-text">
-              Right-click a block for <i>Open / Rename / Duplicate / Disconnect / Copy ID / Delete</i>.
-            </span>
-          </li>
-          <li className="bs-tip">
-            <span className="bs-tip-badge bs-tip-badge-ux">UX</span>
-            <span className="bs-tip-text">
-              Inline-edit <i>toggles</i> and <i>dropdowns</i> directly on the node card —
-              no need to open the inspector.
-            </span>
-          </li>
-          <li className="bs-tip">
-            <span className="bs-tip-badge bs-tip-badge-mcp">MCP</span>
-            <span className="bs-tip-text">
-              Add an MCP server above, drop an <b>MCP Tool</b> block, and use <code>&#123;&#123;input&#125;&#125;</code>
-              inside the arguments JSON to pipe upstream output into a tool call.
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <section className="bs-editor-section">
-        <LlmConfigPanel />
-      </section>
+      </div>
+      <ul className="bs-tips">
+        <li className="bs-tip">
+          <span className="bs-tip-badge bs-tip-badge-input">Input</span>
+          <span className="bs-tip-text">
+            Drop a <b>User Input</b> block into the canvas and the Run dialog collects its value at runtime.
+          </span>
+        </li>
+        <li className="bs-tip">
+          <span className="bs-tip-badge bs-tip-badge-json">JSON</span>
+          <span className="bs-tip-text">
+            Toggle <b>Strict JSON output</b> on an agent to use structured-output mode
+            (OpenAI <code>json_schema</code>).
+          </span>
+        </li>
+        <li className="bs-tip">
+          <span className="bs-tip-badge bs-tip-badge-menu">Menu</span>
+          <span className="bs-tip-text">
+            Right-click a block for <i>Open / Rename / Duplicate / Disconnect / Copy ID / Delete</i>.
+          </span>
+        </li>
+        <li className="bs-tip">
+          <span className="bs-tip-badge bs-tip-badge-ux">UX</span>
+          <span className="bs-tip-text">
+            Inline-edit <i>toggles</i> and <i>dropdowns</i> directly on the node card —
+            no need to open the inspector.
+          </span>
+        </li>
+        <li className="bs-tip">
+          <span className="bs-tip-badge bs-tip-badge-mcp">MCP</span>
+          <span className="bs-tip-text">
+            Add an MCP server above, drop an <b>MCP Tool</b> block, and use <code>&#123;&#123;input&#125;&#125;</code>
+            inside the arguments JSON to pipe upstream output into a tool call.
+          </span>
+        </li>
+      </ul>
     </div>
   )
 }
