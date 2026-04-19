@@ -327,7 +327,14 @@ function CanvasInner() {
       >
         <Background gap={18} size={1.2} color="var(--ce-border)" />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable maskColor="rgba(0,0,0,0.35)" />
+        <MiniMap
+          pannable
+          zoomable
+          maskColor="rgba(0,0,0,0.35)"
+          style={{ background: 'var(--bg-primary, #0b1020)' }}
+          nodeColor="var(--ce-border, #1f2937)"
+          nodeStrokeColor="var(--ce-border, #1f2937)"
+        />
       </ReactFlow>
 
       {pendingDelete && (

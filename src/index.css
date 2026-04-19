@@ -2020,6 +2020,44 @@ body {
   outline: none;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255,255,255,0.08);
 }
+/* ── ABM modal light mode ── */
+[data-theme="light"] .abm-modal {
+  background: #fff;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.12), 0 0 1px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .abm-icon {
+  background: rgba(79,70,229,0.08);
+  color: #4f46e5;
+}
+[data-theme="light"] .abm-title { color: #1e293b; }
+[data-theme="light"] .abm-sub { color: #64748b; }
+[data-theme="light"] .abm-label { color: #64748b; }
+[data-theme="light"] .abm-card {
+  border-color: rgba(0,0,0,0.10);
+  background: #f8fafc;
+  color: #64748b;
+}
+[data-theme="light"] .abm-card:hover {
+  background: #f1f5f9;
+  border-color: rgba(0,0,0,0.18);
+  color: #1e293b;
+}
+[data-theme="light"] .abm-card.is-active {
+  background: rgba(79,70,229,0.06);
+  border-color: rgba(79,70,229,0.5);
+  color: #4f46e5;
+  box-shadow: 0 0 0 1px rgba(79,70,229,0.12);
+}
+[data-theme="light"] .abm-card.is-active .abm-card-desc { color: rgba(79,70,229,0.65); }
+[data-theme="light"] .abm-card-desc { color: #94a3b8; }
+[data-theme="light"] .abm-footer { border-top-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .abm-btn {
+  border-color: rgba(0,0,0,0.12);
+  background: #f8fafc;
+  color: #374151;
+}
+[data-theme="light"] .abm-btn:hover { background: #f1f5f9; border-color: rgba(0,0,0,0.18); }
 
 .db-schema-page {
   height: 100%;
