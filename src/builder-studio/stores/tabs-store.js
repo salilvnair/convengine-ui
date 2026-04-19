@@ -52,9 +52,9 @@ export const useTabsStore = create((set, get) => ({
   },
 
   closeTab(id) {
-    const { pinnedWorkflowTabId } = get()
-    if (id === pinnedWorkflowTabId) return // pinned — cannot close
     set((s) => {
+      // Don't close if it's the last remaining tab
+      if (s.tabs.length <= 1) return s
       const idx = s.tabs.findIndex((t) => t.id === id)
       if (idx < 0) return s
       const tabs = s.tabs.filter((t) => t.id !== id)
@@ -63,7 +63,13 @@ export const useTabsStore = create((set, get) => ({
         const fallback = tabs[Math.min(idx, tabs.length - 1)] || tabs[0]
         activeId = fallback?.id || null
       }
-      return { tabs, activeId }
+      // If pinned tab was closed, re-pin the first remaining workflow tab
+      let pinnedWorkflowTabId = s.pinnedWorkflowTabId
+      if (id === pinnedWorkflowTabId) {
+        const nextWf = tabs.find((t) => t.kind === 'workflow')
+        pinnedWorkflowTabId = nextWf?.id || null
+      }
+      return { tabs, activeId, pinnedWorkflowTabId }
     })
   },
 

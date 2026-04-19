@@ -283,20 +283,6 @@ export default function AgentBuilderPage() {
           </button>
           <span className="bs-topbar-divider" />
           <button
-            className="bs-btn-ghost bs-topbar-toggle"
-            onClick={() => openWiki()}
-            title="Wiki \u2014 Agent Builder Studio Guide"
-          >
-            <BookIcon className="bs-ico-sm" />
-          </button>
-          <button
-            className="bs-btn-ghost bs-topbar-toggle"
-            onClick={() => openSettings()}
-            title="Settings & shortcuts (\u2318,)"
-          >
-            <SettingsIcon className="bs-ico-sm" />
-          </button>
-          <button
             className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
             title={rOpen ? 'Hide inspector (\u2318.)' : 'Show inspector (\u2318.)'}

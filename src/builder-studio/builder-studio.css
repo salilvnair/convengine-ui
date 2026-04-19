@@ -310,6 +310,9 @@
 .bs-main:not(.is-dragging) .bs-right {
   transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease;
 }
+.bs-main:not(.is-dragging) .bs-splitter-right {
+  transition: opacity 140ms ease;
+}
 .bs-right {
   min-width: 0;
   height: 100%;
@@ -320,10 +323,6 @@
   opacity: 1;
   will-change: width, opacity;
 }
-/* Keep inner content at full width so it clips from the left (slide-out-right effect) */
-.bs-right > * {
-  min-width: var(--bs-right-w, 340px);
-}
 .bs-right.is-closed { width: 0; opacity: 0; pointer-events: none; border-left: 0; }
 .bs-splitter-right {
   grid-column: 3 / 4;
@@ -333,8 +332,16 @@
   cursor: col-resize;
   background: transparent;
 }
+.bs-splitter-right .bs-splitter-grip {
+  opacity: 0;
+  transition: background 140ms ease, height 140ms ease, opacity 140ms ease;
+}
 .bs-splitter-right:hover .bs-splitter-grip,
-.bs-main.is-dragging .bs-splitter-right .bs-splitter-grip { opacity: 1; }
+.bs-main.is-dragging .bs-splitter-right .bs-splitter-grip {
+  opacity: 1;
+  background: #6366f1;
+  height: 80px;
+}
 .bs-splitter-tip-right { right: 12px; left: auto !important; }
 .bs-topbar-toggle { display: inline-flex; align-items: center; padding: 6px 8px; border-radius: 6px; }
 .bs-topbar-toggle.is-on { color: #e2e8f0; background: rgba(255,255,255,0.06); }
@@ -381,9 +388,10 @@
   gap: 6px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 8px 8px 0 0;
-  border: 1px solid transparent;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid var(--ce-border, #1f2937);
   border-bottom: none;
+  border-top: 2.5px solid var(--ce-border, #1f2937);
   background: transparent;
   color: var(--text-secondary, #94a3b8);
   font-size: 12.5px;
@@ -406,6 +414,7 @@
   color: var(--text-primary, #e5e7eb);
   background: var(--bg-primary, #0b1020);
   border-color: var(--ce-border, #1f2937);
+  border-top: 2.5px solid #6366f1;
 }
 .bs-tab.is-pinned { font-weight: 600; }
 .bs-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -906,7 +915,7 @@
 }
 
 .bs-rail {
-  width: 52px;
+  width: 60px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -915,6 +924,7 @@
   gap: 2px;
   border-right: 1px solid var(--ce-border, #1f2937);
   background: var(--bg-primary, #0b1020);
+  transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .bs-rail-spacer { flex: 1 1 auto; }
 .bs-rail-btn {
@@ -971,6 +981,8 @@
   will-change: width, opacity;
 }
 .bs-sidenav.is-closed .bs-pane { opacity: 0; pointer-events: none; }
+.bs-sidenav.is-closed .bs-rail { width: 40px; }
+.bs-sidenav.is-closed .bs-rail-label { display: none; }
 
 /* Splitter — Claude Code style */
 .bs-splitter {
@@ -2505,6 +2517,7 @@ button.bs-palette-group-toggle:hover {
 .bs-ctxmenu-item.is-danger { color: var(--bs-alert-error-text); }
 .bs-ctxmenu-item.is-danger:hover { background: rgba(239,68,68,0.14); color: #fecaca; }
 .bs-ctxmenu-item:disabled { opacity: 0.4; cursor: not-allowed; }
+.bs-ctxmenu-item-header { opacity: 0.6; cursor: default; pointer-events: none; }
 .bs-ctxmenu-item-parent { cursor: default; }
 .bs-ctxmenu-label { flex: 1 1 auto; }
 .bs-ctxmenu-arrow { margin-left: auto; opacity: 0.5; flex-shrink: 0; }

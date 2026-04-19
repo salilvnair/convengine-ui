@@ -163,11 +163,14 @@ function CanvasInner() {
         children: buildCategoryChildren(items, cat),
       })
     }
-    return [
-      { id: 'add-block-header', label: 'Add Block', icon: AddBlockIcon, disabled: true },
-      { separator: true },
-      ...children,
-    ]
+    return {
+      searchable: true,
+      items: [
+        { id: 'add-block-header', label: 'Add Block', icon: AddBlockIcon, isHeader: true },
+        { separator: true },
+        ...children,
+      ],
+    }
   }, [addNode, screenToFlowPosition, existingTypes])
 
   // Capture-phase contextmenu listener on document.
@@ -360,14 +363,18 @@ function CanvasInner() {
         />
       )}
 
-      {paneMenu && (
-        <ContextMenu
-          x={paneMenu.x}
-          y={paneMenu.y}
-          onClose={() => setPaneMenu(null)}
-          items={buildBlockMenuItems(paneMenu.x, paneMenu.y)}
-        />
-      )}
+      {paneMenu && (() => {
+        const menu = buildBlockMenuItems(paneMenu.x, paneMenu.y)
+        return (
+          <ContextMenu
+            x={paneMenu.x}
+            y={paneMenu.y}
+            onClose={() => setPaneMenu(null)}
+            items={menu.items}
+            searchable={menu.searchable}
+          />
+        )
+      })()}
     </div>
   )
 }

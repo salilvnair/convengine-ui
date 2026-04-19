@@ -29,7 +29,9 @@ import {
   ChevronRightIcon,
   FolderIcon,
   LinkIcon,
+  SettingsIcon,
 } from '../components/icons'
+import { BookIcon } from '../tabs/WikiGuide'
 
 const TABS = [
   { id: 'workflows', label: 'Workflows', Icon: WorkflowsIcon },
@@ -52,6 +54,8 @@ export default function SideNav() {
   const dragRef = useRef({ active: false, startX: 0, startW: DEFAULT_W, moved: false })
 
   const panel = useMemo(() => TABS.find((t) => t.id === activeTab), [activeTab])
+  const openWiki = useTabsStore((s) => s.openWiki)
+  const openSettings = useTabsStore((s) => s.openSettings)
 
   function onRailClick(id) {
     if (!open) { setOpen(true); setActiveTab(id); return }
@@ -120,6 +124,23 @@ export default function SideNav() {
           </button>
         ))}
         <div className="bs-rail-spacer" />
+        <button
+          className="bs-rail-btn"
+          onClick={() => openWiki()}
+          title="Wiki — Agent Builder Studio Guide"
+        >
+          <BookIcon className="bs-rail-ico" />
+          <span className="bs-rail-label">Wiki</span>
+        </button>
+        <button
+          className="bs-rail-btn"
+          onClick={() => openSettings()}
+          title="Settings & shortcuts (⌘,)"
+        >
+          <SettingsIcon className="bs-rail-ico" />
+          <span className="bs-rail-label">Settings</span>
+        </button>
+        <div style={{ height: 8 }} />
         <button
           className="bs-rail-btn"
           onClick={() => setOpen((o) => !o)}

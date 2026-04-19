@@ -82,12 +82,12 @@ export default function CenterPane() {
               aria-selected={isActive}
               className={`bs-tab ${isActive ? 'is-active' : ''} ${pinned ? 'is-pinned' : ''}`}
               onClick={() => setActive(t.id)}
-              onAuxClick={(e) => { if (e.button === 1 && !pinned) closeTab(t.id) }}
+              onAuxClick={(e) => { if (e.button === 1 && tabs.length > 1) closeTab(t.id) }}
               onContextMenu={(e) => handleTabContextMenu(e, t)}
             >
               <Icon className="bs-ico-xs" />
               <span className="bs-tab-label">{t.title}</span>
-              {!pinned && (
+              {tabs.length > 1 && (
                 <span
                   className="bs-tab-close"
                   role="button"

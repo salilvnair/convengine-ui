@@ -163,8 +163,10 @@ function SubMenuItem({ item, onClose, onAction }) {
   )
 }
 
-export default function ContextMenu({ x, y, items, onClose }) {
+export default function ContextMenu({ x, y, items, onClose, searchable }) {
   const ref = useRef(null)
+  const searchRef = useRef(null)
+  const [query, setQuery] = useState('')
   // Measure after first paint so we can clamp using the real size rather
   // than a guessed height (items may wrap).
   const [pos, setPos] = useState(() => clamp(x, y, 200, items.length * 32 + 8))
@@ -175,13 +177,23 @@ export default function ContextMenu({ x, y, items, onClose }) {
     setPos(clamp(x, y, rect.width, rect.height))
   }, [x, y])
 
+  // Auto-focus search input
+  useEffect(() => {
+    if (searchable) setTimeout(() => searchRef.current?.focus(), 60)
+  }, [searchable])
+
   useEffect(() => {
     function onDocClick(e) {
       // Don't close when clicking inside any submenu portal
       if (e.target.closest?.('.bs-ctxmenu')) return
       onClose()
     }
-    function onKey(e) { if (e.key === 'Escape') onClose() }
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        if (query) { setQuery(''); e.stopPropagation(); return }
+        onClose()
+      }
+    }
     function onScroll() { onClose() }
     function onGlobalClose() { onClose() }
     // Close on any click or right-click outside the menu
@@ -199,7 +211,15 @@ export default function ContextMenu({ x, y, items, onClose }) {
       window.removeEventListener('bs:close-context-menus', onGlobalClose)
       window.removeEventListener('scroll', onScroll, true)
     }
-  }, [onClose])
+  }, [onClose, query])
+
+  const q = query.trim().toLowerCase()
+  const isSearching = searchable && q.length > 0
+
+  // When searching, flatten all leaves and filter
+  const displayItems = isSearching
+    ? collectLeaves(items).filter((it) => it.label.toLowerCase().includes(q))
+    : items
 
   const menu = (
     <div
@@ -209,25 +229,59 @@ export default function ContextMenu({ x, y, items, onClose }) {
       onContextMenu={(e) => e.preventDefault()}
       role="menu"
     >
-      {items.map((it, i) =>
-        it.separator ? (
-          <div key={`sep-${i}`} className="bs-ctxmenu-sep" />
-        ) : it.children ? (
-          <SubMenuItem key={it.id || i} item={it} onClose={onClose} onAction={onClose} />
-        ) : (
-          <button
-            key={it.id || i}
-            role="menuitem"
-            className={`bs-ctxmenu-item ${it.danger ? 'is-danger' : ''}`}
-            onClick={() => { it.onSelect?.(); onClose() }}
-            disabled={it.disabled}
-          >
-            {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
-            <span className="bs-ctxmenu-label">{it.label}</span>
-            {it.shortcut && <span className="bs-ctxmenu-kbd">{it.shortcut}</span>}
-          </button>
-        )
+      {/* Header items (non-searchable, always visible) */}
+      {!isSearching && items.filter((it) => it.isHeader).map((it) => (
+        <button
+          key={it.id}
+          role="menuitem"
+          className="bs-ctxmenu-item bs-ctxmenu-item-header"
+        >
+          {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+          <span className="bs-ctxmenu-label">{it.label}</span>
+        </button>
+      ))}
+      {/* Search input */}
+      {searchable && (
+        <>
+          <div className="bs-ctxmenu-search">
+            <SearchIcon />
+            <input
+              ref={searchRef}
+              type="text"
+              className="bs-ctxmenu-search-input"
+              placeholder="Search blocks…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery('') } }}
+            />
+          </div>
+        </>
       )}
+      <div className="bs-ctxmenu-scroll">
+        {isSearching && displayItems.length === 0 ? (
+          <div className="bs-ctxmenu-empty">No matches</div>
+        ) : (
+          (isSearching ? displayItems : displayItems.filter((it) => !it.isHeader && !it.separator)).map((it, i) =>
+            it.separator ? (
+              <div key={`sep-${i}`} className="bs-ctxmenu-sep" />
+            ) : it.children ? (
+              <SubMenuItem key={it.id || i} item={it} onClose={onClose} onAction={onClose} />
+            ) : (
+              <button
+                key={it.id || i}
+                role="menuitem"
+                className={`bs-ctxmenu-item ${it.danger ? 'is-danger' : ''}`}
+                onClick={() => { it.onSelect?.(); onClose() }}
+                disabled={it.disabled}
+              >
+                {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+                <span className="bs-ctxmenu-label">{it.label}</span>
+                {it.shortcut && <span className="bs-ctxmenu-kbd">{it.shortcut}</span>}
+              </button>
+            )
+          )
+        )}
+      </div>
     </div>
   )
 
