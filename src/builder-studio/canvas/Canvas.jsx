@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, updateEdge } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
 import WorkflowNode from './WorkflowNode'
 import ConfirmModal from '../components/ConfirmModal'
@@ -48,6 +49,11 @@ function CanvasInner() {
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
   const activeEdgeIds = useWorkflowStore((s) => s.activeEdgeIds)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
+  const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
+  const activeWorkflow = useWorkspaceStore((s) => {
+    const wf = s.workflows?.find((w) => w.id === s.activeWorkflowId)
+    return wf || null
+  })
   const nodesById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes])
   const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
   const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
@@ -115,6 +121,45 @@ function CanvasInner() {
     )
   }
 
+  /* Action icons for context menu */
+  function ActionsIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    )
+  }
+  function RunIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3" />
+      </svg>
+    )
+  }
+  function SaveIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+      </svg>
+    )
+  }
+  function ExportIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    )
+  }
+  function DeployIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+      </svg>
+    )
+  }
+
   const existingTypes = useMemo(() => new Set(nodes.map((n) => n.data?.blockType)), [nodes])
 
   const buildBlockMenuItems = useCallback((clientX, clientY) => {
@@ -169,9 +214,45 @@ function CanvasInner() {
         { id: 'add-block-header', label: 'Add Block', icon: AddBlockIcon, isHeader: true },
         { separator: true },
         ...children,
+        { separator: true },
+        { id: 'actions-header', label: 'Actions', icon: ActionsIcon, isHeader: true },
+        { separator: true },
+        {
+          id: 'action-run', label: 'Run', icon: RunIcon,
+          onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'run' })),
+        },
+        {
+          id: 'action-save', label: 'Save', icon: SaveIcon,
+          onSelect: () => {
+            if (!activeWorkflow) return
+            const ws = useWorkspaceStore.getState()
+            ws.saveWorkflow(activeWorkflow.id, { nodes, edges, subBlockValues })
+            ws.syncToServer()
+          },
+        },
+        {
+          id: 'action-export', label: 'Export JSON', icon: ExportIcon,
+          onSelect: () => {
+            if (!activeWorkflow) return
+            const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+            const blob = new Blob([json], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = (activeWorkflow.name || activeWorkflow.id || 'workflow').replace(/\s+/g, '_') + '.json'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+          },
+        },
+        {
+          id: 'action-deploy', label: 'Deploy', icon: DeployIcon,
+          onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'deploy' })),
+        },
       ],
     }
-  }, [addNode, screenToFlowPosition, existingTypes])
+  }, [addNode, screenToFlowPosition, existingTypes, activeWorkflow, nodes, edges, subBlockValues])
 
   // Capture-phase contextmenu listener on document.
   // ReactFlow + selectionOnDrag swallows contextmenu in its Pane component

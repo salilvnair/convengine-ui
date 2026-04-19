@@ -229,17 +229,20 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
       onContextMenu={(e) => e.preventDefault()}
       role="menu"
     >
-      {/* Header items (non-searchable, always visible) */}
-      {!isSearching && items.filter((it) => it.isHeader).map((it) => (
-        <button
-          key={it.id}
-          role="menuitem"
-          className="bs-ctxmenu-item bs-ctxmenu-item-header"
-        >
-          {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
-          <span className="bs-ctxmenu-label">{it.label}</span>
-        </button>
-      ))}
+      {/* Primary header (first isHeader item — rendered above search) */}
+      {!isSearching && (() => {
+        const primary = items.find((it) => it.isHeader)
+        return primary ? (
+          <button
+            key={primary.id}
+            role="menuitem"
+            className="bs-ctxmenu-item bs-ctxmenu-item-header"
+          >
+            {primary.icon ? <primary.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+            <span className="bs-ctxmenu-label">{primary.label}</span>
+          </button>
+        ) : null
+      })()}
       {/* Search input */}
       {searchable && (
         <>
@@ -261,8 +264,27 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
         {isSearching && displayItems.length === 0 ? (
           <div className="bs-ctxmenu-empty">No matches</div>
         ) : (
-          (isSearching ? displayItems : displayItems.filter((it) => !it.isHeader && !it.separator)).map((it, i) =>
-            it.separator ? (
+          (isSearching ? displayItems : (() => {
+            // Skip the first header + its trailing separator (rendered above search)
+            const firstHeaderIdx = displayItems.findIndex((it) => it.isHeader)
+            let skipIds = new Set()
+            if (firstHeaderIdx >= 0) {
+              skipIds.add(firstHeaderIdx)
+              // Also skip separator immediately after first header
+              if (displayItems[firstHeaderIdx + 1]?.separator) skipIds.add(firstHeaderIdx + 1)
+            }
+            return displayItems.filter((_, idx) => !skipIds.has(idx))
+          })()).map((it, i) =>
+            it.isHeader ? (
+              <button
+                key={it.id}
+                role="menuitem"
+                className="bs-ctxmenu-item bs-ctxmenu-item-header"
+              >
+                {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+                <span className="bs-ctxmenu-label">{it.label}</span>
+              </button>
+            ) : it.separator ? (
               <div key={`sep-${i}`} className="bs-ctxmenu-sep" />
             ) : it.children ? (
               <SubMenuItem key={it.id || i} item={it} onClose={onClose} onAction={onClose} />

@@ -92,6 +92,24 @@ export default function AgentBuilderPage() {
     if (wf) loadWorkflow({ nodes: wf.nodes, edges: wf.edges, subBlockValues: wf.subBlockValues })
   }, [activeWorkflowId, workflows, loadWorkflow])
 
+  // Listen for context-menu action dispatches from Canvas
+  useEffect(() => {
+    const handler = (e) => {
+      const action = e.detail
+      if (action === 'run') {
+        setDockTab('run')
+        setRunOpen(true)
+        showToast('Running workflow\u2026', 'run')
+      } else if (action === 'deploy') {
+        // Trigger the same deploy flow as the topbar button
+        const btn = document.querySelector('.bs-topbar-icon-deploy')
+        if (btn) btn.click()
+      }
+    }
+    window.addEventListener('bs:action', handler)
+    return () => window.removeEventListener('bs:action', handler)
+  }, [showToast])
+
   // ----- Right splitter -----
   const onSplitterPointerDown = useCallback((e) => {
     dragRef.current = { active: true, startX: e.clientX, startW: rWidth, moved: false }
