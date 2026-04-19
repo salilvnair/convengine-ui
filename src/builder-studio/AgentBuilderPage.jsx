@@ -57,6 +57,14 @@ export default function AgentBuilderPage() {
   const [dockTab, setDockTab] = useState('run')
   const [newWorkflowOpen, setNewWorkflowOpen] = useState(false)
   const tabsInited = useRef(false)
+  const [toast, setToast] = useState(null) // { message, type, key }
+  const toastTimer = useRef(null)
+
+  const showToast = useCallback((message, type = 'info') => {
+    clearTimeout(toastTimer.current)
+    setToast({ message, type, key: Date.now() })
+    toastTimer.current = setTimeout(() => setToast(null), 2500)
+  }, [])
 
   // Initialize workflow tabs from workspace store on first mount
   useEffect(() => {
@@ -178,7 +186,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-btn bs-btn-run"
             disabled={!active}
-            onClick={() => { setDockTab('run'); setRunOpen(true) }}
+            onClick={() => { setDockTab('run'); setRunOpen(true); showToast('Running workflow…', 'run') }}
             title="Run this workflow"
           >
             <PlayIcon className="bs-ico-sm" />
@@ -187,7 +195,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-btn-primary"
             disabled={!active}
-            onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }) }}
+            onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }); showToast('Workflow saved', 'save') }}
           >
             Save
           </button>
@@ -215,6 +223,14 @@ export default function AgentBuilderPage() {
         </div>
       </header>
 
+      {/* ── Canvas-card style top toast ── */}
+      {toast && (
+        <div key={toast.key} className={`bs-toast bs-toast-${toast.type}`}>
+          <span className="bs-toast-dot" />
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <main
         className={`bs-main ${rDragging ? 'is-dragging' : ''}`}
         style={{ '--bs-right-w': `${rOpen ? rWidth : 0}px` }}
@@ -229,6 +245,7 @@ export default function AgentBuilderPage() {
               activeTab={dockTab}
               onTabChange={setDockTab}
               visible={runOpen}
+              showToast={showToast}
             />
           )}
           <BottomToolbar

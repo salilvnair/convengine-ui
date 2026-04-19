@@ -33,7 +33,7 @@ registerRunPanel(TracePanel)
 registerRunPanel(ProblemsPanel)
 registerRunPanel(TodoPanel)
 
-export default function RunModal({ workflow, onClose, activeTab: activeTabProp, onTabChange, visible = true }) {
+export default function RunModal({ workflow, onClose, activeTab: activeTabProp, onTabChange, visible = true, showToast }) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
   const [values, setValues] = useState(() =>
     Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue || '']))
@@ -108,9 +108,19 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
       })
       setResult(res)
       endRun()
+      // Check if any node errored in the trace
+      const hasTraceErrors = res?.trace?.some((t) => t.error)
+      if (hasTraceErrors) {
+        showToast?.('Workflow failed', 'error')
+        setActiveTab('problems')
+      } else {
+        showToast?.('Workflow completed', 'success')
+      }
     } catch (err) {
       setError(err.message || String(err))
       endRun()
+      showToast?.('Workflow failed', 'error')
+      setActiveTab('problems')
     } finally {
       setBusy(false)
     }
