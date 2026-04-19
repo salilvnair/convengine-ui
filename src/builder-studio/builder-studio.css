@@ -666,6 +666,23 @@
 }
 .bs-inspector-body .bs-json-wrap .bs-json-view { max-height: none; overflow: visible; }
 .bs-json-wrap-wordwrap .bs-json-view { white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
+/* Compact variant for error detail sections — less padding, shorter max-height */
+.bs-json-wrap-compact {
+  padding: 6px 10px;
+  max-height: 160px;
+  border-radius: 6px;
+}
+.bs-json-wrap-compact .bs-json-view {
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* ErrorDetailView container */
+.bs-error-detail-view {
+  font-size: 11.5px;
+  display: flex; flex-direction: column; gap: 4px;
+}
 .bs-json-view {
   margin: 0; padding: 10px 12px;
   font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
@@ -827,6 +844,142 @@
 }
 .bs-run-log-expand .bs-panel-subtitle { margin-top: 4px; }
 .bs-run-log-expand .bs-json-wrap { max-height: 260px; }
+
+/* ── SwiftUI-inspired debug detail ── */
+.bs-debug-detail {
+  padding: 8px 12px 10px;
+  background: rgba(148,163,184,0.03);
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 11.5px;
+}
+
+/* Chip row — inline metadata pills */
+.bs-debug-chips {
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.bs-debug-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(148,163,184,0.08);
+  border: 1px solid rgba(148,163,184,0.06);
+  font-size: 10.5px; line-height: 1.4;
+}
+.bs-debug-chip-k {
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  font-size: 9.5px;
+}
+.bs-debug-chip-v { color: var(--text-primary, #e5e7eb); }
+.bs-debug-chip-v.is-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+}
+.bs-debug-chip.is-start { border-color: rgba(234,179,8,0.25); background: rgba(234,179,8,0.08); }
+.bs-debug-chip.is-start .bs-debug-chip-v { color: #fbbf24; }
+.bs-debug-chip.is-done  { border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.08); }
+.bs-debug-chip.is-done .bs-debug-chip-v  { color: #4ade80; }
+.bs-debug-chip.is-error { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.08); }
+.bs-debug-chip.is-error .bs-debug-chip-v { color: #f87171; }
+.bs-debug-fields { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Disclosure — collapsible GroupBox */
+.bs-disclosure {
+  border: 1px solid rgba(148,163,184,0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(148,163,184,0.03);
+}
+.bs-disclosure-head {
+  display: flex; align-items: center; gap: 5px;
+  width: 100%; padding: 4px 8px;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-disclosure-head:hover { background: rgba(148,163,184,0.06); }
+.bs-disclosure-caret { font-size: 10px; width: 10px; color: var(--text-secondary, #94a3b8); }
+.bs-disclosure-label { flex: 1; text-align: left; }
+.bs-disclosure-body {
+  padding: 4px 8px 8px;
+  border-top: 1px solid rgba(148,163,184,0.06);
+}
+
+/* Compact JSON inside debug disclosure */
+.bs-debug-json {
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid rgba(148,163,184,0.06);
+  border-radius: 5px;
+  overflow: auto; max-height: 180px;
+  padding: 6px 8px;
+  scrollbar-width: thin;
+}
+.bs-debug-json .bs-json-view {
+  padding: 0; font-size: 11px; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* Compact pre inside debug disclosure */
+.bs-debug-pre {
+  margin: 0; padding: 6px 8px;
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid rgba(148,163,184,0.06);
+  border-radius: 5px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px; line-height: 1.45;
+  color: var(--text-primary, #e5e7eb);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 180px; overflow: auto;
+}
+
+/* ── IntelliJ-style colorized stack trace ── */
+.bs-stack-trace {
+  margin: 0; padding: 6px 8px;
+  background: var(--bg-primary, #0b1020);
+  border: 1px solid rgba(148,163,184,0.06);
+  border-radius: 5px;
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  font-size: 11px; line-height: 1.55;
+  color: var(--text-primary, #e5e7eb);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 220px; overflow: auto;
+  scrollbar-width: thin;
+}
+.bs-st-error {
+  color: #f87171; font-weight: 600;
+}
+.bs-st-at {
+  color: #64748b;
+}
+.bs-st-fn {
+  color: #fbbf24;
+}
+.bs-st-file {
+  color: #22d3ee;
+}
+.bs-st-url {
+  color: #60a5fa;
+}
+.bs-st-num {
+  color: #4ade80;
+}
+.bs-st-line {
+  display: inline;
+}
+/* Light theme overrides */
+[data-theme='light'] .bs-st-error { color: #dc2626; }
+[data-theme='light'] .bs-st-at { color: #94a3b8; }
+[data-theme='light'] .bs-st-fn { color: #b45309; }
+[data-theme='light'] .bs-st-file { color: #0891b2; }
+[data-theme='light'] .bs-st-url { color: #2563eb; }
+[data-theme='light'] .bs-st-num { color: #16a34a; }
+[data-theme='light'] .bs-stack-trace {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
 .bs-run-log-kv {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -1325,6 +1478,22 @@ select.bs-input option {
   color: var(--text-secondary, #94a3b8);
 }
 .bs-btn-ghost:hover { background: rgba(148,163,184,0.08); color: var(--text-primary, #e5e7eb); }
+
+/* Green Run button for dock header */
+.bs-btn-run-green {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 6px 14px; height: 30px;
+  border-radius: 7px; font-size: 12px; font-weight: 600;
+  font-family: inherit; white-space: nowrap; cursor: pointer;
+  border: 1px solid rgba(34,197,94,0.5);
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  transition: all 150ms ease;
+}
+.bs-btn-run-green:hover { background: rgba(34,197,94,0.25); color: #86efac; }
+.bs-btn-run-green:active { background: rgba(34,197,94,0.1); }
+.bs-btn-run-green:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,0.35); }
+.bs-btn-run-green:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Industry-standard primary CTA: flat indigo, subtle hover, clear focus ring.
    No gradients, no heavy drop shadows — matches Linear / Vercel / GitHub Primer. */
@@ -3100,7 +3269,7 @@ button.bs-palette-group-toggle:hover {
   color: var(--text-secondary, #94a3b8);
 }
 .bs-problem-detail {
-  padding: 6px 10px 10px 36px;
+  padding: 4px 10px 8px 36px;
   border-top: 1px solid var(--ce-border, #1f2937);
 }
 .bs-run-error-detail { display: flex; flex-direction: column; gap: 8px; }

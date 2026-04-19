@@ -9,7 +9,9 @@
  * that push additional `onProgress` events with a `meta` field plug in
  * automatically — no new UI work required.
  */
+import { useState } from 'react'
 import JsonView from '../JsonView'
+import ErrorDetailView from './ErrorDetailView'
 
 function exportJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -88,119 +90,115 @@ const DebugPanel = {
 }
 
 /**
- * Expanded per-step "wiki" view. Lays out the key facts as a label → value
- * grid, then renders the rich panels (prompts, skills, output) as separate
- * colorized JSON sections. Anything the runner attaches on `meta` shows up
- * here — so extensions can add their own diagnostic fields without touching
- * this file.
+ * Collapsible disclosure section — SwiftUI GroupBox style.
+ * Starts open or closed based on `defaultOpen`.
+ */
+function Disclosure({ label, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`bs-disclosure ${open ? 'is-open' : ''}`}>
+      <button className="bs-disclosure-head" onClick={() => setOpen((v) => !v)}>
+        <span className="bs-disclosure-caret">{open ? '▾' : '▸'}</span>
+        <span className="bs-disclosure-label">{label}</span>
+      </button>
+      {open && <div className="bs-disclosure-body">{children}</div>}
+    </div>
+  )
+}
+
+/**
+ * Expanded per-step detail view. Uses SwiftUI-inspired disclosure sections
+ * with light translucent cards. Key facts shown inline as pills/chips,
+ * heavier content (JSON, prompts) behind collapsible sections.
  */
 function DebugDetails({ event, deltaMs }) {
   const { type, nodeId, blockType, title, output, error, errorDetail, meta, ms, values } = event
   return (
-    <div className="bs-run-log-expand">
-      <div className="bs-run-log-kv">
-        <KV k="Event" v={type} />
-        <KV k="Card" v={<strong>{title || nodeId}</strong>} />
-        <KV k="Node ID" v={<code>{nodeId}</code>} />
-        <KV k="Block type" v={<code>{blockType || '—'}</code>} />
-        <KV k="At" v={`+${deltaMs}ms from run start`} />
-        {ms != null && <KV k="Duration" v={`${ms}ms`} />}
-        {meta?.model && <KV k="Model" v={<code>{meta.model}</code>} />}
-        {meta?.temperature != null && <KV k="Temperature" v={String(meta.temperature)} />}
+    <div className="bs-debug-detail">
+      {/* ── Inline metadata chips ── */}
+      <div className="bs-debug-chips">
+        <Chip label="Event" value={type} variant={type} />
+        <Chip label="Card" value={title || nodeId} />
+        <Chip label="Node" value={nodeId} mono />
+        {blockType && <Chip label="Type" value={blockType} mono />}
+        <Chip label="At" value={`+${deltaMs}ms`} />
+        {ms != null && <Chip label="Duration" value={`${ms}ms`} />}
+        {meta?.model && <Chip label="Model" value={meta.model} mono />}
+        {meta?.temperature != null && <Chip label="Temp" value={String(meta.temperature)} />}
         {Array.isArray(meta?.skillIds) && meta.skillIds.length > 0 && (
-          <KV k="Skills" v={meta.skillIds.join(', ')} />
+          <Chip label="Skills" value={meta.skillIds.join(', ')} />
         )}
       </div>
 
-      {/* Sub-block metadata (label, kind, placeholder, etc.) */}
+      {/* ── Card fields ── */}
       {values && Object.keys(values).length > 0 && (
-        <>
-          <div className="bs-panel-subtitle">Card fields</div>
-          <div className="bs-run-log-kv bs-run-log-kv-fields">
+        <Disclosure label="Card fields" defaultOpen>
+          <div className="bs-debug-fields">
             {Object.entries(values).map(([k, v]) => {
               if (v === '' || v == null || k.startsWith('__')) return null
               const display = typeof v === 'object' ? JSON.stringify(v) : String(v)
-              return <KV key={k} k={k} v={<code>{display}</code>} />
+              return <Chip key={k} label={k} value={display} mono />
             })}
           </div>
-        </>
+        </Disclosure>
       )}
 
+      {/* ── Error ── */}
       {error && (
-        <>
-          <div className="bs-panel-subtitle">Error</div>
-          <div className="bs-alert bs-alert-error" style={{ marginTop: 0 }}>{error}</div>
-          {errorDetail && (
-            <div className="bs-run-log-kv" style={{ marginTop: 8 }}>
-              {errorDetail.url && <KV k="URL" v={<code>{errorDetail.method || 'GET'} {errorDetail.url}</code>} />}
-              {errorDetail.status && <KV k="HTTP Status" v={<code>{errorDetail.status} {errorDetail.statusText || ''}</code>} />}
-              {errorDetail.blockType && <KV k="Block type" v={<code>{errorDetail.blockType}</code>} />}
-              {errorDetail.nodeId && <KV k="Node ID" v={<code>{errorDetail.nodeId}</code>} />}
-              {errorDetail.timestamp && <KV k="Timestamp" v={errorDetail.timestamp} />}
-              {errorDetail.cause && <KV k="Cause" v={errorDetail.cause} />}
-              {errorDetail.responseBody && (
-                <>
-                  <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Response body</div>
-                  <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{errorDetail.responseBody}</pre>
-                </>
-              )}
-              {errorDetail.stack && (
-                <>
-                  <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Stack trace</div>
-                  <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto', fontSize: '11px' }}>{errorDetail.stack}</pre>
-                </>
-              )}
-            </div>
-          )}
-        </>
+        <Disclosure label="Error" defaultOpen>
+          <ErrorDetailView error={error} errorDetail={errorDetail} />
+        </Disclosure>
       )}
 
+      {/* ── Prompts ── */}
       {meta?.systemPrompt != null && (
-        <>
-          <div className="bs-panel-subtitle">System prompt (after templating)</div>
-          <pre className="bs-run-log-pre">{meta.systemPrompt || <em>empty</em>}</pre>
-        </>
+        <Disclosure label="System prompt">
+          <pre className="bs-debug-pre">{meta.systemPrompt || 'empty'}</pre>
+        </Disclosure>
       )}
       {meta?.userPrompt != null && (
-        <>
-          <div className="bs-panel-subtitle">User prompt (after templating)</div>
-          <pre className="bs-run-log-pre">{meta.userPrompt || <em>empty</em>}</pre>
-        </>
+        <Disclosure label="User prompt" defaultOpen>
+          <pre className="bs-debug-pre">{meta.userPrompt || 'empty'}</pre>
+        </Disclosure>
       )}
+
+      {/* ── Template bag ── */}
       {meta?.templateBag && (
-        <>
-          <div className="bs-panel-subtitle">Template bag</div>
-          <div className="bs-json-wrap"><JsonView value={meta.templateBag} /></div>
-        </>
+        <Disclosure label="Template bag">
+          <div className="bs-debug-json"><JsonView value={meta.templateBag} /></div>
+        </Disclosure>
       )}
+
+      {/* ── Skill runs ── */}
       {Array.isArray(meta?.skillRuns) && meta.skillRuns.length > 0 && (
-        <>
-          <div className="bs-panel-subtitle">Skill runs</div>
-          <div className="bs-json-wrap"><JsonView value={meta.skillRuns} /></div>
-        </>
+        <Disclosure label="Skill runs">
+          <div className="bs-debug-json"><JsonView value={meta.skillRuns} /></div>
+        </Disclosure>
       )}
+
+      {/* ── Raw agent response ── */}
       {meta?.rawAgentResponse && (
-        <>
-          <div className="bs-panel-subtitle">Raw agent response</div>
-          <div className="bs-json-wrap"><JsonView value={meta.rawAgentResponse} /></div>
-        </>
+        <Disclosure label="Raw agent response">
+          <div className="bs-debug-json"><JsonView value={meta.rawAgentResponse} /></div>
+        </Disclosure>
       )}
+
+      {/* ── Output ── */}
       {output != null && type === 'done' && (
-        <>
-          <div className="bs-panel-subtitle">Output</div>
-          <div className="bs-json-wrap"><JsonView value={output} /></div>
-        </>
+        <Disclosure label="Output" defaultOpen>
+          <div className="bs-debug-json"><JsonView value={output} /></div>
+        </Disclosure>
       )}
     </div>
   )
 }
 
-function KV({ k, v }) {
+function Chip({ label, value, mono, variant }) {
   return (
-    <div className="bs-run-log-kv-row">
-      <span className="bs-run-log-kv-k">{k}</span>
-      <span className="bs-run-log-kv-v">{v}</span>
-    </div>
+    <span className={`bs-debug-chip ${variant ? `is-${variant}` : ''}`}>
+      <span className="bs-debug-chip-k">{label}</span>
+      <span className={`bs-debug-chip-v ${mono ? 'is-mono' : ''}`}>{value}</span>
+    </span>
   )
 }
 

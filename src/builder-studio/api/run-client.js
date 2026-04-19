@@ -20,12 +20,14 @@ const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '
 
 export async function runAgent({ agent, input, signal }) {
   const url = `${BASE}/builder-studio/agent`
+  const reqHeaders = { 'Content-Type': 'application/json' }
+  const reqPayload = { agent, input }
   let res
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent, input }),
+      headers: reqHeaders,
+      body: JSON.stringify(reqPayload),
       signal,
     })
   } catch (err) {
@@ -34,7 +36,10 @@ export async function runAgent({ agent, input, signal }) {
       'Is the backend server running?'
     )
     rich.url = url
+    rich.resolvedUrl = resolveUrl(url)
     rich.method = 'POST'
+    rich.requestHeaders = reqHeaders
+    rich.requestPayload = reqPayload
     rich.cause = err
     throw rich
   }
@@ -42,10 +47,14 @@ export async function runAgent({ agent, input, signal }) {
     const body = await safeText(res)
     const rich = new Error(`Agent call failed (${res.status}): ${body}`)
     rich.url = url
+    rich.resolvedUrl = resolveUrl(url)
     rich.method = 'POST'
     rich.status = res.status
     rich.statusText = res.statusText
     rich.responseBody = body
+    rich.responseHeaders = headersToObj(res.headers)
+    rich.requestHeaders = reqHeaders
+    rich.requestPayload = reqPayload
     throw rich
   }
   return res.json() // { output, model, ms }
@@ -53,12 +62,14 @@ export async function runAgent({ agent, input, signal }) {
 
 export async function runWorkflow({ workflow, inputs, signal }) {
   const url = `${BASE}/builder-studio/run`
+  const reqHeaders = { 'Content-Type': 'application/json' }
+  const reqPayload = { workflow, inputs }
   let res
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workflow, inputs }),
+      headers: reqHeaders,
+      body: JSON.stringify(reqPayload),
       signal,
     })
   } catch (err) {
@@ -67,7 +78,10 @@ export async function runWorkflow({ workflow, inputs, signal }) {
       'Is the backend server running?'
     )
     rich.url = url
+    rich.resolvedUrl = resolveUrl(url)
     rich.method = 'POST'
+    rich.requestHeaders = reqHeaders
+    rich.requestPayload = reqPayload
     rich.cause = err
     throw rich
   }
@@ -78,18 +92,25 @@ export async function runWorkflow({ workflow, inputs, signal }) {
         'Make sure the convengine-demo app is running and the builder-studio package is deployed.'
       )
       rich.url = url
+      rich.resolvedUrl = resolveUrl(url)
       rich.method = 'POST'
       rich.status = 404
       rich.statusText = res.statusText
+      rich.requestHeaders = reqHeaders
+      rich.requestPayload = reqPayload
       throw rich
     }
     const body = await safeText(res)
     const rich = new Error(`Run failed (${res.status}): ${body}`)
     rich.url = url
+    rich.resolvedUrl = resolveUrl(url)
     rich.method = 'POST'
     rich.status = res.status
     rich.statusText = res.statusText
     rich.responseBody = body
+    rich.responseHeaders = headersToObj(res.headers)
+    rich.requestHeaders = reqHeaders
+    rich.requestPayload = reqPayload
     throw rich
   }
   return res.json()
@@ -97,4 +118,14 @@ export async function runWorkflow({ workflow, inputs, signal }) {
 
 async function safeText(res) {
   try { return await res.text() } catch { return '' }
+}
+
+function resolveUrl(url) {
+  try { return new URL(url, window.location.origin).href } catch { return url }
+}
+
+function headersToObj(headers) {
+  const obj = {}
+  if (headers?.forEach) headers.forEach((v, k) => { obj[k] = v })
+  return obj
 }

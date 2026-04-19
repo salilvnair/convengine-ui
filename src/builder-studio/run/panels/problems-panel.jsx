@@ -3,6 +3,7 @@
  * Scans nodes for missing required fields, disconnected edges, etc.
  */
 import { useState } from 'react'
+import ErrorDetailView from './ErrorDetailView'
 
 const ProblemsPanel = {
   id: 'problems',
@@ -40,8 +41,9 @@ const ProblemsPanel = {
 }
 
 function ProblemRow({ problem: p }) {
-  const [open, setOpen] = useState(false)
-  const hasDetail = p.detail && (p.detail.url || p.detail.status || p.detail.responseBody || p.detail.stack)
+  const hasDetail = p.detail && Object.keys(p.detail).length > 0
+  // Runtime errors auto-expand to show verbose diagnostics
+  const [open, setOpen] = useState(hasDetail && p.severity === 'error')
   return (
     <div className={`bs-problem-row is-${p.severity}`}>
       <div
@@ -59,37 +61,9 @@ function ProblemRow({ problem: p }) {
       </div>
       {open && hasDetail && (
         <div className="bs-problem-detail">
-          <div className="bs-run-log-kv">
-            {p.detail.url && <KV k="URL" v={<code>{p.detail.method || 'GET'} {p.detail.url}</code>} />}
-            {p.detail.status && <KV k="HTTP Status" v={<code>{p.detail.status} {p.detail.statusText || ''}</code>} />}
-            {p.detail.nodeId && <KV k="Node ID" v={<code>{p.detail.nodeId}</code>} />}
-            {p.detail.blockType && <KV k="Block type" v={<code>{p.detail.blockType}</code>} />}
-            {p.detail.timestamp && <KV k="Timestamp" v={p.detail.timestamp} />}
-            {p.detail.cause && <KV k="Cause" v={p.detail.cause} />}
-          </div>
-          {p.detail.responseBody && (
-            <>
-              <div className="bs-panel-subtitle" style={{ marginTop: 8 }}>Response body</div>
-              <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{p.detail.responseBody}</pre>
-            </>
-          )}
-          {p.detail.stack && (
-            <>
-              <div className="bs-panel-subtitle" style={{ marginTop: 8 }}>Stack trace</div>
-              <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto', fontSize: '11px' }}>{p.detail.stack}</pre>
-            </>
-          )}
+          <ErrorDetailView errorDetail={p.detail} />
         </div>
       )}
-    </div>
-  )
-}
-
-function KV({ k, v }) {
-  return (
-    <div className="bs-run-log-kv-row">
-      <span className="bs-run-log-kv-k">{k}</span>
-      <span className="bs-run-log-kv-v">{v}</span>
     </div>
   )
 }

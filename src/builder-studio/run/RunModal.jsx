@@ -13,7 +13,7 @@
  *  (b) the framework is extensible: an extension that wants an "Inputs",
  *      "LLM stream", or "Cost" tab just registers a panel.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, MinimizeIcon } from '../components/icons'
@@ -33,7 +33,7 @@ registerRunPanel(TracePanel)
 registerRunPanel(ProblemsPanel)
 registerRunPanel(TodoPanel)
 
-export default function RunModal({ workflow, onClose, activeTab: activeTabProp, onTabChange, visible = true, showToast }) {
+export default function RunModal({ workflow, onClose, onOpen, activeTab: activeTabProp, onTabChange, visible = true, showToast }) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
   const [values, setValues] = useState(() =>
     Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue || '']))
@@ -42,6 +42,7 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [progress, setProgress] = useState([])
+  const progressRef = useRef([])
   const [expanded, setExpanded] = useState({})
   const [height, setHeight] = useState(340)
   const [panels, setPanels] = useState(() => getRunPanels())
@@ -55,6 +56,28 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
   const endRun = useWorkflowStore((s) => s.endRun)
 
   const missing = inputNodes.filter((n) => n.required && !String(values[n.id] || '').trim())
+  const runBtnRef = useRef(null)
+  const prevMissingRef = useRef(missing.length)
+
+  // Auto-focus the Run button when user fills all required inputs
+  useEffect(() => {
+    if (prevMissingRef.current > 0 && missing.length === 0 && visible) {
+      runBtnRef.current?.focus()
+    }
+    prevMissingRef.current = missing.length
+  }, [missing.length, visible])
+
+  // Auto-run when dock opens and all required inputs are already filled
+  const autoRanRef = useRef(false)
+  useEffect(() => {
+    if (visible && missing.length === 0 && inputNodes.length > 0 && !busy && !autoRanRef.current) {
+      autoRanRef.current = true
+      // Small delay so the dock renders before auto-minimizing
+      const id = setTimeout(() => doRun(), 50)
+      return () => clearTimeout(id)
+    }
+    if (!visible) autoRanRef.current = false
+  }, [visible, missing.length])
 
   // Keep the tab list in sync if an extension registers a panel at runtime.
   useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
@@ -64,9 +87,6 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-
-  // No auto-run — opening the dock just shows the panel.
-  // The user clicks the Run button inside the Run tab to execute.
 
   const onResizePointerDown = useCallback((e) => {
     e.preventDefault()
@@ -90,7 +110,7 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
     if (inputNodes.length > 0 && missing.length === 0) {
       onClose()
     }
-    setBusy(true); setError(null); setResult(null); setProgress([]); setExpanded({})
+    setBusy(true); setError(null); setResult(null); setProgress([]); progressRef.current = []; setExpanded({})
     setActiveTab('run')
     startRun()
     try {
@@ -103,7 +123,9 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
         workflow,
         inputs: values,
         onProgress: (p) => {
-          setProgress((prev) => [...prev, { ...p, at: Date.now() }])
+          const entry = { ...p, at: Date.now() }
+          progressRef.current = [...progressRef.current, entry]
+          setProgress((prev) => [...prev, entry])
           if (p.type === 'start') markNodeRunning(p.nodeId)
           else if (p.type === 'done') markNodeDone(p.nodeId)
           else if (p.type === 'error') markNodeError(p.nodeId)
@@ -116,14 +138,44 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
       if (hasTraceErrors) {
         showToast?.('Workflow failed', 'error')
         setActiveTab('problems')
+        onOpen?.()
       } else {
         showToast?.('Workflow completed', 'success')
       }
     } catch (err) {
+      // Build a synthetic result from progress events so Problems tab gets full detail
+      const errorEvents = progressRef.current.filter((p) => p.type === 'error' && p.errorDetail)
+      const errorTrace = errorEvents.map((p) => ({
+        nodeId: p.nodeId,
+        blockType: p.blockType,
+        title: p.title,
+        error: p.error,
+        errorDetail: p.errorDetail,
+      }))
+      // If the thrown error itself has rich fields from run-client, include it
+      if (errorTrace.length === 0 && (err.url || err.status || err.requestPayload)) {
+        errorTrace.push({
+          nodeId: 'unknown',
+          blockType: err.blockType,
+          title: err.nodeTitle,
+          error: err.message || String(err),
+          errorDetail: {
+            message: err.message, url: err.url, resolvedUrl: err.resolvedUrl,
+            method: err.method, status: err.status, statusText: err.statusText,
+            responseBody: err.responseBody, responseHeaders: err.responseHeaders,
+            requestHeaders: err.requestHeaders, requestPayload: err.requestPayload,
+            stack: err.stack,
+          },
+        })
+      }
+      if (errorTrace.length > 0) {
+        setResult({ output: null, trace: errorTrace })
+      }
       setError(err.message || String(err))
       endRun()
       showToast?.('Workflow failed', 'error')
       setActiveTab('problems')
+      onOpen?.()
     } finally {
       setBusy(false)
     }
@@ -178,9 +230,11 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
         </div>
 
         <div className="bs-run-dock-actions">
-          <button className="bs-btn-ghost bs-btn-sm" onClick={doRun} disabled={busy} title="Run again">
-            <PlayIcon className="bs-ico-xs" /> Run
-          </button>
+          {inputNodes.some((n) => n.required) && (
+            <button ref={runBtnRef} className="bs-btn-run-green bs-btn-sm" onClick={doRun} disabled={busy || missing.length > 0} title={missing.length > 0 ? 'Fill all required inputs first' : 'Run workflow'}>
+              <PlayIcon className="bs-ico-xs" /> {busy ? 'Running…' : 'Run'}
+            </button>
+          )}
           <button className="bs-btn-ghost bs-btn-sm" onClick={onClose} title="Minimize">
             <MinimizeIcon className="bs-ico-xs" />
           </button>

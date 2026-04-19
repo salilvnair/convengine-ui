@@ -7,6 +7,7 @@
  * used to live on `t.output`.
  */
 import JsonView from '../JsonView'
+import ErrorDetailView from './ErrorDetailView'
 
 function exportJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -70,28 +71,7 @@ const TracePanel = {
                     {t.error && (
                       <>
                         <div className="bs-panel-subtitle">Error</div>
-                        <div className="bs-alert bs-alert-error" style={{ marginTop: 0 }}>{t.error}</div>
-                        {t.errorDetail && (
-                          <div className="bs-run-log-kv" style={{ marginTop: 8 }}>
-                            {t.errorDetail.url && <KV k="URL" v={<code>{t.errorDetail.method || 'GET'} {t.errorDetail.url}</code>} />}
-                            {t.errorDetail.status && <KV k="HTTP Status" v={<code>{t.errorDetail.status} {t.errorDetail.statusText || ''}</code>} />}
-                            {t.errorDetail.blockType && <KV k="Block type" v={<code>{t.errorDetail.blockType}</code>} />}
-                            {t.errorDetail.timestamp && <KV k="Timestamp" v={t.errorDetail.timestamp} />}
-                            {t.errorDetail.cause && <KV k="Cause" v={t.errorDetail.cause} />}
-                            {t.errorDetail.responseBody && (
-                              <>
-                                <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Response body</div>
-                                <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto' }}>{t.errorDetail.responseBody}</pre>
-                              </>
-                            )}
-                            {t.errorDetail.stack && (
-                              <>
-                                <div className="bs-panel-subtitle" style={{ marginTop: 6 }}>Stack trace</div>
-                                <pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 200, overflow: 'auto', fontSize: '11px' }}>{t.errorDetail.stack}</pre>
-                              </>
-                            )}
-                          </div>
-                        )}
+                        <ErrorDetailView error={t.error} errorDetail={t.errorDetail} />
                       </>
                     )}
 

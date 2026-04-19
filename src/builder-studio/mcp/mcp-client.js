@@ -15,13 +15,27 @@ async function jsonOrThrow(res, meta = {}) {
     const msg = body?.error || text || `HTTP ${res.status}`
     const rich = new Error(msg)
     rich.url = meta.url || res.url
+    rich.resolvedUrl = resolveUrl(meta.url || res.url)
     rich.method = meta.method || 'GET'
     rich.status = res.status
     rich.statusText = res.statusText
     rich.responseBody = text
+    rich.responseHeaders = headersToObj(res.headers)
+    if (meta.payload) rich.requestPayload = meta.payload
+    if (meta.headers) rich.requestHeaders = meta.headers
     throw rich
   }
   return body
+}
+
+function resolveUrl(url) {
+  try { return new URL(url, window.location.origin).href } catch { return url }
+}
+
+function headersToObj(headers) {
+  const obj = {}
+  if (headers?.forEach) headers.forEach((v, k) => { obj[k] = v })
+  return obj
 }
 
 export async function listServers() {
@@ -31,13 +45,14 @@ export async function listServers() {
 
 export async function upsertServer(cfg) {
   const url = `${BASE}/mcp/servers`
+  const headers = { 'Content-Type': 'application/json' }
   return jsonOrThrow(
     await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(cfg),
     }),
-    { url, method: 'POST' }
+    { url, method: 'POST', headers, payload: cfg }
   )
 }
 
@@ -59,12 +74,14 @@ export async function listTools(id, { refresh = false } = {}) {
 /** Invoke an MCP tool. `args` is an arbitrary JSON-shaped value or undefined. */
 export async function callTool(id, tool, args) {
   const url = `${BASE}/mcp/servers/${encodeURIComponent(id)}/tools/${encodeURIComponent(tool)}/call`
+  const headers = { 'Content-Type': 'application/json' }
+  const payload = { arguments: args ?? {} }
   return jsonOrThrow(
     await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ arguments: args ?? {} }),
+      headers,
+      body: JSON.stringify(payload),
     }),
-    { url, method: 'POST' }
+    { url, method: 'POST', headers, payload }
   )
 }

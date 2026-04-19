@@ -329,6 +329,7 @@ export default function AgentBuilderPage() {
             <RunModal
               workflow={liveWorkflow}
               onClose={() => setRunOpen(false)}
+              onOpen={() => setRunOpen(true)}
               activeTab={dockTab}
               onTabChange={setDockTab}
               visible={runOpen}
