@@ -6,6 +6,7 @@
  * shows the raw object the runner produced, not the truncated string that
  * used to live on `t.output`.
  */
+import { useState } from 'react'
 import JsonView from '../JsonView'
 import ErrorDetailView from './ErrorDetailView'
 
@@ -69,33 +70,37 @@ const TracePanel = {
                     </div>
 
                     {t.error && (
-                      <>
-                        <div className="bs-panel-subtitle">Error</div>
+                      <Disclosure label="Error" defaultOpen>
                         <ErrorDetailView error={t.error} errorDetail={t.errorDetail} />
-                      </>
+                      </Disclosure>
                     )}
 
-                    <div className="bs-panel-subtitle">Input</div>
-                    <div className="bs-json-wrap"><JsonView value={t.input ?? ''} /></div>
+                    {t.input != null && t.input !== '' && (
+                      <Disclosure label="Input">
+                        <div className="bs-debug-json"><JsonView value={t.input} /></div>
+                      </Disclosure>
+                    )}
 
                     {t.values && Object.keys(t.values).length > 0 && (
-                      <>
-                        <div className="bs-panel-subtitle">Configured values</div>
-                        <div className="bs-json-wrap"><JsonView value={t.values} /></div>
-                      </>
+                      <Disclosure label="Configured values">
+                        <div className="bs-debug-json"><JsonView value={t.values} /></div>
+                      </Disclosure>
                     )}
 
                     {t.meta && (
-                      <>
-                        <div className="bs-panel-subtitle">Runtime meta</div>
-                        <div className="bs-json-wrap"><JsonView value={t.meta} /></div>
-                      </>
+                      <Disclosure label="Runtime meta">
+                        <div className="bs-debug-json"><JsonView value={t.meta} /></div>
+                      </Disclosure>
                     )}
 
-                    <div className="bs-panel-subtitle">Output</div>
-                    <div className="bs-json-wrap">
-                      <JsonView value={t.error ? { error: t.error } : t.output} />
-                    </div>
+                    <Disclosure label="Output" defaultOpen>
+                      <div className="bs-debug-json">
+                        {typeof (t.error ? undefined : t.output) === 'string' && /^https?:\/\//.test(String(t.output).trim())
+                          ? <a className="bs-output-url" href={String(t.output).trim()} target="_blank" rel="noopener noreferrer">{t.output}</a>
+                          : <JsonView value={t.error ? { error: t.error } : t.output} />
+                        }
+                      </div>
+                    </Disclosure>
                   </div>
                 )}
               </div>
@@ -105,6 +110,19 @@ const TracePanel = {
       </div>
     )
   },
+}
+
+function Disclosure({ label, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={`bs-disclosure ${open ? 'is-open' : ''}`}>
+      <button className="bs-disclosure-head" onClick={() => setOpen((v) => !v)}>
+        <span className="bs-disclosure-caret">{open ? '▾' : '▸'}</span>
+        <span className="bs-disclosure-label">{label}</span>
+      </button>
+      {open && <div className="bs-disclosure-body">{children}</div>}
+    </div>
+  )
 }
 
 function KV({ k, v }) {

@@ -39,7 +39,11 @@ export default function ErrorDetailView({ error, errorDetail: d }) {
       )}
       {d?.resolvedUrl && (
         <div className="bs-debug-chips" style={{ marginTop: 2 }}>
-          <Chip label="URL" value={`${d.method || 'GET'} ${d.resolvedUrl}`} mono />
+          <span className="bs-debug-chip chip-url">
+            <span className="bs-debug-chip-k">URL</span>
+            <span className="bs-debug-chip-v is-mono" style={{ marginRight: 4 }}>{d.method || 'GET'}</span>
+            <a className="bs-debug-chip-v is-link is-mono" href={d.resolvedUrl} target="_blank" rel="noopener noreferrer">{d.resolvedUrl}</a>
+          </span>
         </div>
       )}
       {d?.requestHeaders && Object.keys(d.requestHeaders).length > 0 && (
@@ -142,11 +146,21 @@ function StackLine({ line, isFirst }) {
   return <span>{line}\n</span>
 }
 
+const CHIP_COLORS = {
+  status: 'chip-status', type: 'chip-type', node: 'chip-node', card: 'chip-card',
+  time: 'chip-time', cause: 'chip-error', message: 'chip-error', url: 'chip-url',
+}
+
 function Chip({ label, value, mono, variant }) {
+  const colorClass = variant ? `is-${variant}` : (CHIP_COLORS[label.toLowerCase()] || '')
+  const isUrl = typeof value === 'string' && /^https?:\/\//.test(value)
   return (
-    <span className={`bs-debug-chip ${variant ? `is-${variant}` : ''}`}>
+    <span className={`bs-debug-chip ${colorClass}`}>
       <span className="bs-debug-chip-k">{label}</span>
-      <span className={`bs-debug-chip-v ${mono ? 'is-mono' : ''}`}>{value}</span>
+      {isUrl
+        ? <a className={`bs-debug-chip-v is-link ${mono ? 'is-mono' : ''}`} href={value} target="_blank" rel="noopener noreferrer">{value}</a>
+        : <span className={`bs-debug-chip-v ${mono ? 'is-mono' : ''}`}>{value}</span>
+      }
     </span>
   )
 }

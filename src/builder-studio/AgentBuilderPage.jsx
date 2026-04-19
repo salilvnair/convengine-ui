@@ -22,7 +22,7 @@ import CreateWorkflowModal from './components/CreateWorkflowModal'
 import { useWorkspaceStore } from './stores/workspace-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
-import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
+import { PlayIcon, PanelRightIcon, SettingsIcon, DeployIcon } from './components/icons'
 import { BookIcon } from './tabs/WikiGuide'
 import { deployWorkflow } from './api/deploy-client'
 import './builder-studio.css'
@@ -60,8 +60,23 @@ export default function AgentBuilderPage() {
   const [dockTab, setDockTab] = useState('run')
   const [newWorkflowOpen, setNewWorkflowOpen] = useState(false)
   const tabsInited = useRef(false)
+  const runRef = useRef(null)
   const [toast, setToast] = useState(null) // { message, type, key }
   const toastTimer = useRef(null)
+
+  /** Briefly add `is-clicked` class to a button for CSS animation */
+  const animateBtn = useCallback((selector) => {
+    const el = document.querySelector(selector)
+    if (!el) return
+    el.classList.remove('is-clicked')
+    // Force reflow so re-adding triggers animation
+    void el.offsetWidth
+    el.classList.add('is-clicked')
+    const onEnd = () => { el.classList.remove('is-clicked'); el.removeEventListener('animationend', onEnd) }
+    el.addEventListener('animationend', onEnd)
+    // Fallback removal
+    setTimeout(() => el.classList.remove('is-clicked'), 800)
+  }, [])
 
   const showToast = useCallback((message, type = 'info') => {
     clearTimeout(toastTimer.current)
@@ -98,8 +113,8 @@ export default function AgentBuilderPage() {
       const action = e.detail
       if (action === 'run') {
         setDockTab('run')
-        setRunOpen(true)
         showToast('Running workflow\u2026', 'run')
+        if (runRef.current) runRef.current.tryRun(); else setRunOpen(true)
       } else if (action === 'deploy') {
         // Trigger the same deploy flow as the topbar button
         const btn = document.querySelector('.bs-topbar-icon-deploy')
@@ -215,7 +230,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-run"
             disabled={!active}
-            onClick={() => { setDockTab('run'); setRunOpen(true); showToast('Running workflow\u2026', 'run') }}
+            onClick={() => { animateBtn('.bs-topbar-icon-run'); setDockTab('run'); showToast('Running workflow\u2026', 'run'); if (runRef.current) runRef.current.tryRun(); else setRunOpen(true) }}
             data-tooltip="Run"
           >
             <PlayIcon className="bs-ico-topbar" />
@@ -223,7 +238,7 @@ export default function AgentBuilderPage() {
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-save"
             disabled={!active}
-            onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }); syncToServer(); showToast('Workflow saved', 'save') }}
+            onClick={() => { if (!active) return; animateBtn('.bs-topbar-icon-save'); saveWorkflow(active.id, { nodes, edges, subBlockValues }); syncToServer(); showToast('Workflow saved', 'save') }}
             data-tooltip="Save"
           >
             {/* Save/floppy disk SVG icon */}
@@ -238,6 +253,7 @@ export default function AgentBuilderPage() {
             disabled={!active}
             onClick={() => {
               if (!active) return
+              animateBtn('.bs-topbar-icon-export')
               const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
               const blob = new Blob([json], { type: 'application/json' })
               const url = URL.createObjectURL(blob)
@@ -264,6 +280,7 @@ export default function AgentBuilderPage() {
             disabled={!active}
             onClick={async () => {
               if (!active) return
+              animateBtn('.bs-topbar-icon-deploy')
               // Save first
               saveWorkflow(active.id, { nodes, edges, subBlockValues })
               syncToServer()
@@ -293,11 +310,7 @@ export default function AgentBuilderPage() {
             }}
             data-tooltip="Deploy"
           >
-            {/* Send/deploy SVG icon */}
-            <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 2L11 13"/>
-              <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-            </svg>
+            <DeployIcon className="bs-ico-topbar" />
           </button>
           <span className="bs-topbar-divider" />
           <button
@@ -327,6 +340,7 @@ export default function AgentBuilderPage() {
           <CenterPane />
           {liveWorkflow && (
             <RunModal
+              ref={runRef}
               workflow={liveWorkflow}
               onClose={() => setRunOpen(false)}
               onOpen={() => setRunOpen(true)}

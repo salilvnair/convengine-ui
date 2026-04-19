@@ -285,3 +285,24 @@ export const JsonPathIcon = (p) => (
     <circle cx="12" cy="12" r="2" />
   </I>
 )
+
+/** Colorful rocket deploy icon — dark blue stroke, light blue body, yellow window, red exhaust. */
+export const DeployIcon = ({ className, ...rest }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...rest}>
+    {/* Exhaust flames */}
+    <path data-flame="1" d="M10 20l2 3 2-3" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="#fbbf24" />
+    <line data-flame="2" x1="12" y1="20" x2="12" y2="22" stroke="#ef4444" strokeWidth="1" strokeLinecap="round" opacity="0.6" />
+    {/* Fins */}
+    <path d="M7.5 16.5L5 20l3-1.5" fill="#6366f1" stroke="#312e81" strokeWidth="1" strokeLinejoin="round" />
+    <path d="M16.5 16.5L19 20l-3-1.5" fill="#6366f1" stroke="#312e81" strokeWidth="1" strokeLinejoin="round" />
+    {/* Rocket body */}
+    <path d="M12 2C12 2 8 6.5 8 13a8.5 8.5 0 0 0 1 4h6a8.5 8.5 0 0 0 1-4c0-6.5-4-11-4-11z" fill="#dbeafe" stroke="#1e3a5f" strokeWidth="1.5" strokeLinejoin="round" />
+    {/* Base plate */}
+    <rect x="9" y="17" width="6" height="2" rx="0.5" fill="#f87171" stroke="#1e3a5f" strokeWidth="0.8" />
+    {/* Window */}
+    <circle cx="12" cy="10" r="2" fill="#1e3a5f" stroke="#1e3a5f" strokeWidth="1" />
+    <circle cx="12" cy="10" r="1.1" fill="#fbbf24" />
+    {/* Nose tip highlight */}
+    <path d="M12 3c-.5 1-1.5 3.5-1.8 6h3.6C13.5 6.5 12.5 4 12 3z" fill="rgba(255,255,255,0.25)" />
+  </svg>
+)

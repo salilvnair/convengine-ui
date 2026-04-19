@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, updateEdge } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { DeployIcon } from '../components/icons'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
 import WorkflowNode from './WorkflowNode'
@@ -152,14 +153,6 @@ function CanvasInner() {
       </svg>
     )
   }
-  function DeployIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
-      </svg>
-    )
-  }
-
   const existingTypes = useMemo(() => new Set(nodes.map((n) => n.data?.blockType)), [nodes])
 
   const buildBlockMenuItems = useCallback((clientX, clientY) => {

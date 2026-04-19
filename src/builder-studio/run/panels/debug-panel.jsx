@@ -137,7 +137,16 @@ function DebugDetails({ event, deltaMs }) {
             {Object.entries(values).map(([k, v]) => {
               if (v === '' || v == null || k.startsWith('__')) return null
               const display = typeof v === 'object' ? JSON.stringify(v) : String(v)
-              return <Chip key={k} label={k} value={display} mono />
+              const isUrl = typeof display === 'string' && /^https?:\/\//.test(display)
+              return (
+                <span key={k} className="bs-debug-chip chip-field">
+                  <span className="bs-debug-chip-k">{k.toUpperCase()}</span>
+                  {isUrl
+                    ? <a className="bs-debug-chip-v is-link is-mono" href={display} target="_blank" rel="noopener noreferrer">{display}</a>
+                    : <span className="bs-debug-chip-v">{display}</span>
+                  }
+                </span>
+              )
             })}
           </div>
         </Disclosure>
@@ -186,18 +195,44 @@ function DebugDetails({ event, deltaMs }) {
       {/* ── Output ── */}
       {output != null && type === 'done' && (
         <Disclosure label="Output" defaultOpen>
-          <div className="bs-debug-json"><JsonView value={output} /></div>
+          {typeof output === 'string' && /^https?:\/\//.test(output.trim())
+            ? <div className="bs-debug-json"><a className="bs-output-url" href={output.trim()} target="_blank" rel="noopener noreferrer">{output}</a></div>
+            : <div className="bs-debug-json"><JsonView value={output} /></div>
+          }
         </Disclosure>
       )}
     </div>
   )
 }
 
+/** Chip color palette keyed by label (case-insensitive). */
+const CHIP_COLORS = {
+  event:    'chip-event',
+  card:     'chip-card',
+  node:     'chip-node',
+  type:     'chip-type',
+  at:       'chip-time',
+  duration: 'chip-time',
+  model:    'chip-model',
+  temp:     'chip-model',
+  skills:   'chip-skill',
+  status:   'chip-status',
+  cause:    'chip-error',
+  message:  'chip-error',
+  url:      'chip-url',
+}
+
 function Chip({ label, value, mono, variant }) {
+  const colorClass = variant ? `is-${variant}` : (CHIP_COLORS[label.toLowerCase()] || '')
+  // Detect URL values and make them clickable
+  const isUrl = typeof value === 'string' && /^https?:\/\//.test(value)
   return (
-    <span className={`bs-debug-chip ${variant ? `is-${variant}` : ''}`}>
+    <span className={`bs-debug-chip ${colorClass}`}>
       <span className="bs-debug-chip-k">{label}</span>
-      <span className={`bs-debug-chip-v ${mono ? 'is-mono' : ''}`}>{value}</span>
+      {isUrl
+        ? <a className={`bs-debug-chip-v is-link ${mono ? 'is-mono' : ''}`} href={value} target="_blank" rel="noopener noreferrer">{value}</a>
+        : <span className={`bs-debug-chip-v ${mono ? 'is-mono' : ''}`}>{value}</span>
+      }
     </span>
   )
 }

@@ -13,7 +13,7 @@
  *  (b) the framework is extensible: an extension that wants an "Inputs",
  *      "LLM stream", or "Cost" tab just registers a panel.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, MinimizeIcon } from '../components/icons'
@@ -33,7 +33,7 @@ registerRunPanel(TracePanel)
 registerRunPanel(ProblemsPanel)
 registerRunPanel(TodoPanel)
 
-export default function RunModal({ workflow, onClose, onOpen, activeTab: activeTabProp, onTabChange, visible = true, showToast }) {
+const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activeTab: activeTabProp, onTabChange, visible = true, showToast }, ref) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
   const [values, setValues] = useState(() =>
     Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue || '']))
@@ -59,7 +59,7 @@ export default function RunModal({ workflow, onClose, onOpen, activeTab: activeT
   const runBtnRef = useRef(null)
   const prevMissingRef = useRef(missing.length)
 
-  // Auto-focus the Run button when user fills all required inputs
+  // Auto-focus the Run button when user fills all required inputs (first time)
   useEffect(() => {
     if (prevMissingRef.current > 0 && missing.length === 0 && visible) {
       runBtnRef.current?.focus()
@@ -67,17 +67,18 @@ export default function RunModal({ workflow, onClose, onOpen, activeTab: activeT
     prevMissingRef.current = missing.length
   }, [missing.length, visible])
 
-  // Auto-run when dock opens and all required inputs are already filled
-  const autoRanRef = useRef(false)
-  useEffect(() => {
-    if (visible && missing.length === 0 && inputNodes.length > 0 && !busy && !autoRanRef.current) {
-      autoRanRef.current = true
-      // Small delay so the dock renders before auto-minimizing
-      const id = setTimeout(() => doRun(), 50)
-      return () => clearTimeout(id)
-    }
-    if (!visible) autoRanRef.current = false
-  }, [visible, missing.length])
+  // Expose tryRun() so the parent can trigger a run from top-bar / context-menu.
+  // If all required inputs are filled → run immediately (dock stays closed).
+  // If required inputs are missing → open the dock so user can fill them.
+  useImperativeHandle(ref, () => ({
+    tryRun() {
+      if (missing.length === 0 && inputNodes.length > 0) {
+        doRun()
+      } else {
+        onOpen?.()
+      }
+    },
+  }))
 
   // Keep the tab list in sync if an extension registers a panel at runtime.
   useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
@@ -246,4 +247,6 @@ export default function RunModal({ workflow, onClose, onOpen, activeTab: activeT
       </div>
     </div>
   )
-}
+})
+
+export default RunModal

@@ -7,6 +7,7 @@
  */
 import JsonView from '../JsonView'
 import { getRunInputRenderer } from '../input-registry'
+import '../input-kinds'  // register core input kinds (side-effect)
 import ErrorDetailView from './ErrorDetailView'
 
 const RunPanel = {
@@ -71,87 +72,21 @@ const RunPanel = {
 
 /**
  * Renders the appropriate input widget based on the node's `kind`.
- * First checks the registry for a custom renderer, then falls back to
- * built-in kinds.
+ * Looks up the registry — every kind (including core ones) is registered
+ * there. Falls back to short-text for unknown kinds.
  */
 function RunInput({ node, value, disabled, onChange }) {
-  // Check for a custom registered renderer
-  const custom = getRunInputRenderer(node.kind)
-  if (custom) {
-    return custom.render({
-      value,
-      onChange,
-      placeholder: node.placeholder,
-      disabled,
-      options: node.options,
-      label: node.label,
-    })
-  }
-
-  // Built-in kinds
-  switch (node.kind) {
-    case 'long-text':
-      return (
-        <textarea
-          className="bs-textarea" rows={3}
-          value={value}
-          placeholder={node.placeholder}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )
-
-    case 'dropdown':
-      return (
-        <select
-          className="bs-input"
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          <option value="">{node.placeholder || 'Select…'}</option>
-          {(node.options || []).map((opt) => {
-            const label = typeof opt === 'object' ? opt.label : opt
-            const val = typeof opt === 'object' ? (opt.value ?? opt.label) : opt
-            return <option key={val} value={val}>{label}</option>
-          })}
-        </select>
-      )
-
-    case 'number':
-      return (
-        <input
-          className="bs-input" type="number"
-          value={value}
-          placeholder={node.placeholder}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )
-
-    case 'url':
-      return (
-        <input
-          className="bs-input" type="url"
-          value={value}
-          placeholder={node.placeholder || 'https://...'}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )
-
-    case 'short-text':
-    default:
-      return (
-        <input
-          className="bs-input" type="text"
-          value={value}
-          placeholder={node.placeholder}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )
-  }
+  const spec = getRunInputRenderer(node.kind) || getRunInputRenderer('short-text')
+  if (!spec) return null
+  return spec.render({
+    value,
+    onChange,
+    placeholder: node.placeholder,
+    disabled,
+    options: node.options,
+    label: node.label,
+    config: node,
+  })
 }
 
 export default RunPanel
