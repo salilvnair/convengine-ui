@@ -263,6 +263,7 @@ function LlmConfigPanel() {
       )}
     </div>
   )
+}
 
 function KeyCombo({ keys }) {
   return (
