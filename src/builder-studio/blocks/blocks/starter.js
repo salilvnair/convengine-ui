@@ -9,7 +9,7 @@ export const StarterBlock = {
   category: 'blocks',
   bgColor: '#2FB3FF',
   icon: StartIcon,
-  hideFromToolbar: true,
+  singleton: true,
   subBlocks: [
     {
       id: 'startWorkflow',

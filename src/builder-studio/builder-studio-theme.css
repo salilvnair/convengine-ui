@@ -1,0 +1,339 @@
+/* ======================================================================
+ * Builder Studio — Centralized Theme Tokens
+ * ======================================================================
+ *
+ * ALL configurable colors live here. Change a token, and every surface
+ * that references it updates automatically.
+ *
+ * Naming convention:
+ *   --bs-{category}-{element}-{state}
+ *
+ * Categories:
+ *   accent        Primary brand / focus color
+ *   surface       Backgrounds (editor, input, preview, card)
+ *   text          Foreground / label / muted colors
+ *   border        Strokes, dividers, focus rings
+ *   status        Error / warn / success / info (semantic)
+ *   badge         Chip / pill / tag colors
+ *   cat           Category badges (core, tool, trigger)
+ *   syntax        JSON / code highlighting
+ *   node          Canvas node pins, ports, handles
+ *   toast         Toast notification dots & glows
+ *   btn           Button backgrounds & gradients
+ *   wiki          Wiki-specific surfaces & typography
+ *
+ * To theme the app:  edit the values below, or override via
+ *   [data-theme='my-custom'] { --bs-accent: … }
+ * ================================================================== */
+
+/* ── DARK THEME (default) ── */
+:root {
+  /* ── Accent ── */
+  --bs-accent:                  #6366f1;
+  --bs-accent-soft:             #a5b4fc;
+  --bs-accent-muted:            #818cf8;
+  --bs-accent-ring:             rgba(99,102,241, 0.15);
+  --bs-accent-ring-strong:      rgba(99,102,241, 0.25);
+  --bs-accent-bg:               rgba(99,102,241, 0.10);
+  --bs-accent-bg-hover:         rgba(99,102,241, 0.18);
+
+  /* ── Status ── */
+  --bs-status-error:            #ef4444;
+  --bs-status-error-soft:       #fca5a5;
+  --bs-status-error-bg:         rgba(239,68,68, 0.12);
+  --bs-status-error-ring:       rgba(239,68,68, 0.35);
+
+  --bs-status-warn:             #f59e0b;
+  --bs-status-warn-soft:        #fcd34d;
+  --bs-status-warn-bg:          rgba(245,158,11, 0.12);
+  --bs-status-warn-ring:        rgba(245,158,11, 0.35);
+
+  --bs-status-success:          #22c55e;
+  --bs-status-success-soft:     #86efac;
+  --bs-status-success-bg:       rgba(34,197,94, 0.12);
+  --bs-status-success-ring:     rgba(34,197,94, 0.35);
+
+  --bs-status-info:             #3b82f6;
+  --bs-status-info-soft:        #93c5fd;
+  --bs-status-info-bg:          rgba(59,130,246, 0.12);
+  --bs-status-info-ring:        rgba(59,130,246, 0.35);
+
+  /* ── Badge / Chip / Pill ── */
+  --bs-badge-required-color:    #fca5a5;
+  --bs-badge-required-bg:       rgba(239,68,68, 0.12);
+
+  --bs-badge-advanced-color:    #c4b5fd;
+  --bs-badge-advanced-bg:       rgba(139,92,246, 0.14);
+
+  --bs-badge-default-color:     #71717a;
+  --bs-badge-default-bg:        rgba(255,255,255, 0.06);
+
+  --bs-badge-input-color:       #fbbf24;
+  --bs-badge-input-bg:          rgba(251,191,36, 0.12);
+  --bs-badge-input-ring:        rgba(251,191,36, 0.35);
+
+  --bs-badge-json-color:        #34d399;
+  --bs-badge-json-bg:           rgba(52,211,153, 0.12);
+  --bs-badge-json-ring:         rgba(52,211,153, 0.35);
+
+  --bs-badge-menu-color:        #60a5fa;
+  --bs-badge-menu-bg:           rgba(96,165,250, 0.12);
+  --bs-badge-menu-ring:         rgba(96,165,250, 0.35);
+
+  --bs-badge-ux-color:          #f472b6;
+  --bs-badge-ux-bg:             rgba(244,114,182, 0.12);
+  --bs-badge-ux-ring:           rgba(244,114,182, 0.35);
+
+  --bs-badge-mcp-color:         #a78bfa;
+  --bs-badge-mcp-bg:            rgba(167,139,250, 0.12);
+  --bs-badge-mcp-ring:          rgba(167,139,250, 0.30);
+
+  /* ── Category badges ── */
+  --bs-cat-core-color:          #a5b4fc;
+  --bs-cat-core-bg:             rgba(99,102,241, 0.10);
+
+  --bs-cat-tool-color:          #86efac;
+  --bs-cat-tool-bg:             rgba(34,197,94, 0.10);
+
+  --bs-cat-trigger-color:       #fcd34d;
+  --bs-cat-trigger-bg:          rgba(245,158,11, 0.10);
+
+  /* ── Run dock pills ── */
+  --bs-pill-ok-color:           var(--bs-status-success-soft);
+  --bs-pill-ok-bg:              rgba(34,197,94, 0.15);
+  --bs-pill-ok-ring:            rgba(34,197,94, 0.30);
+
+  --bs-pill-error-color:        var(--bs-status-error-soft);
+  --bs-pill-error-bg:           rgba(239,68,68, 0.15);
+  --bs-pill-error-ring:         rgba(239,68,68, 0.35);
+
+  /* ── Node / Port / Handle ── */
+  --bs-handle-color:            var(--bs-accent);
+  --bs-port-true:               #10b981;
+  --bs-port-false:              #ef4444;
+  --bs-port-else:               #f59e0b;
+  --bs-port-case:               var(--bs-accent);
+  --bs-port-default:            #94a3b8;
+
+  /* ── Toast ── */
+  --bs-toast-save:              #22c55e;
+  --bs-toast-save-glow:         rgba(34,197,94, 0.50);
+  --bs-toast-run:               #6366f1;
+  --bs-toast-run-glow:          rgba(99,102,241, 0.50);
+  --bs-toast-error:             #ef4444;
+  --bs-toast-error-glow:        rgba(239,68,68, 0.50);
+  --bs-toast-info:              #3b82f6;
+  --bs-toast-info-glow:         rgba(59,130,246, 0.50);
+
+  /* ── Button ── */
+  --bs-btn-primary-bg:          #6366f1;
+  --bs-btn-primary-hover:       #4f46e5;
+  --bs-btn-primary-glow:        rgba(99,102,241, 0.25);
+  --bs-btn-danger-bg:           #ef4444;
+  --bs-btn-danger-hover:        #dc2626;
+  --bs-btn-danger-glow:         rgba(239,68,68, 0.25);
+  --bs-btn-run-bg:              #10b981;
+
+  /* ── Syntax / Code highlighting ── */
+  --bs-syntax-key:              #818cf8;
+  --bs-syntax-str:              #34d399;
+  --bs-syntax-num:              #fbbf24;
+  --bs-syntax-bool:             #f472b6;
+  --bs-syntax-comment:          #52525b;
+
+  /* ── Wiki-specific ── */
+  --bs-wiki-hero-bg:            #1a1b2e;
+  --bs-wiki-hero-bg-end:        #0f1017;
+  --bs-wiki-hero-glow:          rgba(99,102,241, 0.12);
+  --bs-wiki-hero-title-from:    #e4e4e7;
+  --bs-wiki-hero-title-to:      #a5b4fc;
+  --bs-wiki-hero-subtitle:      #818cf8;
+  --bs-wiki-hero-desc:          #a1a1aa;
+
+  --bs-wiki-heading:            #e4e4e7;
+  --bs-wiki-subheading:         #c4c4cc;
+  --bs-wiki-body:               #a1a1aa;
+  --bs-wiki-strong:             #c4c4cc;
+  --bs-wiki-link:               #a1a1aa;
+  --bs-wiki-link-hover:         #e4e4e7;
+
+  --bs-wiki-card-bg:            #1e1f2a;
+  --bs-wiki-card-title:         #e4e4e7;
+  --bs-wiki-card-label:         #c4c4cc;
+  --bs-wiki-card-value:         #71717a;
+  --bs-wiki-card-badge:         #a1a1aa;
+  --bs-wiki-card-badge-bg:      rgba(255,255,255, 0.06);
+
+  --bs-wiki-code-bg:            #0f1017;
+  --bs-wiki-code-color:         #c4c4cc;
+  --bs-wiki-inline-code:        #c4b5fd;
+
+  --bs-wiki-table-header:       #a5b4fc;
+  --bs-wiki-table-border:       rgba(99,102,241, 0.10);
+  --bs-wiki-divider:            rgba(99,102,241, 0.10);
+
+  --bs-wiki-collapsible-text:   #e4e4e7;
+  --bs-wiki-collapsible-hover:  #a5b4fc;
+  --bs-wiki-chevron:            #818cf8;
+
+  --bs-wiki-step-bg:            #818cf8;
+  --bs-wiki-step-text:          #fff;
+
+  --bs-wiki-tip-info-border:    #818cf8;
+  --bs-wiki-tip-info-color:     #a5b4fc;
+  --bs-wiki-tip-info-bg:        rgba(99,102,241, 0.06);
+
+  --bs-wiki-tip-warn-border:    #f59e0b;
+  --bs-wiki-tip-warn-color:     #fcd34d;
+  --bs-wiki-tip-warn-bg:        rgba(245,158,11, 0.06);
+
+  --bs-wiki-tip-success-border: #22c55e;
+  --bs-wiki-tip-success-color:  #86efac;
+  --bs-wiki-tip-success-bg:     rgba(34,197,94, 0.06);
+
+  --bs-wiki-tip-danger-border:  #ef4444;
+  --bs-wiki-tip-danger-color:   #fca5a5;
+  --bs-wiki-tip-danger-bg:      rgba(239,68,68, 0.06);
+
+  --bs-wiki-subgroup-border:    rgba(99,102,241, 0.06);
+  --bs-wiki-subgroup-bg:        rgba(255,255,255, 0.01);
+  --bs-wiki-subgroup-title:     #a5b4fc;
+}
+
+/* ── LIGHT THEME overrides ── */
+[data-theme='light'] {
+  /* ── Accent ── */
+  --bs-accent:                  #4f46e5;
+  --bs-accent-soft:             #6366f1;
+  --bs-accent-muted:            #6366f1;
+  --bs-accent-ring:             rgba(79,70,229, 0.12);
+  --bs-accent-ring-strong:      rgba(79,70,229, 0.20);
+  --bs-accent-bg:               rgba(79,70,229, 0.06);
+  --bs-accent-bg-hover:         rgba(79,70,229, 0.10);
+
+  /* ── Status ── */
+  --bs-status-error:            #dc2626;
+  --bs-status-error-soft:       #ef4444;
+  --bs-status-error-bg:         rgba(220,38,38, 0.08);
+  --bs-status-error-ring:       rgba(220,38,38, 0.25);
+
+  --bs-status-warn:             #d97706;
+  --bs-status-warn-soft:        #f59e0b;
+  --bs-status-warn-bg:          rgba(217,119,6, 0.08);
+  --bs-status-warn-ring:        rgba(217,119,6, 0.25);
+
+  --bs-status-success:          #16a34a;
+  --bs-status-success-soft:     #22c55e;
+  --bs-status-success-bg:       rgba(22,163,74, 0.08);
+  --bs-status-success-ring:     rgba(22,163,74, 0.25);
+
+  --bs-status-info:             #2563eb;
+  --bs-status-info-soft:        #3b82f6;
+  --bs-status-info-bg:          rgba(37,99,235, 0.08);
+  --bs-status-info-ring:        rgba(37,99,235, 0.25);
+
+  /* ── Badge / Chip / Pill ── */
+  --bs-badge-required-color:    #dc2626;
+  --bs-badge-required-bg:       rgba(220,38,38, 0.08);
+
+  --bs-badge-advanced-color:    #7c3aed;
+  --bs-badge-advanced-bg:       rgba(124,58,237, 0.08);
+
+  --bs-badge-default-color:     #6b7280;
+  --bs-badge-default-bg:        rgba(0,0,0, 0.04);
+
+  --bs-badge-input-color:       #d97706;
+  --bs-badge-input-bg:          rgba(217,119,6, 0.08);
+  --bs-badge-input-ring:        rgba(217,119,6, 0.25);
+
+  --bs-badge-json-color:        #059669;
+  --bs-badge-json-bg:           rgba(5,150,105, 0.08);
+  --bs-badge-json-ring:         rgba(5,150,105, 0.25);
+
+  --bs-badge-menu-color:        #2563eb;
+  --bs-badge-menu-bg:           rgba(37,99,235, 0.08);
+  --bs-badge-menu-ring:         rgba(37,99,235, 0.25);
+
+  --bs-badge-ux-color:          #db2777;
+  --bs-badge-ux-bg:             rgba(219,39,119, 0.08);
+  --bs-badge-ux-ring:           rgba(219,39,119, 0.25);
+
+  --bs-badge-mcp-color:         #7c3aed;
+  --bs-badge-mcp-bg:            rgba(124,58,237, 0.08);
+  --bs-badge-mcp-ring:          rgba(124,58,237, 0.25);
+
+  /* ── Category badges ── */
+  --bs-cat-core-color:          #4338ca;
+  --bs-cat-core-bg:             rgba(67,56,202, 0.08);
+
+  --bs-cat-tool-color:          #15803d;
+  --bs-cat-tool-bg:             rgba(21,128,61, 0.08);
+
+  --bs-cat-trigger-color:       #b45309;
+  --bs-cat-trigger-bg:          rgba(180,83,9, 0.08);
+
+  /* ── Syntax ── */
+  --bs-syntax-key:              #4338ca;
+  --bs-syntax-str:              #059669;
+  --bs-syntax-num:              #d97706;
+  --bs-syntax-bool:             #db2777;
+  --bs-syntax-comment:          #6b7280;
+
+  /* ── Wiki-specific ── */
+  --bs-wiki-hero-bg:            #eef2ff;
+  --bs-wiki-hero-bg-end:        #f8fafc;
+  --bs-wiki-hero-glow:          rgba(99,102,241, 0.06);
+  --bs-wiki-hero-title-from:    #1e1e2e;
+  --bs-wiki-hero-title-to:      #4338ca;
+  --bs-wiki-hero-subtitle:      #6366f1;
+  --bs-wiki-hero-desc:          #64748b;
+
+  --bs-wiki-heading:            #1e1e2e;
+  --bs-wiki-subheading:         #374151;
+  --bs-wiki-body:               #4b5563;
+  --bs-wiki-strong:             #1e293b;
+  --bs-wiki-link:               #4b5563;
+  --bs-wiki-link-hover:         #1e293b;
+
+  --bs-wiki-card-bg:            #f8f9fc;
+  --bs-wiki-card-title:         #1e293b;
+  --bs-wiki-card-label:         #374151;
+  --bs-wiki-card-value:         #6b7280;
+  --bs-wiki-card-badge:         #6b7280;
+  --bs-wiki-card-badge-bg:      rgba(0,0,0, 0.04);
+
+  --bs-wiki-code-bg:            #f1f5f9;
+  --bs-wiki-code-color:         #334155;
+  --bs-wiki-inline-code:        #4338ca;
+
+  --bs-wiki-table-header:       #4338ca;
+  --bs-wiki-table-border:       rgba(0,0,0, 0.06);
+  --bs-wiki-divider:            rgba(0,0,0, 0.06);
+
+  --bs-wiki-collapsible-text:   #1e293b;
+  --bs-wiki-collapsible-hover:  #4338ca;
+  --bs-wiki-chevron:            #6366f1;
+
+  --bs-wiki-step-bg:            #6366f1;
+  --bs-wiki-step-text:          #fff;
+
+  --bs-wiki-tip-info-border:    #6366f1;
+  --bs-wiki-tip-info-color:     #4338ca;
+  --bs-wiki-tip-info-bg:        rgba(99,102,241, 0.04);
+
+  --bs-wiki-tip-warn-border:    #f59e0b;
+  --bs-wiki-tip-warn-color:     #b45309;
+  --bs-wiki-tip-warn-bg:        rgba(245,158,11, 0.04);
+
+  --bs-wiki-tip-success-border: #22c55e;
+  --bs-wiki-tip-success-color:  #15803d;
+  --bs-wiki-tip-success-bg:     rgba(34,197,94, 0.04);
+
+  --bs-wiki-tip-danger-border:  #ef4444;
+  --bs-wiki-tip-danger-color:   #dc2626;
+  --bs-wiki-tip-danger-bg:      rgba(239,68,68, 0.04);
+
+  --bs-wiki-subgroup-border:    rgba(0,0,0, 0.06);
+  --bs-wiki-subgroup-bg:        rgba(0,0,0, 0.01);
+  --bs-wiki-subgroup-title:     #4338ca;
+}

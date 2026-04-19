@@ -1,5 +1,6 @@
 /** AI Classifier block — classify text using an LLM. */
 import { AgentIcon } from '../../components/icons'
+import { getModelOptions, getDefaultModel } from '../utils'
 
 export const AiClassifierBlock = {
   type: 'ai_classifier',
@@ -28,13 +29,9 @@ export const AiClassifierBlock = {
     {
       id: 'model',
       title: 'Model',
-      type: 'dropdown',
-      options: [
-        { label: 'GPT-4o', id: 'gpt-4o' },
-        { label: 'GPT-4o-mini', id: 'gpt-4o-mini' },
-        { label: 'Claude 3.5 Sonnet', id: 'claude-3-5-sonnet-20241022' },
-        { label: 'Claude 3.5 Haiku', id: 'claude-3-5-haiku-20241022' },
-      ],
+      type: 'combobox',
+      options: getModelOptions,
+      defaultValue: getDefaultModel(),
       mode: 'advanced',
     },
     {

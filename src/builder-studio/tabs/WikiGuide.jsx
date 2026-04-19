@@ -2,8 +2,8 @@
  * Wiki Guide — Rich React-based documentation viewer.
  * Replaces the old iframe-based approach for full theme integration.
  */
-import { useState, useMemo } from 'react'
-import { getAllBlocks } from '../blocks/registry'
+import { useState, useMemo, useRef } from 'react'
+import { getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
 import './wiki-guide.css'
 
 /* ── Helpers ── */
@@ -50,9 +50,10 @@ function Step({ num, title, children }) {
 /* ── Collapsible section ── */
 function Collapsible({ title, icon, defaultOpen = false, children, className = '' }) {
   const [open, setOpen] = useState(defaultOpen)
+  const toggleRef = useRef(null)
   return (
-    <div className={`wiki-collapsible ${className}`}>
-      <button className="wiki-collapsible-toggle" onClick={() => setOpen(!open)}>
+    <div className={`wiki-collapsible ${open ? 'wiki-collapsible--open' : ''} ${className}`}>
+      <button ref={toggleRef} className="wiki-collapsible-toggle" data-wiki-toggle onClick={() => setOpen(!open)}>
         <svg className={`wiki-collapsible-chevron ${open ? 'open' : ''}`} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="9 18 15 12 9 6" />
         </svg>
@@ -119,15 +120,21 @@ function BlockCard({ block }) {
   )
 }
 
-/* ── Category labels (matches BlockPalette) ── */
-const CATEGORY_LABELS = {
-  blocks: 'Core Blocks',
-  tools: 'Tools & Integrations',
-  triggers: 'Triggers',
-  custom: 'Custom',
+/* ── JSON tag explanation card ── */
+function JsonTagCard({ icon, title, code, variant, id, children }) {
+  return (
+    <div className={`wiki-json-card ${variant || ''}`} id={id}>
+      <div className="wiki-json-card-icon">{icon}</div>
+      <div className="wiki-json-card-body">
+        <h4 className="wiki-json-card-title">
+          {code && <code>{code}</code>}
+          <span>{title}</span>
+        </h4>
+        <p className="wiki-json-card-desc">{children}</p>
+      </div>
+    </div>
+  )
 }
-
-const CATEGORY_ORDER = ['blocks', 'tools', 'triggers', 'custom']
 
 /* ── Main component ── */
 export default function WikiGuide() {
@@ -143,10 +150,101 @@ export default function WikiGuide() {
     return groups
   }, [blocks])
 
+  const categorySubGroups = useMemo(() => {
+    const result = {}
+    for (const cat of CATEGORY_ORDER) {
+      result[cat] = groupBlocksByCategory(groupedBlocks[cat] || [], cat)
+    }
+    return result
+  }, [groupedBlocks])
+
   const scrollTo = (id) => {
-    const el = document.getElementById(id)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    let el = document.getElementById(id)
+    if (!el) {
+      // Target may be inside a closed Collapsible — open all ancestors
+      // We do a two-pass: first open every collapsed section so the DOM renders,
+      // then find the element.
+      const closedToggles = document.querySelectorAll('.wiki-collapsible:not(.wiki-collapsible--open) > [data-wiki-toggle]')
+      closedToggles.forEach((btn) => btn.click())
+      // Allow React to flush
+      requestAnimationFrame(() => {
+        const target = document.getElementById(id)
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+      return
+    }
+    // If the element exists but is inside a hidden collapsible, open ancestors
+    let node = el.parentElement
+    while (node) {
+      if (node.classList?.contains('wiki-collapsible') && !node.classList.contains('wiki-collapsible--open')) {
+        const toggle = node.querySelector(':scope > [data-wiki-toggle]')
+        if (toggle) toggle.click()
+      }
+      node = node.parentElement
+    }
+    requestAnimationFrame(() => {
+      const target = document.getElementById(id)
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
+
+  const WORKFLOW_JSON_EXAMPLE = JSON.stringify({
+    "nodes": [
+      {
+        "id": "node_1",
+        "data": { "blockType": "user_input", "title": "URL Input" },
+        "position": { "x": 100, "y": 200 }
+      },
+      {
+        "id": "node_2",
+        "data": { "blockType": "agent", "title": "Summarizer" },
+        "position": { "x": 400, "y": 200 }
+      },
+      {
+        "id": "node_3",
+        "data": { "blockType": "response", "title": "Output" },
+        "position": { "x": 700, "y": 200 }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1-2",
+        "source": "node_1",
+        "target": "node_2",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "e2-3",
+        "source": "node_2",
+        "target": "node_3",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      }
+    ],
+    "subBlockValues": {
+      "node_1": {
+        "label": "Enter a URL",
+        "kind": "url",
+        "placeholder": "https://example.com",
+        "required": true
+      },
+      "node_2": {
+        "model": "claude-sonnet-4-20250514",
+        "temperature": 0.3,
+        "messages": [
+          {
+            "role": "system",
+            "content": "Summarize the content from the given URL in 3-5 bullet points."
+          }
+        ],
+        "responseFormat": "{ \"summary\": \"string\", \"bullets\": [\"string\"] }"
+      },
+      "node_3": {
+        "data": "<node_2.content>"
+      }
+    }
+  }, null, 2)
 
   return (
     <div className="wiki">
@@ -177,19 +275,46 @@ export default function WikiGuide() {
             </div>
           </Collapsible>
 
+
+          <Collapsible title="Workflow JSON Schema" icon="📋">
+            <div className="wiki-toc-items">
+              <a href="#json-schema" onClick={(e) => { e.preventDefault(); scrollTo('json-schema') }}>Full JSON structure</a>
+              <a href="#json-nodes" onClick={(e) => { e.preventDefault(); scrollTo('json-nodes') }}>nodes — Block instances</a>
+              <a href="#json-edges" onClick={(e) => { e.preventDefault(); scrollTo('json-edges') }}>edges — Connections</a>
+              <a href="#json-sbv" onClick={(e) => { e.preventDefault(); scrollTo('json-sbv') }}>subBlockValues — Config data</a>
+              <a href="#json-blocktype" onClick={(e) => { e.preventDefault(); scrollTo('json-blocktype') }}>data.blockType — Identity</a>
+              <a href="#json-position" onClick={(e) => { e.preventDefault(); scrollTo('json-position') }}>position — Layout</a>
+              <a href="#json-templates" onClick={(e) => { e.preventDefault(); scrollTo('json-templates') }}>Template expressions</a>
+            </div>
+          </Collapsible>
+
           <Collapsible title="Block Reference" icon="🧱">
             <div className="wiki-toc-items">
               {CATEGORY_ORDER.map((cat) => {
                 const catBlocks = groupedBlocks[cat]
                 if (!catBlocks || catBlocks.length === 0) return null
+                const { topItems, groups } = categorySubGroups[cat]
+
                 return (
-                  <Collapsible key={cat} title={CATEGORY_LABELS[cat]} className="wiki-toc-nested">
+                  <Collapsible key={cat} title={`${CATEGORY_LABELS[cat]} (${catBlocks.length})`} className="wiki-toc-nested">
                     <div className="wiki-toc-items">
-                      {catBlocks.map((b) => (
+                      {topItems.map((b) => (
                         <a key={b.type} href={`#b-${b.type}`} onClick={(e) => { e.preventDefault(); scrollTo(`b-${b.type}`) }}>
                           <span className="wiki-toc-block-name">{b.name}</span>
                           <code>{b.type}</code>
                         </a>
+                      ))}
+                      {groups.map((sg) => (
+                        <Collapsible key={sg.id} title={`${sg.label} (${sg.items.length})`} className="wiki-toc-nested">
+                          <div className="wiki-toc-items">
+                            {sg.items.map((b) => (
+                              <a key={b.type} href={`#b-${b.type}`} onClick={(e) => { e.preventDefault(); scrollTo(`b-${b.type}`) }}>
+                                <span className="wiki-toc-block-name">{b.name}</span>
+                                <code>{b.type}</code>
+                              </a>
+                            ))}
+                          </div>
+                        </Collapsible>
                       ))}
                     </div>
                   </Collapsible>
@@ -302,6 +427,86 @@ export default function WikiGuide() {
 
         <div className="wiki-divider" />
 
+        {/* ═══ Workflow JSON Schema ═══ */}
+        <div className="wiki-section" id="json-explorer">
+          <h2>Workflow JSON Schema</h2>
+          <p>
+            Every workflow is stored and transmitted as a single JSON blob. This is the
+            <strong> only data contract</strong> between the frontend canvas and the
+            backend graph runner. The frontend produces it; the backend consumes it.
+            Understanding this structure is essential for debugging, exporting, and
+            writing custom integrations.
+          </p>
+
+          <h3 id="json-schema">Full structure</h3>
+          <Code>{WORKFLOW_JSON_EXAMPLE}</Code>
+
+          <Tip type="info">
+            Use the <strong>Export</strong> button in the toolbar to download
+            this JSON for any workflow you{"'"}ve built.
+          </Tip>
+
+          <h3 style={{ marginTop: 40 }}>Tag reference</h3>
+
+          <JsonTagCard id="json-nodes" icon="🧩" code="nodes" title="Block instances on the canvas" variant="nodes">
+            Each object represents one block dropped onto the canvas. <code>id</code> is the
+            unique identifier used throughout the workflow to reference this node.{' '}
+            <code>data.blockType</code> determines which handler runs the block — it must
+            match a <code>case</code> in both the frontend <code>graph-runner.js</code> and
+            backend <code>graph-runner.ts</code>. <code>data.title</code> is the user-visible
+            label on the canvas card. <code>position</code> stores x/y coordinates for
+            layout — execution order is determined by edges, not position.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-edges" icon="🔗" code="edges" title="Connections between blocks" variant="edges">
+            Each edge connects one node{"'"}s output port to another node{"'"}s input port.{' '}
+            <code>source</code> and <code>target</code> are node IDs. <code>sourceHandle</code> and{' '}
+            <code>targetHandle</code> identify which port on a multi-port block (e.g.{' '}
+            <code>true</code>/<code>false</code> handles on an <code>if_else</code>). The graph
+            runner uses edges to determine execution order — a node only runs when all its
+            upstream edges have resolved. For branching blocks, only the edge matching the
+            chosen handle is {"\u201c"}live{"\u201d"}.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-sbv" icon="⚙️" code="subBlockValues" title="Configuration data per node" variant="values">
+            Keyed by node ID. Each value is a flat object whose keys match the{' '}
+            <code>subBlocks[].id</code> fields from that block{"'"}s definition in the frontend
+            registry. This is the <strong>data contract</strong> between frontend and backend — the
+            graph runner reads <code>values.model</code>, <code>values.temperature</code>, etc.
+            from this bag. When you configure a field in the Inspector panel, the value is stored
+            here. Template expressions like <code>{"<node_2.content>"}</code> reference other
+            nodes{"'"} outputs and are interpolated at runtime.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-blocktype" icon="🏷️" code="data.blockType" title="The block's identity" variant="blocktype">
+            This string is the single most important coupling point between frontend and backend.
+            It must exactly match: (1) the <code>type</code> field in the block definition JS file,
+            (2) the key in <code>registry.js</code>, (3) the <code>case</code> label in the frontend{' '}
+            <code>graph-runner.js</code> <code>runNode()</code> switch, and (4) the{' '}
+            <code>case</code> label in the backend <code>graph-runner.ts</code>{' '}
+            <code>runNode()</code> switch. If any of these four don{"'"}t match, the block silently
+            fails or falls through to pass-through behavior.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-position" icon="📐" code="position" title="Canvas layout coordinates" variant="position">
+            Stores <code>{"{ x, y }"}</code> pixel coordinates for ReactFlow rendering. These are
+            purely visual — execution order is determined entirely by edges, not spatial position.
+            Two nodes at the same Y coordinate don{"'"}t run {"\u201c"}at the same time{"\u201d"}{' '}
+            unless they share the same set of resolved upstream dependencies.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-templates" icon="🔀" code="<node_id.field>" title="Template expressions — Runtime interpolation" variant="template">
+            Values like <code>{"<node_2.content>"}</code> or <code>{"{{node_2.output}}"}</code> are
+            template references. At execution time, the graph runner replaces these with the actual
+            output from the referenced node. The <code>node_2</code> part is the node ID, and{' '}
+            <code>content</code> is a field in that node{"'"}s output object. This is how data flows
+            between blocks — the Response block reads the Agent block{"'"}s output by referencing
+            its node ID.
+          </JsonTagCard>
+        </div>
+
+        <div className="wiki-divider" />
+
         {/* ═══ Block Reference ═══ */}
         <div className="wiki-section" id="part2">
           <h2>Block Reference</h2>
@@ -317,71 +522,81 @@ export default function WikiGuide() {
             const catBlocks = groupedBlocks[cat]
             if (!catBlocks || catBlocks.length === 0) return null
             const catClass = cat === 'tools' ? 'tool' : cat === 'triggers' ? 'trigger' : 'core'
+
+            const renderBlock = (b) => {
+              const inputEntries = b.inputs ? Object.entries(b.inputs) : []
+              const outputEntries = b.outputs ? Object.entries(b.outputs) : []
+              return (
+                <div key={b.type} id={`b-${b.type}`} className="wiki-block-anchor" style={{ marginTop: 32 }}>
+                  <h3>
+                    <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: b.bgColor, verticalAlign: 'middle', marginRight: 8 }} />
+                    {b.name}
+                    <code style={{ marginLeft: 8, fontSize: '.8rem' }}>{b.type}</code>
+                    <span className={`wiki-cat ${catClass}`}>{b.category}</span>
+                  </h3>
+                  <p>{b.longDescription || b.description}</p>
+
+                  <BlockCard block={b} />
+
+                  {b.subBlocks && b.subBlocks.length > 0 && (
+                    <>
+                      <h4>Fields</h4>
+                      <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Details</th></tr></thead>
+                        <tbody>
+                          {b.subBlocks.map((f) => (
+                            <tr key={f.id}>
+                              <td><code>{f.id}</code>{f.required && <> <Badge type="required">required</Badge></>}{f.mode === 'advanced' && <> <Badge type="advanced">advanced</Badge></>}</td>
+                              <td><code>{f.type}</code></td>
+                              <td>{f.title}{f.placeholder ? ` — ${f.placeholder}` : ''}{f.defaultValue != null ? ` (default: ${f.defaultValue})` : ''}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
+
+                  {inputEntries.length > 0 && (
+                    <>
+                      <h4>Inputs</h4>
+                      <table>
+                        <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+                        <tbody>
+                          {inputEntries.map(([k, v]) => (
+                            <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
+
+                  {outputEntries.length > 0 && (
+                    <>
+                      <h4>Outputs</h4>
+                      <table>
+                        <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+                        <tbody>
+                          {outputEntries.map(([k, v]) => (
+                            <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
+                </div>
+              )
+            }
+
+            // All categories use sub-groups from CATEGORY_CONFIG
+            const { topItems, groups } = categorySubGroups[cat]
             return (
-              <Collapsible key={cat} title={CATEGORY_LABELS[cat]} className="wiki-block-group" defaultOpen={false}>
-                {catBlocks.map((b) => {
-                  const inputEntries = b.inputs ? Object.entries(b.inputs) : []
-                  const outputEntries = b.outputs ? Object.entries(b.outputs) : []
-                  return (
-                    <div key={b.type} id={`b-${b.type}`} className="wiki-block-anchor" style={{ marginTop: 32 }}>
-                      <h3>
-                        <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 3, background: b.bgColor, verticalAlign: 'middle', marginRight: 8 }} />
-                        {b.name}
-                        <code style={{ marginLeft: 8, fontSize: '.8rem' }}>{b.type}</code>
-                        <span className={`wiki-cat ${catClass}`}>{b.category}</span>
-                      </h3>
-                      <p>{b.longDescription || b.description}</p>
-
-                      <BlockCard block={b} />
-
-                      {b.subBlocks && b.subBlocks.length > 0 && (
-                        <>
-                          <h4>Fields</h4>
-                          <table>
-                            <thead><tr><th>Field</th><th>Type</th><th>Details</th></tr></thead>
-                            <tbody>
-                              {b.subBlocks.map((f) => (
-                                <tr key={f.id}>
-                                  <td><code>{f.id}</code>{f.required && <> <Badge type="required">required</Badge></>}{f.mode === 'advanced' && <> <Badge type="advanced">advanced</Badge></>}</td>
-                                  <td><code>{f.type}</code></td>
-                                  <td>{f.title}{f.placeholder ? ` — ${f.placeholder}` : ''}{f.defaultValue != null ? ` (default: ${f.defaultValue})` : ''}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </>
-                      )}
-
-                      {inputEntries.length > 0 && (
-                        <>
-                          <h4>Inputs</h4>
-                          <table>
-                            <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
-                            <tbody>
-                              {inputEntries.map(([k, v]) => (
-                                <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </>
-                      )}
-
-                      {outputEntries.length > 0 && (
-                        <>
-                          <h4>Outputs</h4>
-                          <table>
-                            <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
-                            <tbody>
-                              {outputEntries.map(([k, v]) => (
-                                <tr key={k}><td><code>{k}</code></td><td>{v.type}</td><td>{v.description}</td></tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </>
-                      )}
-                    </div>
-                  )
-                })}
+              <Collapsible key={cat} title={`${CATEGORY_LABELS[cat]} (${catBlocks.length})`} className="wiki-block-group" defaultOpen={false}>
+                {topItems.map(renderBlock)}
+                {groups.map((sg) => (
+                  <Collapsible key={sg.id} title={`${sg.label} (${sg.items.length})`} className="wiki-block-subgroup" defaultOpen={false}>
+                    {sg.items.map(renderBlock)}
+                  </Collapsible>
+                ))}
               </Collapsible>
             )
           })}

@@ -24,6 +24,7 @@ import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
 import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
 import { BookIcon } from './tabs/WikiGuide'
+import { deployWorkflow } from './api/deploy-client'
 import './builder-studio.css'
 
 const R_MIN = 280
@@ -194,39 +195,111 @@ export default function AgentBuilderPage() {
         </div>
         <div className="bs-topbar-actions">
           <button
-            className="bs-btn bs-btn-run"
+            className="bs-topbar-icon-btn bs-topbar-icon-run"
             disabled={!active}
-            onClick={() => { setDockTab('run'); setRunOpen(true); showToast('Running workflow…', 'run') }}
-            title="Run this workflow"
+            onClick={() => { setDockTab('run'); setRunOpen(true); showToast('Running workflow\u2026', 'run') }}
+            data-tooltip="Run"
           >
-            <PlayIcon className="bs-ico-sm" />
-            Run
+            <PlayIcon className="bs-ico-topbar" />
           </button>
           <button
-            className="bs-btn-primary"
+            className="bs-topbar-icon-btn bs-topbar-icon-save"
             disabled={!active}
             onClick={() => { if (!active) return; saveWorkflow(active.id, { nodes, edges, subBlockValues }); syncToServer(); showToast('Workflow saved', 'save') }}
+            data-tooltip="Save"
           >
-            Save
+            {/* Save/floppy disk SVG icon */}
+            <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
           </button>
+          <button
+            className="bs-topbar-icon-btn bs-topbar-icon-export"
+            disabled={!active}
+            onClick={() => {
+              if (!active) return
+              const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+              const blob = new Blob([json], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = (active.name || active.id || 'workflow').replace(/\s+/g, '_') + '.json'
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+              showToast('Workflow JSON exported', 'save')
+            }}
+            data-tooltip="Export JSON"
+          >
+            {/* Download/export SVG icon */}
+            <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+          <button
+            className="bs-topbar-icon-btn bs-topbar-icon-deploy"
+            disabled={!active}
+            onClick={async () => {
+              if (!active) return
+              // Save first
+              saveWorkflow(active.id, { nodes, edges, subBlockValues })
+              syncToServer()
+              // Detect trigger type from workflow nodes
+              const scheduleNode = nodes.find((n) => n.data?.blockType === 'schedule')
+              const webhookNode = nodes.find((n) => n.data?.blockType === 'webhook_request')
+              let trigger = { type: 'manual' }
+              if (scheduleNode) {
+                const sv = subBlockValues[scheduleNode.id] || {}
+                trigger = { type: 'cron', cron: sv.cron || '0 * * * *', timezone: sv.timezone || 'UTC' }
+              } else if (webhookNode) {
+                trigger = { type: 'webhook' }
+              }
+              try {
+                const result = await deployWorkflow({
+                  workflowId: active.id,
+                  workflow: { nodes, edges, subBlockValues },
+                  trigger,
+                })
+                let msg = 'Workflow deployed'
+                if (result.webhookUrl) msg += ` \u00b7 Webhook: ${result.webhookUrl}`
+                if (result.cronInterval) msg += ` \u00b7 Cron active`
+                showToast(msg, 'success')
+              } catch (err) {
+                showToast(`Deploy failed: ${err.message}`, 'error')
+              }
+            }}
+            data-tooltip="Deploy"
+          >
+            {/* Send/deploy SVG icon */}
+            <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 2L11 13"/>
+              <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+            </svg>
+          </button>
+          <span className="bs-topbar-divider" />
           <button
             className="bs-btn-ghost bs-topbar-toggle"
             onClick={() => openWiki()}
-            title="Wiki — Agent Builder Studio Guide"
+            title="Wiki \u2014 Agent Builder Studio Guide"
           >
             <BookIcon className="bs-ico-sm" />
           </button>
           <button
             className="bs-btn-ghost bs-topbar-toggle"
             onClick={() => openSettings()}
-            title="Settings & shortcuts (⌘,)"
+            title="Settings & shortcuts (\u2318,)"
           >
             <SettingsIcon className="bs-ico-sm" />
           </button>
           <button
             className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
-            title={rOpen ? 'Hide inspector (⌘.)' : 'Show inspector (⌘.)'}
+            title={rOpen ? 'Hide inspector (\u2318.)' : 'Show inspector (\u2318.)'}
           >
             <PanelRightIcon className="bs-ico-sm" />
           </button>

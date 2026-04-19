@@ -127,3 +127,102 @@ export function onRegistryChange(fn) {
 }
 
 export { registry }
+
+/* ── Shared category & sub-group constants ── */
+
+export const CATEGORY_LABELS = {
+  blocks: 'Core Blocks',
+  tools: 'Tools & Integrations',
+  triggers: 'Triggers',
+  custom: 'Custom',
+}
+
+export const CATEGORY_ORDER = ['blocks', 'tools', 'triggers', 'custom']
+
+/**
+ * Centralised category configuration — single source of truth for every
+ * category's pinned top-level blocks and sub-group definitions.
+ *
+ * Every UI surface (BlockPalette, Canvas context-menu, WikiGuide) consumes
+ * this config via `groupBlocksByCategory()`.  To re-organise blocks just
+ * move types between groups here — all three surfaces update automatically.
+ *
+ * Shape per category:
+ *   topTypes   – block types pinned above sub-groups (e.g. Starter)
+ *   subgroups  – ordered list of { id, label, types[] }
+ *
+ * Blocks whose type doesn't appear in topTypes or any subgroup are
+ * collected into an auto-generated "Other" group at the end.
+ */
+export const CATEGORY_CONFIG = {
+  blocks: {
+    topTypes: ['starter'],
+    subgroups: [
+      { id: 'input',      label: 'Input',            types: ['user_input'] },
+      { id: 'essentials', label: 'Essentials',        types: ['variables', 'sub_workflow'] },
+      { id: 'logic',      label: 'Logic & Flow',      types: ['condition', 'if_else', 'if_elseif_else', 'switch', 'router_v2', 'error_handler'] },
+      { id: 'loops',      label: 'Loops',             types: ['loop', 'for_loop', 'for_each', 'parallel'] },
+      { id: 'data',       label: 'Data & Transform',  types: ['json_map', 'json_path', 'text_template', 'table', 'filter', 'sort', 'aggregate', 'merge'] },
+      { id: 'io',         label: 'Output & I/O',      types: ['api', 'http_response', 'response', 'save_to_files', 'show_preview'] },
+      { id: 'timing',     label: 'Timing',            types: ['wait', 'delay'] },
+      { id: 'ai',         label: 'AI',                types: ['agent', 'ai_classifier'] },
+    ],
+  },
+  tools: {
+    topTypes: [],
+    subgroups: [
+      { id: 'scripting', label: 'Scripting',     types: ['function'] },
+      { id: 'databases', label: 'Databases',     types: ['postgresql', 'redis', 'mongodb'] },
+      { id: 'messaging', label: 'Messaging',     types: ['smtp', 'slack'] },
+      { id: 'protocols', label: 'Protocols',     types: ['mcp'] },
+      { id: 'security',  label: 'Security',      types: ['crypto'] },
+    ],
+  },
+  triggers: {
+    topTypes: [],
+    subgroups: [
+      { id: 'http',      label: 'HTTP',       types: ['webhook_request'] },
+      { id: 'scheduled', label: 'Scheduled',  types: ['schedule'] },
+    ],
+  },
+  custom: {
+    topTypes: [],
+    subgroups: [],
+  },
+}
+
+/* Back-compat aliases — existing code that imports these still works. */
+export const CORE_TOP_TYPES = CATEGORY_CONFIG.blocks.topTypes
+export const CORE_SUBGROUPS = CATEGORY_CONFIG.blocks.subgroups
+
+/**
+ * Generic grouper for any category.
+ * Returns { topItems: Block[], groups: { id, label, items: Block[] }[] }.
+ */
+export function groupBlocksByCategory(blocks, category) {
+  const config = CATEGORY_CONFIG[category]
+  if (!config) return { topItems: [], groups: blocks.length ? [{ id: 'all', label: 'All', items: blocks }] : [] }
+
+  const typeMap = Object.fromEntries(blocks.map((b) => [b.type, b]))
+  const used = new Set()
+
+  const topItems = (config.topTypes || []).map((t) => typeMap[t]).filter(Boolean)
+  topItems.forEach((b) => used.add(b.type))
+
+  const groups = []
+  for (const sg of config.subgroups) {
+    const items = sg.types.map((t) => typeMap[t]).filter(Boolean)
+    items.forEach((b) => used.add(b.type))
+    if (items.length > 0) groups.push({ id: sg.id, label: sg.label, items })
+  }
+
+  const remaining = blocks.filter((b) => !used.has(b.type))
+  if (remaining.length > 0) groups.push({ id: 'other', label: 'Other', items: remaining })
+
+  return { topItems, groups }
+}
+
+/** @deprecated Use groupBlocksByCategory(blocks, 'blocks') instead. */
+export function groupCoreBlocks(blocks) {
+  return groupBlocksByCategory(blocks, 'blocks')
+}

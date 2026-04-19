@@ -13,7 +13,7 @@ export const FunctionBlock = {
   - Reference workflow variables using <blockName.output> syntax within code.
   `,
   docsLink: 'https://docs.sim.ai/blocks/function',
-  category: 'blocks',
+  category: 'tools',
   bgColor: '#FF402F',
   icon: CodeIcon,
   subBlocks: [
