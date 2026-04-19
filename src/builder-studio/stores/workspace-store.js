@@ -397,14 +397,45 @@ export const useWorkspaceStore = create()(
       }),
       {
         name: 'builder-studio/workspace',
-        version: 7,
+        version: 8,
         migrate: (persisted, fromVersion) => {
           // Any older-version blob is discarded in favor of the bundled seed.
           // Bump whenever the demo topology changes (new node/edge) so users
           // who already ran the studio get the updated canvas instead of a
-          // stale rehydrate. v7 adds the terminal Show-Preview node.
-          if (!persisted || fromVersion < 7) return initialState
+          // stale rehydrate.
+          if (!persisted || fromVersion < 8) return initialState
           return persisted
+        },
+        /** Ensure seed entities always exist on rehydrate — even if the user
+         *  previously deleted them. The demo workflow, agents, skills, team,
+         *  and pool are guaranteed to be present on every app start. */
+        merge: (persistedState, currentState) => {
+          const merged = { ...currentState, ...persistedState }
+
+          // Re-inject seed entities if missing
+          if (!merged.workflows?.find((w) => w.id === seedWorkflowId)) {
+            merged.workflows = [...(merged.workflows || []), demoWorkflow]
+          }
+          if (!merged.agents?.find((a) => a.id === seedAgent1Id)) {
+            merged.agents = [...(merged.agents || []), demoAgent1]
+          }
+          if (!merged.agents?.find((a) => a.id === seedAgent2Id)) {
+            merged.agents = [...(merged.agents || []), demoAgent2]
+          }
+          if (!merged.skills?.find((s) => s.id === seedSkillId)) {
+            merged.skills = [...(merged.skills || []), demoSkill]
+          }
+          if (!merged.teams?.find((t) => t.id === seedTeamId)) {
+            merged.teams = [...(merged.teams || []), { id: seedTeamId, name: 'fullstack builders', workspaceId: seedWorkspaceId, agentPoolIds: [seedPoolId] }]
+          }
+          if (!merged.agentPools?.find((p) => p.id === seedPoolId)) {
+            merged.agentPools = [...(merged.agentPools || []), { id: seedPoolId, name: 'Default Pool', teamId: seedTeamId, agentIds: [seedAgent1Id, seedAgent2Id] }]
+          }
+          // Ensure activeWorkflowId is valid
+          if (!merged.activeWorkflowId || !merged.workflows?.find((w) => w.id === merged.activeWorkflowId)) {
+            merged.activeWorkflowId = seedWorkflowId
+          }
+          return merged
         },
       }
     ),

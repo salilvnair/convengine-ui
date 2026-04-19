@@ -44,12 +44,37 @@ const ProblemsPanel = {
 }
 
 function collectProblems(ctx) {
-  const { workflow } = ctx
+  const { workflow, result, error } = ctx
   if (!workflow) return []
   const problems = []
   const nodes = workflow.nodes || []
   const edges = workflow.edges || []
 
+  // ── Runtime errors from the last run ──────────────────────────────────
+  if (error) {
+    problems.push({
+      severity: 'error',
+      node: 'Run',
+      message: error,
+    })
+  }
+  if (result?.trace) {
+    for (const t of result.trace) {
+      if (t.error) {
+        const detail = t.errorDetail
+        let msg = t.error
+        if (detail?.url) msg += ` — ${detail.method || 'GET'} ${detail.url}`
+        if (detail?.status) msg += ` (HTTP ${detail.status})`
+        problems.push({
+          severity: 'error',
+          node: t.title || t.nodeId,
+          message: msg,
+        })
+      }
+    }
+  }
+
+  // ── Static validation ─────────────────────────────────────────────────
   // Check for nodes with no connections
   const connectedIds = new Set()
   edges.forEach((e) => { connectedIds.add(e.source); connectedIds.add(e.target) })

@@ -19,33 +19,78 @@
 const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || 'http://localhost:8080/api/v1').replace(/\/$/, '')
 
 export async function runAgent({ agent, input, signal }) {
-  const res = await fetch(`${BASE}/builder-studio/agent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agent, input }),
-    signal,
-  })
+  const url = `${BASE}/builder-studio/agent`
+  let res
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent, input }),
+      signal,
+    })
+  } catch (err) {
+    const rich = new Error(
+      `Network error calling ${url} — ${err.message}. ` +
+      'Is the backend server running?'
+    )
+    rich.url = url
+    rich.method = 'POST'
+    rich.cause = err
+    throw rich
+  }
   if (!res.ok) {
-    throw new Error(`Agent call failed (${res.status}): ${await safeText(res)}`)
+    const body = await safeText(res)
+    const rich = new Error(`Agent call failed (${res.status}): ${body}`)
+    rich.url = url
+    rich.method = 'POST'
+    rich.status = res.status
+    rich.statusText = res.statusText
+    rich.responseBody = body
+    throw rich
   }
   return res.json() // { output, model, ms }
 }
 
 export async function runWorkflow({ workflow, inputs, signal }) {
-  const res = await fetch(`${BASE}/builder-studio/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ workflow, inputs }),
-    signal,
-  })
+  const url = `${BASE}/builder-studio/run`
+  let res
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workflow, inputs }),
+      signal,
+    })
+  } catch (err) {
+    const rich = new Error(
+      `Network error calling ${url} — ${err.message}. ` +
+      'Is the backend server running?'
+    )
+    rich.url = url
+    rich.method = 'POST'
+    rich.cause = err
+    throw rich
+  }
   if (!res.ok) {
     if (res.status === 404) {
-      throw new Error(
-        'Builder Studio backend is not available at ' + BASE + '/builder-studio/run. ' +
+      const rich = new Error(
+        'Builder Studio backend is not available at ' + url + '. ' +
         'Make sure the convengine-demo app is running and the builder-studio package is deployed.'
       )
+      rich.url = url
+      rich.method = 'POST'
+      rich.status = 404
+      rich.statusText = res.statusText
+      throw rich
     }
-    throw new Error(`Run failed (${res.status}): ${await safeText(res)}`)
+    const body = await safeText(res)
+    const rich = new Error(`Run failed (${res.status}): ${body}`)
+    rich.url = url
+    rich.method = 'POST'
+    rich.status = res.status
+    rich.statusText = res.statusText
+    rich.responseBody = body
+    throw rich
   }
   return res.json()
 }

@@ -174,8 +174,8 @@
 .bs-splitter-right:hover .bs-splitter-grip,
 .bs-main.is-dragging .bs-splitter-right .bs-splitter-grip { opacity: 1; }
 .bs-splitter-tip-right { right: 12px; left: auto !important; }
-.bs-topbar-toggle { display: inline-flex; align-items: center; padding: 6px 8px; }
-.bs-topbar-toggle.is-on { color: #6366f1; border-color: #6366f1; }
+.bs-topbar-toggle { display: inline-flex; align-items: center; padding: 6px 8px; border-radius: 6px; }
+.bs-topbar-toggle.is-on { color: #e2e8f0; background: rgba(255,255,255,0.06); }
 .bs-btn-run { display: inline-flex; align-items: center; gap: 6px; }
 .bs-btn-run:not(:disabled) { border-color: #10b981; color: #10b981; }
 .bs-btn-run:not(:disabled):hover { background: rgba(16,185,129,0.08); }

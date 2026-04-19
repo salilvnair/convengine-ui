@@ -87,7 +87,7 @@ const DebugPanel = {
  * this file.
  */
 function DebugDetails({ event, deltaMs }) {
-  const { type, nodeId, blockType, title, output, error, meta, ms, values } = event
+  const { type, nodeId, blockType, title, output, error, errorDetail, meta, ms, values } = event
   return (
     <div className="bs-run-log-expand">
       <div className="bs-run-log-kv">
@@ -122,6 +122,15 @@ function DebugDetails({ event, deltaMs }) {
         <>
           <div className="bs-panel-subtitle">Error</div>
           <div className="bs-alert bs-alert-error" style={{ marginTop: 0 }}>{error}</div>
+          {errorDetail && (errorDetail.url || errorDetail.status) && (
+            <div className="bs-run-log-kv" style={{ marginTop: 8 }}>
+              {errorDetail.url && <KV k="URL" v={<code>{errorDetail.method || 'GET'} {errorDetail.url}</code>} />}
+              {errorDetail.status && <KV k="HTTP Status" v={<code>{errorDetail.status} {errorDetail.statusText || ''}</code>} />}
+              {errorDetail.responseBody && (
+                <KV k="Response" v={<pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 120, overflow: 'auto' }}>{errorDetail.responseBody}</pre>} />
+              )}
+            </div>
+          )}
         </>
       )}
 

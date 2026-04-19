@@ -67,6 +67,22 @@ const TracePanel = {
                       {t.ms != null && <KV k="Duration" v={`${t.ms}ms`} />}
                     </div>
 
+                    {t.error && (
+                      <>
+                        <div className="bs-panel-subtitle">Error</div>
+                        <div className="bs-alert bs-alert-error" style={{ marginTop: 0 }}>{t.error}</div>
+                        {t.errorDetail && (t.errorDetail.url || t.errorDetail.status) && (
+                          <div className="bs-run-log-kv" style={{ marginTop: 8 }}>
+                            {t.errorDetail.url && <KV k="URL" v={<code>{t.errorDetail.method || 'GET'} {t.errorDetail.url}</code>} />}
+                            {t.errorDetail.status && <KV k="HTTP Status" v={<code>{t.errorDetail.status} {t.errorDetail.statusText || ''}</code>} />}
+                            {t.errorDetail.responseBody && (
+                              <KV k="Response" v={<pre className="bs-run-log-pre" style={{ margin: 0, maxHeight: 120, overflow: 'auto' }}>{t.errorDetail.responseBody}</pre>} />
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     <div className="bs-panel-subtitle">Input</div>
                     <div className="bs-json-wrap"><JsonView value={t.input ?? ''} /></div>
 

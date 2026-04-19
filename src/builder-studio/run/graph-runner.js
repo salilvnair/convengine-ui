@@ -133,6 +133,14 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           output, meta, values, ms: Math.round(performance.now() - t0),
         })
       } catch (err) {
+        const errorDetail = {
+          message: err.message || String(err),
+          ...(err.url && { url: err.url }),
+          ...(err.method && { method: err.method }),
+          ...(err.status && { status: err.status }),
+          ...(err.statusText && { statusText: err.statusText }),
+          ...(err.responseBody && { responseBody: err.responseBody }),
+        }
         trace.push({
           nodeId: n.id,
           blockType: n.data?.blockType,
@@ -140,9 +148,13 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           input,
           values,
           error: err.message || String(err),
+          errorDetail,
           ms: Math.round(performance.now() - t0),
         })
-        onProgress?.({ type: 'error', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, error: err.message || String(err) })
+        onProgress?.({
+          type: 'error', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+          error: err.message || String(err), errorDetail,
+        })
         throw err
       }
     }))
