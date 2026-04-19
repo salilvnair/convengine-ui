@@ -225,6 +225,15 @@ export const LinkIcon = (p) => (
 export const XIcon = (p) => (
   <I {...p}><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></I>
 )
+export const MinimizeIcon = (p) => (
+  <I {...p} strokeWidth="2.2">
+    {/* open-corner rounded rect (left, bottom, right sides + top-left corner) */}
+    <path d="M18 3h-2M4 3h8a2 2 0 0 1 2 2v2M4 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V11" fill="none" />
+    {/* diagonal arrow pointing down-left */}
+    <line x1="20" y1="4" x2="12" y2="12" />
+    <polyline points="12,6 12,12 18,12" />
+  </I>
+)
 export const PanelRightIcon = (p) => (
   <I {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="14" y1="4" x2="14" y2="20" /></I>
 )

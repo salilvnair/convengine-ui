@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
-import { PlayIcon, XIcon } from '../components/icons'
+import { PlayIcon, MinimizeIcon } from '../components/icons'
 import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
 import { collectInputNodes } from './input-registry'
 import RunPanel from './panels/run-panel'
@@ -55,16 +55,15 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
   const endRun = useWorkflowStore((s) => s.endRun)
 
   const missing = inputNodes.filter((n) => n.required && !String(values[n.id] || '').trim())
-  const canAutoRun = inputNodes.length > 0 && missing.length === 0
 
   // Keep the tab list in sync if an extension registers a panel at runtime.
   useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape' && !busy) onClose() }
+    function onKey(e) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [busy, onClose])
+  }, [onClose])
 
   // No auto-run — opening the dock just shows the panel.
   // The user clicks the Run button inside the Run tab to execute.
@@ -87,6 +86,10 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
   }, [height])
 
   async function doRun() {
+    // If workflow has required inputs, auto-minimize the dock on Run
+    if (inputNodes.length > 0 && missing.length === 0) {
+      onClose()
+    }
     setBusy(true); setError(null); setResult(null); setProgress([]); setExpanded({})
     setActiveTab('run')
     startRun()
@@ -178,8 +181,8 @@ export default function RunModal({ workflow, onClose, activeTab: activeTabProp, 
           <button className="bs-btn-ghost bs-btn-sm" onClick={doRun} disabled={busy} title="Run again">
             <PlayIcon className="bs-ico-xs" /> Run
           </button>
-          <button className="bs-btn-ghost bs-btn-sm" onClick={onClose} disabled={busy} title="Close">
-            <XIcon className="bs-ico-xs" />
+          <button className="bs-btn-ghost bs-btn-sm" onClick={onClose} title="Minimize">
+            <MinimizeIcon className="bs-ico-xs" />
           </button>
         </div>
       </header>

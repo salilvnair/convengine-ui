@@ -5,7 +5,7 @@
  * All methods throw on non-2xx, surfacing the server's
  * {@code { error: string }} body when available.
  */
-const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || 'http://localhost:8080/api/v1').replace(/\/$/, '')
+const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '/api/v1' : 'http://localhost:8080/api/v1')).replace(/\/$/, '')
 
 async function jsonOrThrow(res) {
   const text = await res.text()
