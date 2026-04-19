@@ -5,7 +5,7 @@
  * Mirrors sim's workflow-block config panel: header, mode switch, and a
  * sequential list of SubBlockRenderer instances.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
@@ -13,6 +13,9 @@ import { getTypeColor, hasFeature, getCustomIOSections } from './io-registry'
 import SubBlockRenderer from './SubBlockRenderer'
 import ConfirmModal from '../components/ConfirmModal'
 import WorkflowInspector from './WorkflowInspector'
+import BlockDocViewer from '../docs/BlockDocViewer'
+import { hasBlockDocs } from '../docs/block-docs-registry'
+import '../docs/block-docs-entries' // register all block docs
 
 const EMPTY = Object.freeze({})
 
@@ -38,7 +41,11 @@ export default function Inspector() {
   )
   const [mode, setMode] = useState('basic')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showDocs, setShowDocs] = useState(false)
   const activeWorkflowId = useWorkspaceStore((s) => s.activeWorkflowId)
+
+  // Reset doc overlay when switching nodes
+  useEffect(() => { setShowDocs(false) }, [selectedNodeId])
 
   const node = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null
   const cfg = node ? getBlock(node.data.blockType) : null
@@ -77,6 +84,18 @@ export default function Inspector() {
             <div className="bs-inspector-title">{cfg.name}</div>
             <div className="bs-inspector-sub">{cfg.description}</div>
           </div>
+          {/* About icon — toggles documentation overlay */}
+          <button
+            className={`bsdoc-about-btn ${showDocs ? 'bsdoc-about-active' : ''}`}
+            onClick={() => setShowDocs((v) => !v)}
+            title={showDocs ? 'Close documentation' : 'About this block'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
           <button className="bs-btn-danger-ghost" onClick={() => setConfirmDelete(true)} title="Delete block">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="3 6 5 6 21 6" />
@@ -101,6 +120,17 @@ export default function Inspector() {
           </div>
         )}
       </header>
+
+      {/* ── Doc viewer overlay (replaces inspector body when active) ── */}
+      {showDocs ? (
+        <div className="bs-inspector-body">
+          <BlockDocViewer
+            blockType={cfg.type}
+            onClose={() => setShowDocs(false)}
+            bgColor={cfg.bgColor}
+          />
+        </div>
+      ) : (
       <div className="bs-inspector-body">
         {visibleSubBlocks.map((sb) => (
           <div key={`${sb.id}-${sb.condition ? JSON.stringify(sb.condition) : ''}`} className="bs-field">
@@ -131,6 +161,7 @@ export default function Inspector() {
           subBlockValues={subBlockValues}
         />
       </div>
+      )}
 
       {confirmDelete && (
         <ConfirmModal
