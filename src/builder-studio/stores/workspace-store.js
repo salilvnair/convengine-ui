@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { v4 as uuid } from 'uuid'
 import { syncWorkspaceToServer, loadWorkspaceFromServer } from '../api/workspace-client'
+import { useLlmConfigStore } from './llm-config-store'
 
 /**
  * @typedef {{id: string, name: string, language: 'javascript'|'python', source: string, inputSchema?: object, outputSchema?: object}} Skill
@@ -411,6 +412,7 @@ export const useWorkspaceStore = create()(
             agents: s.agents,
             skills: s.skills,
             workflows: s.workflows,
+            llmConfig: useLlmConfigStore.getState().consumerConfig,
           }
           return syncWorkspaceToServer(workspaceId, snapshot)
         },
@@ -430,6 +432,10 @@ export const useWorkspaceStore = create()(
                           snapshot.agents?.length > 0 ||
                           snapshot.skills?.length > 0
           if (!hasData) return false
+          // Restore LLM config if present
+          if (snapshot.llmConfig) {
+            useLlmConfigStore.getState().setConfig(snapshot.llmConfig)
+          }
           set({
             activeWorkspaceId: snapshot.activeWorkspaceId || id,
             activeWorkflowId: snapshot.activeWorkflowId || get().activeWorkflowId,
