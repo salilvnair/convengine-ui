@@ -4,7 +4,7 @@
  */
 import { ConnectIcon } from '../../components/icons'
 import { AuthMode } from '../types'
-import { getModelOptions, getProviderCredentialSubBlocks, PROVIDER_CREDENTIAL_INPUTS } from '../utils'
+import { getModelOptions, getDefaultModel, getProviderCredentialSubBlocks, PROVIDER_CREDENTIAL_INPUTS } from '../utils'
 
 export const RouterBlock = {
   type: 'router_v2',
@@ -36,7 +36,7 @@ export const RouterBlock = {
       type: 'combobox',
       placeholder: 'Type or select a model...',
       required: true,
-      defaultValue: 'claude-sonnet-4-6',
+      get defaultValue() { return getDefaultModel() },
       options: getModelOptions,
     },
     ...getProviderCredentialSubBlocks(),
@@ -45,7 +45,7 @@ export const RouterBlock = {
     access: ['openai_chat', 'anthropic_chat', 'google_chat'],
     config: {
       tool: (params) => {
-        const model = params.model || 'claude-sonnet-4-6'
+        const model = params.model || getDefaultModel()
         if (model.startsWith('claude')) return 'anthropic_chat'
         if (model.startsWith('gpt') || model.startsWith('o')) return 'openai_chat'
         return 'anthropic_chat'

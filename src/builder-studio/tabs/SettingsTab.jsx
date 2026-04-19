@@ -1,12 +1,14 @@
 /**
- * Settings tab — at the moment a reference sheet for keyboard shortcuts.
+ * Settings tab — keyboard shortcuts + LLM provider config.
  *
  * The table is grouped by context (canvas, rename, inspector, etc.) and
  * driven by `SHORTCUTS` so adding a new binding in Canvas.jsx /
  * AgentBuilderPage.jsx only needs a corresponding row here.
  */
+import { useState, useMemo, useCallback } from 'react'
 import { SettingsIcon, KeyboardIcon } from '../components/icons'
 import McpServersPanel from './McpServersPanel'
+import { useLlmConfigStore } from '../stores/llm-config-store'
 
 const MOD = /Mac|iPhone|iPad/.test(typeof navigator !== 'undefined' ? navigator.platform : '') ? '⌘' : 'Ctrl'
 
@@ -127,9 +129,140 @@ export default function SettingsTab() {
           </li>
         </ul>
       </section>
+
+      <section className="bs-editor-section">
+        <LlmConfigPanel />
+      </section>
     </div>
   )
 }
+
+/* ── LLM Provider Configuration Panel ────────────────────────────────── */
+
+const SAMPLE_CONFIG = `{
+  "provider": "openai",
+  "temperature": 0.3,
+  "openai": {
+    "api-key": "\${OPENAI_API_KEY}",
+    "model": "gpt-4.1",
+    "base-url": "https://api.openai.com"
+  },
+  "lmstudio": {
+    "api-key": "\${LMSTUDIO_API_KEY}",
+    "model": "openai/gpt-oss-20b",
+    "base-url": "http://localhost:1234"
+  }
+}`
+
+function LlmConfigPanel() {
+  const consumerConfig = useLlmConfigStore((s) => s.consumerConfig)
+  const models = useLlmConfigStore((s) => s.models)
+  const defaultModel = useLlmConfigStore((s) => s.defaultModel)
+  const activeProvider = useLlmConfigStore((s) => s.activeProvider)
+  const setConfig = useLlmConfigStore((s) => s.setConfig)
+
+  const [raw, setRaw] = useState(() =>
+    consumerConfig ? JSON.stringify(consumerConfig, null, 2) : ''
+  )
+  const [error, setError] = useState('')
+
+  const apply = useCallback(() => {
+    if (!raw.trim()) {
+      setConfig(null)
+      setError('')
+      return
+    }
+    try {
+      const parsed = JSON.parse(raw)
+      setConfig(parsed)
+      setError('')
+    } catch (e) {
+      setError(`Invalid JSON: ${e.message}`)
+    }
+  }, [raw, setConfig])
+
+  const reset = useCallback(() => {
+    setConfig(null)
+    setRaw('')
+    setError('')
+  }, [setConfig])
+
+  const loadSample = useCallback(() => {
+    setRaw(SAMPLE_CONFIG)
+    setError('')
+  }, [])
+
+  return (
+    <div className="bs-llm-config">
+      <div className="bs-settings-section-head">
+        <svg className="bs-ico-sm" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="6" width="16" height="12" rx="3" />
+          <circle cx="9" cy="12" r="1.2" fill="currentColor" />
+          <circle cx="15" cy="12" r="1.2" fill="currentColor" />
+          <path d="M12 3v3" />
+        </svg>
+        <h3 className="bs-settings-h3">LLM Provider Configuration</h3>
+      </div>
+
+      <p className="bs-llm-config-desc">
+        Provide your LLM provider config as JSON. The <code>provider</code> key sets the active provider
+        whose <code>model</code> becomes the default in Agent and Router blocks. Each provider entry can
+        specify <code>model</code>, <code>api-key</code>, and <code>base-url</code>.
+      </p>
+
+      <div className="bs-llm-config-actions">
+        <button className="bs-btn-sm bs-btn-secondary" onClick={loadSample}>Load sample</button>
+        <button className="bs-btn-sm bs-btn-primary" onClick={apply} disabled={!raw.trim()}>Apply</button>
+        {consumerConfig && (
+          <button className="bs-btn-sm bs-btn-danger-ghost" onClick={reset}>Reset to defaults</button>
+        )}
+      </div>
+
+      <textarea
+        className="bs-llm-config-editor"
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        placeholder={SAMPLE_CONFIG}
+        rows={12}
+        spellCheck={false}
+      />
+
+      {error && <div className="bs-llm-config-error">{error}</div>}
+
+      {consumerConfig && (
+        <div className="bs-llm-config-status">
+          <div className="bs-llm-config-status-row">
+            <span className="bs-llm-status-label">Active provider</span>
+            <span className="bs-llm-status-badge">{activeProvider || '—'}</span>
+          </div>
+          <div className="bs-llm-config-status-row">
+            <span className="bs-llm-status-label">Default model</span>
+            <span className="bs-llm-status-badge bs-llm-status-model">{defaultModel}</span>
+          </div>
+          <div className="bs-llm-config-status-row">
+            <span className="bs-llm-status-label">Available models</span>
+            <div className="bs-llm-model-chips">
+              {models.map((m) => (
+                <span
+                  key={m.id}
+                  className={`bs-llm-model-chip ${m.id === defaultModel ? 'bs-llm-model-chip-active' : ''}`}
+                  title={`${m.group} — ${m.id}`}
+                >
+                  {m.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!consumerConfig && (
+        <div className="bs-llm-config-hint">
+          Using built-in model defaults. Paste a config above and click <b>Apply</b> to use consumer-provided models.
+        </div>
+      )}
+    </div>
+  )
 
 function KeyCombo({ keys }) {
   return (

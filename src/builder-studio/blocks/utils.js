@@ -4,27 +4,27 @@
  * Helpers used across block configs — provider credential sub-blocks, model
  * options, and file-input normalization. Kept in sync with sim's surface but
  * stripped of server-side model registry dependencies.
+ *
+ * Model options are now consumer-driven via llm-config-store. When a consumer
+ * config is set (e.g. from YAML), models come from that config. Otherwise,
+ * built-in defaults are used.
  */
+import { getConfiguredModelOptions, getConfiguredDefaultModel } from '../stores/llm-config-store'
 
 /**
  * Returns the list of models available in agent/router combobox.
+ * Consumer-configured models take priority over built-in defaults.
  * Mirrors sim's getModelOptions() shape: Array<{ label, id, group? }>.
  */
 export function getModelOptions() {
-  return [
-    { label: 'Claude Sonnet 4.6', id: 'claude-sonnet-4-6', group: 'Anthropic' },
-    { label: 'Claude Opus 4', id: 'claude-opus-4', group: 'Anthropic' },
-    { label: 'Claude Haiku 3.5', id: 'claude-haiku-3-5', group: 'Anthropic' },
-    { label: 'GPT-4o', id: 'gpt-4o', group: 'OpenAI' },
-    { label: 'GPT-4o mini', id: 'gpt-4o-mini', group: 'OpenAI' },
-    { label: 'GPT-5', id: 'gpt-5', group: 'OpenAI' },
-    { label: 'o3', id: 'o3', group: 'OpenAI' },
-    { label: 'Gemini 2.5 Pro', id: 'gemini-2.5-pro', group: 'Google' },
-    { label: 'Gemini 2.5 Flash', id: 'gemini-2.5-flash', group: 'Google' },
-    { label: 'Grok 4', id: 'grok-4', group: 'xAI' },
-    { label: 'DeepSeek Chat', id: 'deepseek-chat', group: 'DeepSeek' },
-    { label: 'DeepSeek Reasoner', id: 'deepseek-reasoner', group: 'DeepSeek' },
-  ]
+  return getConfiguredModelOptions()
+}
+
+/**
+ * Returns the default model id based on consumer config.
+ */
+export function getDefaultModel() {
+  return getConfiguredDefaultModel()
 }
 
 /**

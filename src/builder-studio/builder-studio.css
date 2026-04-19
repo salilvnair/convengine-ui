@@ -2905,3 +2905,107 @@ select.bs-input option {
   .bs-sidenav, .bs-inspector, .bs-right { border: none; }
   .bs-splitter-right { display: none; }
 }
+
+/* ── LLM Provider Configuration Panel ────────────────────────────────── */
+.bs-llm-config { display: flex; flex-direction: column; gap: 12px; }
+.bs-llm-config-desc {
+  font-size: 12px; color: var(--text-secondary, #94a3b8); line-height: 1.6; margin: 0;
+}
+.bs-llm-config-desc code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(99,102,241,0.12); color: #a5b4fc;
+}
+.bs-llm-config-actions {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.bs-btn-sm {
+  padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; transition: all 120ms;
+}
+.bs-btn-primary {
+  background: #6366f1; color: #fff; border-color: #6366f1;
+}
+.bs-btn-primary:hover { background: #4f46e5; }
+.bs-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-btn-secondary {
+  background: var(--bg-secondary, #111827); color: var(--text-secondary, #94a3b8);
+  border-color: var(--ce-border, #1f2937);
+}
+.bs-btn-secondary:hover { color: var(--text-primary, #e5e7eb); border-color: #6366f1; }
+.bs-llm-config-editor {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; line-height: 1.5;
+  background: #0b1020; color: #e2e8f0;
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 8px; padding: 12px; resize: vertical;
+  min-height: 120px; width: 100%; box-sizing: border-box;
+}
+.bs-llm-config-editor:focus {
+  outline: none; border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.bs-llm-config-editor::placeholder { color: #334155; }
+.bs-llm-config-error {
+  font-size: 12px; color: #f87171; padding: 6px 10px;
+  background: rgba(248,113,113,0.08); border-radius: 6px;
+  border: 1px solid rgba(248,113,113,0.2);
+}
+.bs-llm-config-status {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(99,102,241,0.06);
+  border: 1px solid rgba(99,102,241,0.15);
+}
+.bs-llm-config-status-row {
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.bs-llm-status-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #64748b; min-width: 110px; flex-shrink: 0;
+  padding-top: 2px;
+}
+.bs-llm-status-badge {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px; color: #a5b4fc; font-weight: 500;
+}
+.bs-llm-status-model { color: #34d399; }
+.bs-llm-model-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.bs-llm-model-chip {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 4px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px; font-weight: 500;
+  background: rgba(255,255,255,0.04); color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.bs-llm-model-chip-active {
+  background: rgba(52,211,153,0.1); color: #34d399;
+  border-color: rgba(52,211,153,0.3);
+}
+.bs-llm-config-hint {
+  font-size: 12px; color: #64748b; padding: 8px 12px;
+  background: rgba(255,255,255,0.02); border-radius: 6px;
+  border: 1px dashed rgba(255,255,255,0.08);
+}
+.bs-llm-config-hint b { color: #94a3b8; }
+
+/* Light theme overrides */
+[data-theme="light"] .bs-llm-config-editor,
+.light .bs-llm-config-editor {
+  background: #f8fafc; color: #1e293b; border-color: #e2e8f0;
+}
+[data-theme="light"] .bs-llm-config-editor::placeholder,
+.light .bs-llm-config-editor::placeholder { color: #94a3b8; }
+[data-theme="light"] .bs-llm-config-desc code,
+.light .bs-llm-config-desc code { background: rgba(99,102,241,0.08); color: #6366f1; }
+[data-theme="light"] .bs-llm-config-status,
+.light .bs-llm-config-status { background: rgba(99,102,241,0.04); border-color: rgba(99,102,241,0.12); }
+[data-theme="light"] .bs-llm-status-badge,
+.light .bs-llm-status-badge { color: #6366f1; }
+[data-theme="light"] .bs-llm-model-chip,
+.light .bs-llm-model-chip { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+[data-theme="light"] .bs-llm-model-chip-active,
+.light .bs-llm-model-chip-active { background: rgba(16,185,129,0.08); color: #059669; border-color: rgba(16,185,129,0.3); }

@@ -9,6 +9,7 @@ import { AgentIcon } from '../../components/icons'
 import { AuthMode, IntegrationType } from '../types'
 import {
   getModelOptions,
+  getDefaultModel,
   getProviderCredentialSubBlocks,
   RESPONSE_FORMAT_WAND_CONFIG,
 } from '../utils'
@@ -51,7 +52,7 @@ export const AgentBlock = {
       type: 'combobox',
       placeholder: 'Type or select a model...',
       required: true,
-      defaultValue: 'claude-sonnet-4-6',
+      get defaultValue() { return getDefaultModel() },
       options: getModelOptions,
     },
     {
@@ -192,7 +193,7 @@ export const AgentBlock = {
     ],
     config: {
       tool: (params) => {
-        const model = params.model || 'claude-sonnet-4-6'
+        const model = params.model || getDefaultModel()
         if (model.startsWith('claude')) return 'anthropic_chat'
         if (model.startsWith('gpt') || model.startsWith('o')) return 'openai_chat'
         if (model.startsWith('gemini')) return 'google_chat'
