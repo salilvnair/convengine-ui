@@ -95,14 +95,7 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
         if (port) return port.type
       }
     }
-    // For single-input "in" handle, check if the card has exactly one input
-    if (handleId === 'in') {
-      const block = _getBlockSafe(blockType)
-      if (block) {
-        const card = getCardPorts(blockType, block.inputs, block.outputs)
-        if (card.inputs.length === 1) return card.inputs[0].type
-      }
-    }
+
     return 'any'
   } else {
     // Output handle: id is the raw key ("data", "status") or "out"
@@ -119,14 +112,6 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
         if (port) return port.type
       }
     }
-    // For single-output "out" handle, check if the card has exactly one output
-    if (handleId === 'out') {
-      const block = _getBlockSafe(blockType)
-      if (block) {
-        const card = getCardPorts(blockType, block.inputs, block.outputs)
-        if (card.outputs.length === 1) return card.outputs[0].type
-      }
-    }
     return 'any'
   }
 }
@@ -134,6 +119,8 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
 /** Safe block lookup — avoids circular import issues. Set by registry init. */
 let _getBlockSafe = () => null
 export function setBlockResolver(fn) { _getBlockSafe = fn }
+
+
 
 // ─── Card Ports — what shows on the node card (simplified) ──────────────────
 // Key: blockType → { inputs: [{ key, type }], outputs: [{ key, type }] }
@@ -231,6 +218,8 @@ const cardPortOverrides = {
   switch:        { inputs: 'auto', outputs: [] },
   // Show Preview: always any→any pass-through
   show_preview:  { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'payload', type: 'any' }] },
+  // Mapper — type conversion utility
+  mapper:        { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
 }
 
 export function registerCardPorts(blockType, ports) {

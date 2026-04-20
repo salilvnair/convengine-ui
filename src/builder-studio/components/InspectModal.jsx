@@ -2,7 +2,7 @@
  * InspectModal — wide panel matching the trace-panel Disclosure style.
  * Opened via right-click → "Inspect" on any node after a run.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { getBlock } from '../blocks/registry'
 import { getTypeColor } from '../panel/io-registry'
 import JsonView from '../run/JsonView'
@@ -12,6 +12,8 @@ export default function InspectModal({ nodeId, nodeData, traceEntry, onClose }) 
   const Icon = nodeData?.icon || cfg?.icon
   const title = nodeData?.title || cfg?.name || nodeData?.blockType
   const t = traceEntry || {}
+  const skillRunsRef = useRef(null)
+  const llmRunsRef = useRef(null)
 
   return (
     <div className="bs-inspect-overlay" onClick={onClose}>
@@ -43,6 +45,23 @@ export default function InspectModal({ nodeId, nodeData, traceEntry, onClose }) 
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <code>{nodeId}</code>
               </div>
+              {/* Jump chips for agent blocks */}
+              {(t.meta?.skillRuns?.length > 0 || t.meta?.llmRequest) && (
+                <div className="bs-inspect-card-jumps">
+                  {t.meta?.skillRuns?.length > 0 && (
+                    <button className="bs-inspect-jump-chip is-skill" onClick={() => skillRunsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                      Skills ({t.meta.skillRuns.length})
+                    </button>
+                  )}
+                  {t.meta?.llmRequest && (
+                    <button className="bs-inspect-jump-chip is-llm" onClick={() => llmRunsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      LLM
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -139,9 +158,75 @@ export default function InspectModal({ nodeId, nodeData, traceEntry, onClose }) 
               </Disclosure>
             )}
 
+            {/* Skill Runs */}
+            {t.meta?.skillRuns?.length > 0 && (
+              <Disclosure label={`Skill Runs (${t.meta.skillRuns.length})`} defaultOpen anchorRef={skillRunsRef}>
+                {t.meta.skillRuns.map((sr, i) => (
+                  <div key={i} className="bs-inspect-skill-run">
+                    <div className="bs-inspect-skill-header">
+                      <span className="bs-inspect-badge is-type">{sr.name || sr.skillId}</span>
+                      {sr.error && <span className="bs-inspect-badge is-error">Error</span>}
+                      {!sr.error && <span className="bs-inspect-badge is-ok">OK</span>}
+                    </div>
+                    <div className="bs-inspect-skill-section">
+                      <div className="bs-inspect-skill-label">Params</div>
+                      <div className="bs-debug-json"><JsonView value={sr.params} collapsible defaultExpanded={2} /></div>
+                    </div>
+                    {sr.output !== undefined && (
+                      <div className="bs-inspect-skill-section">
+                        <div className="bs-inspect-skill-label">Output</div>
+                        <div className="bs-debug-json"><JsonView value={sr.output} collapsible defaultExpanded={2} /></div>
+                      </div>
+                    )}
+                    {sr.error && (
+                      <div className="bs-inspect-skill-section">
+                        <div className="bs-inspect-skill-label" style={{ color: '#f87171' }}>Error</div>
+                        <div className="bs-debug-json" style={{ color: '#f87171' }}>{sr.error}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Disclosure>
+            )}
+
+            {/* LLM Runs */}
+            {t.meta?.llmRequest && (
+              <Disclosure label="LLM Runs (1)" defaultOpen anchorRef={llmRunsRef}>
+                <div className="bs-inspect-llm-run">
+                  <div className="bs-inspect-llm-section">
+                    <div className="bs-inspect-skill-label">Request → Spring Boot</div>
+                    <div className="bs-debug-json"><JsonView value={t.meta.llmRequest} collapsible defaultExpanded={2} /></div>
+                  </div>
+                  <div className="bs-inspect-llm-section">
+                    <div className="bs-inspect-skill-label">Response ← Spring Boot</div>
+                    <div className="bs-debug-json"><JsonView value={t.meta.llmResponse} collapsible defaultExpanded={2} /></div>
+                  </div>
+                </div>
+              </Disclosure>
+            )}
+
+            {/* Template Bag */}
+            {t.meta?.templateBag && Object.keys(t.meta.templateBag).length > 0 && (
+              <Disclosure label="Template Bag">
+                <div className="bs-inspect-kv-grid is-2col">
+                  <div className="bs-inspect-kv-head is-2col">
+                    <span>Key</span><span>Value</span>
+                  </div>
+                  {Object.entries(t.meta.templateBag).map(([key, val]) => (
+                    <div key={key} className="bs-inspect-kv-row is-2col">
+                      <span className="bs-inspect-kv-key"><code>{`{{${key}}}`}</code></span>
+                      <div className="bs-inspect-kv-val">
+                        {typeof val === 'object' ? <JsonView value={val} collapsible defaultExpanded={1} /> : <span>{String(val ?? '')}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Disclosure>
+            )}
+
             {/* Runtime Metadata */}
             {t.meta && Object.keys(t.meta).length > 0 && (
-              <Disclosure label="Runtime Metadata" defaultOpen>
+              <Disclosure label="Runtime Metadata">
                 <div className="bs-debug-json"><JsonView value={t.meta} collapsible defaultExpanded={1} /></div>
               </Disclosure>
             )}
@@ -161,10 +246,10 @@ export default function InspectModal({ nodeId, nodeData, traceEntry, onClose }) 
 }
 
 /** Disclosure — reuses the exact trace-panel look & feel. */
-function Disclosure({ label, defaultOpen = false, children }) {
+function Disclosure({ label, defaultOpen = false, children, anchorRef }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className={`bs-disclosure ${open ? 'is-open' : ''}`}>
+    <div ref={anchorRef} className={`bs-disclosure ${open ? 'is-open' : ''}`}>
       <button className="bs-disclosure-head" onClick={() => setOpen((v) => !v)}>
         <span className="bs-disclosure-caret">{open ? '▾' : '▸'}</span>
         <span className="bs-disclosure-label">{label}</span>

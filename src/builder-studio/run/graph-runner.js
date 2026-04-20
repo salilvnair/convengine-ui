@@ -40,8 +40,48 @@ function checkValueType(value, expectedType) {
 }
 
 export async function executeGraph({ workflow, inputs, onProgress }) {
-  const { nodes = [], edges = [], subBlockValues = {} } = workflow
+  const { nodes: allNodes = [], edges: allEdges = [], subBlockValues = {} } = workflow
+
+  // ── Filter out disabled nodes and their edges ────────────────────────
+  const disabledIds = new Set(allNodes.filter((n) => n.data?.disabled).map((n) => n.id))
+  const nodes = allNodes.filter((n) => !disabledIds.has(n.id))
+  const edges = allEdges.filter((e) => !disabledIds.has(e.source) && !disabledIds.has(e.target))
+
+  // ── Compute reachable nodes from starter/user_input via edges ────────
+  const reachable = new Set()
+  const outgoingAll = {}
+  for (const e of edges) {
+    if (!outgoingAll[e.source]) outgoingAll[e.source] = []
+    outgoingAll[e.source].push(e)
+  }
+  // BFS from seed nodes
+  const seedIds = nodes
+    .filter((n) => n.data?.blockType === 'starter' || n.data?.blockType === 'user_input')
+    .map((n) => n.id)
+  const queue = [...seedIds]
+  for (const id of queue) {
+    if (reachable.has(id)) continue
+    reachable.add(id)
+    for (const e of (outgoingAll[id] || [])) {
+      if (!reachable.has(e.target)) queue.push(e.target)
+    }
+  }
+
   const nodesById = Object.fromEntries(nodes.map((n) => [n.id, n]))
+
+  // ── Validate: non-seed nodes must be reachable from Start ────────────
+  const seedTypes = new Set(['starter', 'user_input'])
+  for (const n of nodes) {
+    if (seedTypes.has(n.data?.blockType)) continue
+    if (!reachable.has(n.id)) {
+      const title = n.data?.title || n.data?.blockType || n.id
+      throw new Error(
+        `"${title}" has no input connection. Only Start / User Input nodes can run without incoming edges. ` +
+        `Connect it to the graph or disable it (right-click → Disable).`
+      )
+    }
+  }
+
   const outgoing = groupBy(edges, 'source')
   const incoming = groupBy(edges, 'target')
   const outputs = {}     // nodeId -> output value
@@ -104,6 +144,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   while (true) {
     const ready = nodes.filter((n) => {
       if (started.has(n.id)) return false
+      if (!reachable.has(n.id)) return false
       const ins = incoming[n.id] || []
       if (ins.length === 0) return false
       return ins.every(edgeIsLive)
@@ -134,7 +175,10 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       const inputsByHandle = {}
       for (const e of inEdges) {
         const th = e.targetHandle || 'in'
-        const key = th.startsWith('in_') ? th.slice(3) : th
+        // Normalize legacy "in" handle → "input" key (most blocks' first port)
+        const key = th === 'in' ? 'input' : (th.startsWith('in_') ? th.slice(3) : th)
+        // Skip duplicate: if a proper in_* edge already wrote this key, don't overwrite
+        if (key in inputsByHandle) continue
         inputsByHandle[key] = resolveEdgeOutput(e)
       }
       const values = subBlockValues[n.id] || {}
@@ -181,6 +225,22 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           outputs[n.id] = output.value
         } else {
           outputs[n.id] = output
+        }
+
+        // ── Runtime output type validation ──────────────────────────
+        // Validate that the actual output matches the declared output port type.
+        const outEdges = outgoing[n.id] || []
+        for (const e of outEdges) {
+          const srcHandle = e.sourceHandle || 'out'
+          const declaredType = resolvePortType(n.id, srcHandle, 'source', subBlockValues, nodes)
+          const outVal = resolveEdgeOutput(e)
+          const rtErr = checkValueType(outVal, declaredType)
+          if (rtErr) {
+            const srcTitle = n.data?.title || n.id
+            throw new Error(
+              `Output type error on "${srcTitle}": ${rtErr}`
+            )
+          }
         }
         try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
         const traceEntry = {
@@ -289,6 +349,8 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
       return runTextTemplateNode({ values, input })
     case 'json_path':
       return runJsonPathNode({ values, input })
+    case 'mapper':
+      return runMapperNode({ values, input })
     default:
       // Unknown block type: pass input through so the graph keeps moving.
       return input
@@ -393,7 +455,22 @@ async function runAgentNode({ node, values, input }) {
     strictOutput: values.strictOutput === true,
     skills: skillIds,
   }
-  const res = await runAgent({ agent, input: inputStr })
+
+  // When skills ran and produced output, the backend only sees systemPrompt +
+  // userPrompt (it ignores the `input` field). Auto-append skill output to
+  // userPrompt so the LLM actually receives the extracted data.
+  if (skillRuns.length > 0 && skillRuns.some((sr) => sr.output != null)) {
+    const resolvedPrompt = agent.userPrompt
+    // Only append if the userPrompt doesn't already contain the skill output
+    // (i.e. it wasn't referenced via {{input}}, {{text}}, etc.)
+    const skillOutputStr = typeof inputStr === 'string' ? inputStr : JSON.stringify(inputStr)
+    if (!resolvedPrompt.includes(skillOutputStr.slice(0, 40))) {
+      agent.userPrompt = resolvedPrompt + '\n\n--- Skill Output ---\n' + skillOutputStr
+    }
+  }
+
+  const llmRequest = { agent, input: inputStr }
+  const res = await runAgent(llmRequest)
   return {
     __meta: {
       model: agent.model,
@@ -404,6 +481,8 @@ async function runAgentNode({ node, values, input }) {
       skillRuns,
       templateBag: bag,
       rawAgentResponse: res,
+      llmRequest,
+      llmResponse: res,
     },
     value: {
       data: res.output,
@@ -690,4 +769,33 @@ function runJsonPathNode({ values, input }) {
     return values.fallback
   }
   return result !== undefined ? result : null
+}
+
+/* ── Mapper block — type conversion ────────────────────────────────────────── */
+function runMapperNode({ values, input }) {
+  const mode = values.mode || 'json_parse'
+  switch (mode) {
+    case 'json_parse': {
+      if (typeof input === 'object' && input !== null) return input
+      if (typeof input !== 'string') return input
+      try { return JSON.parse(input) } catch { throw new Error(`Mapper: input is not valid JSON`) }
+    }
+    case 'json_stringify':
+      return typeof input === 'string' ? input : JSON.stringify(input)
+    case 'to_number': {
+      const n = Number(input)
+      if (Number.isNaN(n)) throw new Error(`Mapper: cannot convert "${String(input).slice(0, 50)}" to number`)
+      return n
+    }
+    case 'to_boolean':
+      if (typeof input === 'boolean') return input
+      if (input === 'true' || input === '1') return true
+      if (input === 'false' || input === '0' || input === '' || input == null) return false
+      return Boolean(input)
+    case 'to_string':
+      if (typeof input === 'string') return input
+      return input == null ? '' : (typeof input === 'object' ? JSON.stringify(input) : String(input))
+    default:
+      return input
+  }
 }

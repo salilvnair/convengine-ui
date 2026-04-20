@@ -104,24 +104,18 @@ function CanvasInner() {
   const onEdgeUpdate = useCallback(
     (oldEdge, newConnection) => {
       edgeUpdateSuccessful.current = true
-      onEdgesChange(
-        edges
-          .map((e) => {
-            if (e.id === oldEdge.id) {
-              return {
-                ...e,
-                source: newConnection.source,
-                sourceHandle: newConnection.sourceHandle,
-                target: newConnection.target,
-                targetHandle: newConnection.targetHandle,
-              }
-            }
-            return e
-          })
-          .map((e) => ({ id: e.id, type: 'reset', item: e }))
-      )
+      onEdgesChange([
+        { id: oldEdge.id, type: 'reset', item: {
+          ...oldEdge,
+          source: newConnection.source,
+          sourceHandle: newConnection.sourceHandle,
+          target: newConnection.target,
+          targetHandle: newConnection.targetHandle,
+          animated: true,
+        }},
+      ])
     },
-    [edges, onEdgesChange]
+    [onEdgesChange]
   )
   const onEdgeUpdateEnd = useCallback(
     (_, edge) => {
@@ -374,7 +368,7 @@ function CanvasInner() {
       return {
         ...e,
         className,
-        animated: activeSet.has(e.id) || e.animated,
+        animated: true,
       }
     })
   }, [edges, activeEdgeIds, completedNodeIds])

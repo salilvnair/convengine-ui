@@ -286,6 +286,12 @@ export const JsonPathIcon = (p) => (
   </I>
 )
 
+export const MapperIcon = (p) => (
+  <I {...p}>
+    <path d="M4 8h4l4 4 4-4h4" /><path d="M4 16h4l4-4 4 4h4" />
+  </I>
+)
+
 /** Colorful rocket deploy icon — dark blue stroke, light blue body, yellow window, red exhaust. */
 export const DeployIcon = ({ className, ...rest }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...rest}>

@@ -12,6 +12,8 @@ import {
   applyNodeChanges,
 } from 'reactflow'
 import { v4 as uuid } from 'uuid'
+import { getBlock } from '../blocks/registry'
+import { getCardPorts } from '../panel/io-registry'
 
 /* ── Undo / redo history ─────────────────────────────────────────────── */
 const MAX_HISTORY = 100
@@ -70,9 +72,44 @@ export const useWorkflowStore = create()(
       ...initialState,
 
       loadWorkflow({ nodes, edges, subBlockValues }) {
+        // ── Migrate legacy edge handles ──────────────────────────────────
+        // Old workflows may have edges with targetHandle "in" or
+        // sourceHandle "out" instead of the canonical "in_<key>" / "<key>"
+        // format. Remap them so the runner and inspector don't see dupes.
+        const nodeMap = Object.fromEntries((nodes || []).map((n) => [n.id, n]))
+        const migrated = (edges || []).map((e) => {
+          let { sourceHandle, targetHandle, ...rest } = e
+          // target: "in" → "in_<firstInputKey>"
+          if (!targetHandle || targetHandle === 'in') {
+            const bt = nodeMap[e.target]?.data?.blockType
+            const blk = bt && getBlock(bt)
+            if (blk) {
+              const card = getCardPorts(bt, blk.inputs, blk.outputs)
+              if (card.inputs.length >= 1) targetHandle = `in_${card.inputs[0].key}`
+            }
+          }
+          // source: "out" → first output key (raw, no prefix)
+          if (!sourceHandle || sourceHandle === 'out') {
+            const bt = nodeMap[e.source]?.data?.blockType
+            const blk = bt && getBlock(bt)
+            if (blk) {
+              const card = getCardPorts(bt, blk.inputs, blk.outputs)
+              if (card.outputs.length >= 1) sourceHandle = card.outputs[0].key
+            }
+          }
+          return { ...rest, sourceHandle: sourceHandle || e.sourceHandle, targetHandle: targetHandle || e.targetHandle }
+        })
+        // Deduplicate edges (same source+target+handles)
+        const seen = new Set()
+        const deduped = migrated.filter((e) => {
+          const key = `${e.source}::${e.target}::${e.sourceHandle}::${e.targetHandle}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
         set({
           nodes: nodes || [],
-          edges: edges || [],
+          edges: deduped,
           subBlockValues: subBlockValues || {},
           selectedNodeId: null,
         })
@@ -153,6 +190,16 @@ export const useWorkflowStore = create()(
         _pushSnap(get())
         set((s) => ({
           edges: s.edges.filter((e) => e.source !== id && e.target !== id),
+        }))
+      },
+
+      /** Toggle disabled state on a node (ComfyUI-style mute). */
+      toggleDisabled(id) {
+        _pushSnap(get())
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === id ? { ...n, data: { ...n.data, disabled: !n.data?.disabled } } : n
+          ),
         }))
       },
 

@@ -86,6 +86,7 @@ function WorkflowNode({ id, data, selected }) {
   const disconnectNode = useWorkflowStore((s) => s.disconnectNode)
   const renameNode = useWorkflowStore((s) => s.renameNode)
   const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
+  const toggleDisabled = useWorkflowStore((s) => s.toggleDisabled)
   const renamingNodeId = useWorkflowStore((s) => s.renamingNodeId)
   const endRename = useWorkflowStore((s) => s.endRename)
   const values = useWorkflowStore((s) => s.subBlockValues[id])
@@ -94,9 +95,17 @@ function WorkflowNode({ id, data, selected }) {
   const errorNodeId = useWorkflowStore((s) => s.errorNodeId)
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
+  // Check if this non-seed, non-disabled node has no incoming edges
+  const SEED_TYPES = new Set(['starter', 'user_input'])
+  const hasNoIncoming = useWorkflowStore((s) => {
+    if (SEED_TYPES.has(data.blockType) || data.disabled) return false
+    return !s.edges.some((e) => e.target === id)
+  })
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
   const isError = errorNodeId === id
+  const isUnconnected = hasNoIncoming
+  const isDisabled = !!data.disabled
   const cfg = getBlock(data.blockType)
   const Icon = data.icon || cfg?.icon
 
@@ -313,6 +322,8 @@ function WorkflowNode({ id, data, selected }) {
           isActive ? 'bs-node-running' : '',
           isDone ? 'bs-node-done' : '',
           isError ? 'bs-node-error' : '',
+          isDisabled ? 'bs-node-disabled' : '',
+          isUnconnected ? 'bs-node-unconnected' : '',
           outputHandles.length > 1 ? 'bs-node-multi-out' : '',
           resizing ? 'bs-node-resizing' : '',
           resizeMode ? 'bs-node-resize-mode' : '',
@@ -378,6 +389,14 @@ function WorkflowNode({ id, data, selected }) {
             <XIcon className="bs-ico-xs" />
           </button>
         </div>
+
+        {/* Unconnected warning */}
+        {isUnconnected && (
+          <div className="bs-node-unconnected-banner" title="This block has no incoming connections and won't receive any data during execution. Connect an edge from another block's output to this block's input.">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>No incoming connection</span>
+          </div>
+        )}
 
         {/* ── Input port strip (ComfyUI-style) ── */}
         {inputPorts.length > 0 && (
@@ -469,15 +488,7 @@ function WorkflowNode({ id, data, selected }) {
                     className="bs-port-handle bs-port-handle-out"
                     style={{ background: p.color.solid }}
                   />
-                  {/* Backward-compat: first output also responds to legacy "out" handle ID */}
-                  {i === 0 && p.key !== 'out' && (
-                    <Handle
-                      type="source"
-                      position={Position.Right}
-                      id="out"
-                      className="bs-port-handle-hidden"
-                    />
-                  )}
+
                 </div>
               )
             })}
@@ -489,10 +500,7 @@ function WorkflowNode({ id, data, selected }) {
           <Handle type="source" position={Position.Right} className="bs-handle" id={outputHandles[0]} />
         )}
 
-        {/* ── Input backward-compat: hidden "in" handle for old edges ── */}
-        {inputPorts.length > 0 && (
-          <Handle type="target" position={Position.Left} id="in" className="bs-port-handle-hidden" />
-        )}
+
 
         {/* ── Multi-output branching handles (if_else, switch, etc.) ── */}
         {outputHandles.length > 1 && (
@@ -526,6 +534,7 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
             { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); resizeNodeStore(id, nodeW, undefined) } },
             { separator: true },
+            { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', onSelect: () => toggleDisabled(id) },
             { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
             { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', shortcut: '⌘C', onSelect: copyId },
             { separator: true },
@@ -638,7 +647,7 @@ function renderInlineEditor(sb, value, onChange) {
       const arr = Array.isArray(value)
         ? value
         : (typeof value === 'string' ? safeJsonArray(value) : [])
-      return <SkillChip skillIds={arr} />
+      return <SkillChip skillIds={arr} onChange={onChange} />
     }
 
     default:
@@ -668,13 +677,15 @@ function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
 }
 
 /** Skill chip: ≤5 skills rendered inline on the card, >5 shows a popover on click.
- *  Each skill item opens the SkillEditor tab. */
-function SkillChip({ skillIds }) {
+ *  Each skill item opens the SkillEditor tab. + button opens a picker to add/remove. */
+function SkillChip({ skillIds, onChange }) {
   const skills = useWorkspaceStore((s) => s.skills)
   const openTab = useTabsStore((s) => s.openTab)
   const [open, setOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const chipRef = useRef(null)
   const popRef = useRef(null)
+  const pickerRef = useRef(null)
 
   const resolved = useMemo(() => {
     if (!skillIds.length) return []
@@ -683,16 +694,18 @@ function SkillChip({ skillIds }) {
       .filter(Boolean)
   }, [skillIds, skills])
 
-  // Close popover on outside click (only used for >5 mode)
+  // Close popover on outside click
   useEffect(() => {
-    if (!open) return
+    if (!open && !pickerOpen) return
     function handler(e) {
       if (chipRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return
+      if (pickerRef.current?.contains(e.target)) return
       setOpen(false)
+      setPickerOpen(false)
     }
     document.addEventListener('pointerdown', handler)
     return () => document.removeEventListener('pointerdown', handler)
-  }, [open])
+  }, [open, pickerOpen])
 
   function openSkill(skill, e) {
     e.stopPropagation()
@@ -700,26 +713,76 @@ function SkillChip({ skillIds }) {
     setOpen(false)
   }
 
+  function toggleSkill(skillId, e) {
+    e.stopPropagation()
+    if (!onChange) return
+    const current = [...skillIds]
+    const idx = current.indexOf(skillId)
+    if (idx >= 0) current.splice(idx, 1)
+    else current.push(skillId)
+    onChange(JSON.stringify(current, null, 2))
+  }
+
+  const selectedSet = useMemo(() => new Set(skillIds), [skillIds])
+
+  const addButton = onChange ? (
+    <button
+      className="bs-skill-add-btn"
+      onClick={(e) => { e.stopPropagation(); setPickerOpen((v) => !v) }}
+      title="Add / remove skills"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  ) : null
+
+  const pickerPopup = pickerOpen && skills.length > 0 ? (
+    <div className="bs-skill-picker" ref={pickerRef}>
+      <div className="bs-skill-picker-title">Skills / Tools</div>
+      {skills.map((sk) => (
+        <button
+          key={sk.id}
+          className={`bs-skill-picker-item ${selectedSet.has(sk.id) ? 'is-selected' : ''}`}
+          onClick={(e) => toggleSkill(sk.id, e)}
+        >
+          <span className="bs-skill-picker-check">{selectedSet.has(sk.id) ? '✓' : ''}</span>
+          <span className="bs-skill-popover-icon">⚡</span>
+          <span className="bs-skill-popover-name">{sk.name}</span>
+          <span className="bs-skill-popover-lang">{sk.language}</span>
+        </button>
+      ))}
+    </div>
+  ) : null
+
   if (!resolved.length) {
-    return <span className="bs-node-chip">none</span>
+    return (
+      <span className="bs-skill-chip-wrap" ref={chipRef}>
+        <span className="bs-node-chip">none</span>
+        {addButton}
+        {pickerPopup}
+      </span>
+    )
   }
 
   // ≤5 skills: render inline skill cards directly on the node
   if (resolved.length <= 5) {
     return (
-      <div className="bs-skill-inline-list">
-        {resolved.map((sk) => (
-          <button
-            key={sk.id}
-            className="bs-skill-inline-item"
-            onClick={(e) => openSkill(sk, e)}
-          >
-            <span className="bs-skill-popover-icon">⚡</span>
-            <span className="bs-skill-popover-name">{sk.name}</span>
-            <span className="bs-skill-popover-lang">{sk.language}</span>
-          </button>
-        ))}
-      </div>
+      <span className="bs-skill-chip-wrap" ref={chipRef}>
+        <div className="bs-skill-inline-list">
+          {resolved.map((sk) => (
+            <button
+              key={sk.id}
+              className="bs-skill-inline-item"
+              onClick={(e) => openSkill(sk, e)}
+            >
+              <span className="bs-skill-popover-icon">⚡</span>
+              <span className="bs-skill-popover-name">{sk.name}</span>
+              <span className="bs-skill-popover-lang">{sk.language}</span>
+            </button>
+          ))}
+        </div>
+        {addButton}
+        {pickerPopup}
+      </span>
     )
   }
 
@@ -732,6 +795,7 @@ function SkillChip({ skillIds }) {
       >
         {resolved.length} attached
       </span>
+      {addButton}
       {open && (
         <div className="bs-skill-popover" ref={popRef}>
           {resolved.map((sk) => (
@@ -747,6 +811,7 @@ function SkillChip({ skillIds }) {
           ))}
         </div>
       )}
+      {pickerPopup}
     </span>
   )
 }
@@ -890,6 +955,13 @@ function CtxResizeIcon(props) {
 }
 function CtxDisconnectIcon(props) {
   return <svg {...svgProps} {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+}
+function CtxDisableIcon(props) {
+  return <svg {...svgProps} {...props}><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
+}
+function CtxEnableIcon(props) {
+  // Slide-toggle "on" icon
+  return <svg {...svgProps} {...props}><rect x="1" y="5" width="22" height="14" rx="7" /><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none" /><path d="M16 12" /></svg>
 }
 function CtxCopyIcon(props) {
   return <svg {...svgProps} {...props}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>

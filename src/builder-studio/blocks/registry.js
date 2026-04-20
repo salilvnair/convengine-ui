@@ -51,6 +51,7 @@ const registry = {
   mongodb: Core.MongoDbBlock,
   slack: Core.SlackBlock,
   ai_classifier: Core.AiClassifierBlock,
+  mapper: Core.MapperBlock,
 }
 
 /**
@@ -158,12 +159,11 @@ export const CATEGORY_CONFIG = {
   blocks: {
     topTypes: ['starter'],
     subgroups: [
-      { id: 'input',      label: 'Input',            types: ['user_input'] },
+      { id: 'io',         label: 'Input & Output',    types: ['user_input', 'mapper', 'api', 'http_response', 'response', 'save_to_files', 'show_preview'] },
       { id: 'essentials', label: 'Essentials',        types: ['variables', 'sub_workflow'] },
       { id: 'logic',      label: 'Logic & Flow',      types: ['condition', 'if_else', 'if_elseif_else', 'switch', 'router_v2', 'error_handler'] },
       { id: 'loops',      label: 'Loops',             types: ['loop', 'for_loop', 'for_each', 'parallel'] },
       { id: 'data',       label: 'Data & Transform',  types: ['json_map', 'json_path', 'text_template', 'table', 'filter', 'sort', 'aggregate', 'merge'] },
-      { id: 'io',         label: 'Output & I/O',      types: ['api', 'http_response', 'response', 'save_to_files', 'show_preview'] },
       { id: 'timing',     label: 'Timing',            types: ['wait', 'delay'] },
       { id: 'ai',         label: 'AI',                types: ['agent', 'ai_classifier'] },
     ],

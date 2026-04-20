@@ -2393,6 +2393,91 @@ button.bs-palette-group-toggle:hover {
   opacity: 0.7;
 }
 
+/* Skill add (+) button */
+.bs-skill-chip-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  position: relative;
+}
+.bs-skill-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px dashed rgba(148,163,184,0.25);
+  background: rgba(148,163,184,0.06);
+  border-radius: 5px;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms, border-color 100ms, color 100ms;
+}
+.bs-skill-add-btn:hover {
+  background: rgba(99,102,241,0.15);
+  border-color: rgba(99,102,241,0.4);
+  color: #a5b4fc;
+}
+
+/* Skill picker dropdown */
+.bs-skill-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  max-width: 260px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #1e1e2e;
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  padding: 4px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bs-skill-picker-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  padding: 5px 8px 3px;
+}
+.bs-skill-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--text-primary, #e5e7eb);
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms;
+}
+.bs-skill-picker-item:hover {
+  background: rgba(99,102,241,0.12);
+}
+.bs-skill-picker-item.is-selected {
+  background: rgba(99,102,241,0.1);
+}
+.bs-skill-picker-check {
+  width: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #818cf8;
+  text-align: center;
+  flex-shrink: 0;
+}
+[data-theme="light"] .bs-skill-picker { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+[data-theme="light"] .bs-skill-add-btn { border-color: rgba(148,163,184,0.35); }
+
 /* ---------- Settings tab ---------- */
 .bs-settings-section-head {
   display: flex; align-items: center; gap: 8px;
@@ -3304,6 +3389,35 @@ button.bs-palette-group-toggle:hover {
   background-size: 8px 4px;
   background-position: bottom left;
   background-repeat: repeat-x;
+}
+
+/* ── Disabled / muted node (ComfyUI-style) ── */
+.bs-node-disabled {
+  opacity: 0.45;
+  border-color: #a855f6 !important;
+  box-shadow: 0 0 0 1.5px rgba(168,85,246,0.35);
+  pointer-events: auto;
+}
+.bs-node-disabled::after {
+  content: 'DISABLED';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #a855f6;
+  background: rgba(15,15,25,0.85);
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(168,85,246,0.4);
+  pointer-events: none;
+  z-index: 10;
+}
+.bs-node-disabled .bs-node-body,
+.bs-node-disabled .bs-port-strip {
+  pointer-events: none;
 }
 
 /* Multi-output branching nodes need extra right padding so the label
@@ -5363,6 +5477,90 @@ button.bs-palette-group-toggle:hover {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 32px 16px; color: #64748b; font-size: 0.85rem; text-align: center;
 }
+
+/* Skill run cards inside inspect modal */
+.bs-inspect-skill-run {
+  border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(15,23,42,0.3);
+}
+.bs-inspect-skill-header {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}
+.bs-inspect-skill-section {
+  margin-top: 6px;
+}
+.bs-inspect-skill-label {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 3px;
+}
+[data-theme="light"] .bs-inspect-skill-run { background: rgba(241,245,249,0.5); border-color: #e2e8f0; }
+
+/* ── Unconnected node warning ── */
+.bs-node-unconnected {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.25);
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 3px,
+      rgba(245,158,11,0.08) 3px,
+      rgba(245,158,11,0.08) 6px
+    );
+}
+.bs-node-unconnected-banner {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 8px; margin: 0 8px 2px;
+  font-size: 0.65rem; font-weight: 600; color: #f59e0b;
+  background: rgba(245,158,11,0.08); border-radius: 4px;
+  border: 1px solid rgba(245,158,11,0.18);
+}
+.bs-node-unconnected-banner svg { flex-shrink: 0; }
+[data-theme="light"] .bs-node-unconnected-banner {
+  background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.22);
+}
+
+/* ── Jump chips on agent inspect card ── */
+.bs-inspect-card-jumps {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px;
+}
+.bs-inspect-jump-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.65rem; font-weight: 600; padding: 3px 8px; border-radius: 12px;
+  border: 1px solid; cursor: pointer; transition: all 120ms;
+  background: transparent;
+}
+.bs-inspect-jump-chip.is-skill {
+  color: #a78bfa; border-color: rgba(167,139,250,0.3);
+}
+.bs-inspect-jump-chip.is-skill:hover {
+  background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.5);
+}
+.bs-inspect-jump-chip.is-llm {
+  color: #38bdf8; border-color: rgba(56,189,248,0.3);
+}
+.bs-inspect-jump-chip.is-llm:hover {
+  background: rgba(56,189,248,0.12); border-color: rgba(56,189,248,0.5);
+}
+[data-theme="light"] .bs-inspect-jump-chip.is-skill { color: #7c3aed; border-color: rgba(124,58,237,0.3); }
+[data-theme="light"] .bs-inspect-jump-chip.is-llm { color: #0284c7; border-color: rgba(2,132,199,0.3); }
+
+/* ── LLM Runs in inspect modal ── */
+.bs-inspect-llm-run {
+  border: 1px solid rgba(56,189,248,0.15);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(15,23,42,0.3);
+}
+.bs-inspect-llm-section {
+  margin-top: 6px;
+}
+.bs-inspect-llm-section:first-child { margin-top: 0; }
+[data-theme="light"] .bs-inspect-llm-run { background: rgba(241,245,249,0.5); border-color: #e2e8f0; }
 
 /* Light theme overrides */
 [data-theme="light"] .bs-inspect-modal { background: #fff; border-color: #e2e8f0; color: #1e293b; }
