@@ -17,6 +17,7 @@
  * (left = target, right = source).
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
@@ -177,6 +178,15 @@ function WorkflowNode({ id, data, selected }) {
   const [inspectOpen, setInspectOpen] = useState(false)
   const traceEntry = useWorkflowStore((s) => s.lastNodeTrace?.[id])
 
+  // Listen for keyboard-driven inspect (⌘I from Canvas)
+  useEffect(() => {
+    function onInspect(e) {
+      if (e.detail?.nodeId === id && traceEntry) setInspectOpen(true)
+    }
+    window.addEventListener('bs:inspect-node', onInspect)
+    return () => window.removeEventListener('bs:inspect-node', onInspect)
+  }, [id, traceEntry])
+
   const requestDelete = () => setConfirmDelete(true)
 
   // Keyboard-driven rename (F2/Enter on the canvas) flips us into edit mode.
@@ -257,16 +267,17 @@ function WorkflowNode({ id, data, selected }) {
   )
 
   // ─── Typed port strips (ComfyUI-style) — registry-driven ────────────────
+  const hiddenPorts = values?._hiddenPorts || {}
   const { inputPorts, outputPorts } = useMemo(() => {
     if (!cfg) return { inputPorts: [], outputPorts: [] }
     const card = getCardPorts(cfg.type, cfg.inputs, cfg.outputs)
     // For multi-output branching blocks, skip typed outputs
     const outs = outputHandles.length > 1 ? [] : (card.outputs || [])
     return {
-      inputPorts: (card.inputs || []).map((p) => ({ ...p, color: getTypeColor(p.type) })),
-      outputPorts: outs.map((p) => ({ ...p, color: getTypeColor(p.type) })),
+      inputPorts: (card.inputs || []).filter((p) => !hiddenPorts[`in_${p.key}`]).map((p) => ({ ...p, color: getTypeColor(p.type) })),
+      outputPorts: outs.filter((p) => !hiddenPorts[`out_${p.key}`]).map((p) => ({ ...p, color: getTypeColor(p.type) })),
     }
-  }, [cfg, outputHandles])
+  }, [cfg, outputHandles, hiddenPorts])
 
   return (
     <>
@@ -490,25 +501,26 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'open', label: 'Open in Inspector', icon: CtxInspectorIcon, iconColor: '#818cf8', onSelect: () => selectNode(id) },
             { id: 'rename', label: 'Rename', icon: CtxRenameIcon, iconColor: '#fbbf24', shortcut: 'F2', onSelect: () => setEditing(true) },
             { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, iconColor: '#22d3ee', shortcut: '⌘D', onSelect: () => duplicateNode(id) },
-            { id: 'inspect', label: 'Inspect', icon: CtxInspectIcon, iconColor: '#22d3ee', disabled: !traceEntry, onSelect: () => setInspectOpen(true) },
+            { id: 'inspect', label: 'Inspect', icon: CtxInspectIcon, iconColor: '#22d3ee', shortcut: '⌘I', disabled: !traceEntry, onSelect: () => setInspectOpen(true) },
             { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
             { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); resizeNodeStore(id, nodeW, undefined) } },
             { separator: true },
             { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
-            { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', onSelect: copyId },
+            { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', shortcut: '⌘C', onSelect: copyId },
             { separator: true },
             { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: requestDelete },
           ]}
         />
       )}
 
-      {inspectOpen && (
+      {inspectOpen && createPortal(
         <InspectModal
           nodeId={id}
           nodeData={data}
           traceEntry={traceEntry}
           onClose={() => setInspectOpen(false)}
-        />
+        />,
+        document.body
       )}
 
       {confirmDelete && (

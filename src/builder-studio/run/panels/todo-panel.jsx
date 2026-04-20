@@ -3,7 +3,7 @@
  * Drag-and-drop between Pending ↔ Completed. Soft-delete with Deleted bin.
  * Backed by Zustand store with localStorage persistence.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTodoStore } from '../../stores/todo-store'
 
 /* ── SVG Icon Library ── */
@@ -108,14 +108,16 @@ const DRAG_TYPE = 'application/x-bs-todo'
 
 function TodoList({ workflowId }) {
   const wfId = workflowId || '__global'
-  const items = useTodoStore((s) => s.todos[wfId] || [])
-  const { addTodo, updateTodo, softDelete, permanentDelete, restore, clearDeleted, setItems } = useTodoStore.getState()
+  const allTodos = useTodoStore((s) => s.todos)
+  const items = useMemo(() => allTodos[wfId] || [], [allTodos, wfId])
+  const store = useTodoStore
 
   const [newText, setNewText] = useState('')
   const [newIcon, setNewIcon] = useState('star')
   const [editId, setEditId] = useState(null)
   const [editText, setEditText] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [confirmClearAll, setConfirmClearAll] = useState(false)
   const [dragOverZone, setDragOverZone] = useState(null) // 'pending' | 'completed' | null
   const [dragId, setDragId] = useState(null)
   const inputRef = useRef(null)
@@ -124,7 +126,7 @@ function TodoList({ workflowId }) {
   const handleAdd = useCallback(() => {
     const text = newText.trim()
     if (!text) return
-    addTodo(wfId, {
+    store.getState().addTodo(wfId, {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       text, done: false, icon: newIcon, createdAt: Date.now(),
     })
@@ -134,7 +136,7 @@ function TodoList({ workflowId }) {
 
   const toggleDone = useCallback((id) => {
     const item = items.find((t) => t.id === id)
-    if (item) updateTodo(wfId, id, { done: !item.done })
+    if (item) store.getState().updateTodo(wfId, id, { done: !item.done })
   }, [items, wfId])
 
   const handleRemoveClick = useCallback((id) => {
@@ -142,17 +144,17 @@ function TodoList({ workflowId }) {
     if (item && !item.done) {
       setConfirmDeleteId(id)
     } else {
-      softDelete(wfId, id)
+      store.getState().softDelete(wfId, id)
     }
   }, [items, wfId])
 
   const confirmSoftDelete = useCallback(() => {
-    if (confirmDeleteId) softDelete(wfId, confirmDeleteId)
+    if (confirmDeleteId) store.getState().softDelete(wfId, confirmDeleteId)
     setConfirmDeleteId(null)
   }, [confirmDeleteId, wfId])
 
   const handleUpdateIcon = useCallback((id, iconId) => {
-    updateTodo(wfId, id, { icon: iconId })
+    store.getState().updateTodo(wfId, id, { icon: iconId })
   }, [wfId])
 
   const startEdit = useCallback((item) => {
@@ -163,7 +165,7 @@ function TodoList({ workflowId }) {
 
   const commitEdit = useCallback(() => {
     const text = editText.trim()
-    if (text && editId) updateTodo(wfId, editId, { text })
+    if (text && editId) store.getState().updateTodo(wfId, editId, { text })
     setEditId(null)
     setEditText('')
   }, [editId, editText, wfId])
@@ -193,11 +195,12 @@ function TodoList({ workflowId }) {
   const onDrop = useCallback((e, targetDone) => {
     e.preventDefault()
     setDragOverZone(null)
+    setDragId(null)
     const itemId = e.dataTransfer.getData(DRAG_TYPE)
     if (!itemId) return
     const item = items.find((t) => t.id === itemId)
     if (item && item.done !== targetDone) {
-      updateTodo(wfId, itemId, { done: targetDone })
+      store.getState().updateTodo(wfId, itemId, { done: targetDone })
     }
   }, [items, wfId])
 
@@ -239,6 +242,7 @@ function TodoList({ workflowId }) {
       )}
 
       {/* ── Pending section ── */}
+      {(pending.length > 0 || (activeItems.length > 0 && dragId)) && (
       <div
         className={`bs-todo-section bs-todo-drop-zone ${dragOverZone === 'pending' && dragId && items.find((t) => t.id === dragId)?.done ? 'is-drop-target' : ''}`}
         onDragOver={(e) => onDragOver(e, 'pending')}
@@ -250,7 +254,7 @@ function TodoList({ workflowId }) {
           <span>Pending</span>
           {pending.length > 0 && <span className="bs-todo-section-count">{pending.length}</span>}
         </div>
-        {pending.length === 0 && activeItems.length > 0 && (
+        {pending.length === 0 && (
           <div className="bs-todo-drop-hint">Drag tasks here to mark as pending</div>
         )}
         <div className="bs-todo-cards">
@@ -297,8 +301,10 @@ function TodoList({ workflowId }) {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── Completed section ── */}
+      {(completed.length > 0 || (activeItems.length > 0 && dragId)) && (
       <div
         className={`bs-todo-section bs-todo-drop-zone ${dragOverZone === 'completed' && dragId && !items.find((t) => t.id === dragId)?.done ? 'is-drop-target' : ''}`}
         onDragOver={(e) => onDragOver(e, 'completed')}
@@ -310,7 +316,7 @@ function TodoList({ workflowId }) {
           <span>Completed</span>
           {completed.length > 0 && <span className="bs-todo-section-count is-done-count">{completed.length}</span>}
         </div>
-        {completed.length === 0 && activeItems.length > 0 && (
+        {completed.length === 0 && (
           <div className="bs-todo-drop-hint">Drag tasks here to mark as done</div>
         )}
         <div className="bs-todo-cards">
@@ -348,6 +354,7 @@ function TodoList({ workflowId }) {
           ))}
         </div>
       </div>
+      )}
 
       {/* ── Deleted section ── */}
       {deleted.length > 0 && (
@@ -359,10 +366,15 @@ function TodoList({ workflowId }) {
             <span>Deleted</span>
             <span className="bs-todo-section-count is-deleted-count">{deleted.length}</span>
             <button
-              className="bs-btn-ghost bs-todo-clear-v2"
-              onClick={() => clearDeleted(wfId)}
+              className="bs-btn-ghost bs-todo-clear-v2 is-danger"
+              onClick={() => setConfirmClearAll(true)}
               title="Permanently remove all"
-            >Clear All</button>
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Delete All
+            </button>
           </div>
           <div className="bs-todo-cards">
             {deleted.map((item) => (
@@ -379,7 +391,7 @@ function TodoList({ workflowId }) {
                 </div>
                 <button
                   className="bs-todo-card-restore"
-                  onClick={() => restore(wfId, item.id)}
+                  onClick={() => store.getState().restore(wfId, item.id)}
                   title="Restore"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -388,7 +400,7 @@ function TodoList({ workflowId }) {
                 </button>
                 <button
                   className="bs-todo-card-remove is-perm"
-                  onClick={() => permanentDelete(wfId, item.id)}
+                  onClick={() => store.getState().permanentDelete(wfId, item.id)}
                   title="Delete permanently"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -416,6 +428,28 @@ function TodoList({ workflowId }) {
             <div className="bs-todo-confirm-actions">
               <button className="bs-todo-confirm-cancel" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
               <button className="bs-todo-confirm-delete" onClick={confirmSoftDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm delete-all warning ── */}
+      {confirmClearAll && (
+        <div className="bs-todo-confirm-overlay" onClick={() => setConfirmClearAll(false)}>
+          <div className="bs-todo-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="bs-todo-confirm-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+            </div>
+            <div className="bs-todo-confirm-text">
+              <strong>Delete all {deleted.length} item{deleted.length !== 1 ? 's' : ''} permanently?</strong>
+              <span>This action cannot be undone.</span>
+            </div>
+            <div className="bs-todo-confirm-actions">
+              <button className="bs-todo-confirm-cancel" onClick={() => setConfirmClearAll(false)}>Cancel</button>
+              <button className="bs-todo-confirm-delete" onClick={() => { store.getState().clearDeleted(wfId); setConfirmClearAll(false) }}>Delete All</button>
             </div>
           </div>
         </div>

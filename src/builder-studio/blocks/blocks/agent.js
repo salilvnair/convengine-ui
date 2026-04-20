@@ -226,11 +226,8 @@ export const AgentBlock = {
     skills: { type: 'json', description: 'Selected skills / tools configuration' },
   },
   outputs: {
-    content: { type: 'string', description: 'Generated response content' },
-    model: { type: 'string', description: 'Model used for generation' },
-    tokens: { type: 'json', description: 'Token usage statistics' },
-    toolCalls: { type: 'json', description: 'Tool calls made' },
-    providerTiming: { type: 'json', description: 'Provider timing information' },
-    cost: { type: 'json', description: 'Cost of the API call' },
+    data: { type: 'string', description: 'Generated response content' },
+    status: { type: 'number', description: 'HTTP-like status code (200 on success)' },
+    headers: { type: 'json', description: 'Response metadata (model, duration, etc.)' },
   },
 }

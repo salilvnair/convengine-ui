@@ -247,6 +247,12 @@ export default function AgentBuilderPage() {
       if (meta && e.key === ',') { e.preventDefault(); openSettings(); return }
       // ? — open Settings (only when not typing)
       if (e.key === '?' && !isEditable(e.target)) { e.preventDefault(); openSettings() }
+      // ⌘S — Save (prevent browser save dialog, works everywhere)
+      if (meta && (e.key === 's' || e.key === 'S') && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        if (onWorkflowCanvas) handleSave()
+        return
+      }
       if (!meta || isEditable(e.target) || !onWorkflowCanvas || e.altKey || e.shiftKey) return
       if (e.key === '1') { e.preventDefault(); handleRun(); return }
       if (e.key === '2') { e.preventDefault(); handleSave(); return }

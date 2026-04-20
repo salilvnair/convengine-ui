@@ -59,8 +59,11 @@ const cardPortOverrides = {
   webhook_request: { inputs: [],  outputs: 'auto' },
   schedule:      { inputs: [],  outputs: 'auto' },
   variables:     { inputs: [],  outputs: [] },
-  // Agent — one input (upstream text/json), one output (response content)
-  agent:         { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'response', type: 'string' }] },
+  // Agent — one input (upstream text/json), multi-output (data, status, headers)
+  agent:         {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'data', type: 'string' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
+  },
   // Function — one input, one output
   function:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] },
   // Response — multi-input: data, status, headers each individually connectable

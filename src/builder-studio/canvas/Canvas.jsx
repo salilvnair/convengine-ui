@@ -34,7 +34,7 @@ function isEditableTarget(t) {
 
 function CanvasInner() {
   const wrapperRef = useRef(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView, zoomTo } = useReactFlow()
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
   const onNodesChange = useWorkflowStore((s) => s.onNodesChange)
@@ -59,6 +59,7 @@ function CanvasInner() {
   const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
   const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
   const [paneMenu, setPaneMenu] = useState(null) // { x, y } | null
+  const showMinimap = useWorkflowStore((s) => s.showMinimap)
   const edgeUpdateSuccessful = useRef(true)
 
   // Edge update (drag an edge endpoint to a different handle)
@@ -160,6 +161,22 @@ function CanvasInner() {
       </svg>
     )
   }
+  function FitViewIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3" stroke="currentColor"/><path d="M21 8V5a2 2 0 0 0-2-2h-3" stroke="currentColor"/>
+        <path d="M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor"/><path d="M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor"/>
+      </svg>
+    )
+  }
+  function ZoomResetIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" stroke="currentColor"/><path d="m21 21-4.3-4.3" stroke="currentColor"/>
+        <path d="M8 11h6" stroke="currentColor"/><path d="M11 8v6" stroke="currentColor"/>
+      </svg>
+    )
+  }
   const existingTypes = useMemo(() => new Set(nodes.map((n) => n.data?.blockType)), [nodes])
 
   const buildBlockMenuItems = useCallback((clientX, clientY) => {
@@ -252,6 +269,16 @@ function CanvasInner() {
         {
           id: 'action-deploy', label: 'Deploy', icon: DeployIcon,
           onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'deploy' })),
+        },
+        {
+          id: 'action-fit', label: 'Fit View', icon: FitViewIcon,
+          shortcut: '⌘F',
+          onSelect: () => fitView({ padding: 0.15, duration: 200 }),
+        },
+        {
+          id: 'action-zoom-reset', label: 'Reset Zoom', icon: ZoomResetIcon,
+          shortcut: '⌘R',
+          onSelect: () => zoomTo(1, { duration: 200 }),
         },
         { separator: true },
         {
@@ -348,13 +375,58 @@ function CanvasInner() {
   useEffect(() => {
     function onKey(e) {
       if (isEditableTarget(e.target)) return
+      // Block all shortcuts while a confirm dialog is open
+      if (pendingDelete) return
       const meta = e.metaKey || e.ctrlKey
+
+      // ⌘Z — Undo
+      if (meta && !e.shiftKey && (e.key === 'z' || e.key === 'Z') && !e.altKey) {
+        e.preventDefault()
+        useWorkflowStore.getState().undo()
+        return
+      }
+      // ⌘⇧Z or ⌘Y — Redo
+      if ((meta && e.shiftKey && (e.key === 'z' || e.key === 'Z')) || (meta && (e.key === 'y' || e.key === 'Y'))) {
+        e.preventDefault()
+        useWorkflowStore.getState().redo()
+        return
+      }
 
       // ⌘D — Duplicate
       if (meta && (e.key === 'd' || e.key === 'D')) {
         if (!selectedNodeId) return
         e.preventDefault()
         duplicateNode(selectedNodeId)
+        return
+      }
+
+      // ⌘I — Inspect selected node
+      if (meta && (e.key === 'i' || e.key === 'I') && !e.shiftKey) {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('bs:inspect-node', { detail: { nodeId: selectedNodeId } }))
+        return
+      }
+
+      // ⌘C — Copy node ID
+      if (meta && (e.key === 'c' || e.key === 'C') && !e.shiftKey) {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        navigator.clipboard.writeText(selectedNodeId)
+        return
+      }
+
+      // ⌘R — Reset zoom to 1:1
+      if (meta && (e.key === 'r' || e.key === 'R') && !e.shiftKey) {
+        e.preventDefault()
+        zoomTo(1, { duration: 200 })
+        return
+      }
+
+      // ⌘F — Fit view
+      if (meta && (e.key === 'f' || e.key === 'F') && !e.shiftKey) {
+        e.preventDefault()
+        fitView({ padding: 0.15, duration: 200 })
         return
       }
 
@@ -395,7 +467,7 @@ function CanvasInner() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedNodeId, removeNode, duplicateNode, beginRename, moveNodeBy, selectNode])
+  }, [selectedNodeId, pendingDelete, removeNode, duplicateNode, beginRename, moveNodeBy, selectNode, fitView, zoomTo])
 
   return (
     <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
@@ -414,6 +486,7 @@ function CanvasInner() {
         onNodeClick={(_, node) => selectNode(node.id)}
         nodeTypes={nodeTypes}
         multiSelectionKeyCode="Shift"
+        deleteKeyCode={null}
         selectionOnDrag
         edgesUpdatable
         fitView
@@ -421,14 +494,16 @@ function CanvasInner() {
       >
         <Background gap={18} size={1.2} color="var(--ce-border)" />
         <Controls showInteractive={false} />
-        <MiniMap
-          pannable
-          zoomable
-          maskColor="rgba(0,0,0,0.35)"
-          style={{ background: 'var(--bg-primary, #0b1020)' }}
-          nodeColor="var(--ce-border, #1f2937)"
-          nodeStrokeColor="var(--ce-border, #1f2937)"
-        />
+        {showMinimap && (
+          <MiniMap
+            pannable
+            zoomable
+            maskColor="rgba(0,0,0,0.35)"
+            style={{ background: 'var(--bg-primary, #0b1020)' }}
+            nodeColor="var(--ce-border, #1f2937)"
+            nodeStrokeColor="var(--ce-border, #1f2937)"
+          />
+        )}
       </ReactFlow>
 
       {pendingDelete && (

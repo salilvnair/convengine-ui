@@ -13,6 +13,32 @@ import {
 } from 'reactflow'
 import { v4 as uuid } from 'uuid'
 
+/* ── Undo / redo history ─────────────────────────────────────────────── */
+const MAX_HISTORY = 100
+const _past = []    // { nodes, edges, subBlockValues }[]
+const _future = []  // same
+let _lastPushTime = 0
+
+function _snap(s) {
+  return {
+    nodes: JSON.parse(JSON.stringify(s.nodes)),
+    edges: JSON.parse(JSON.stringify(s.edges)),
+    subBlockValues: JSON.parse(JSON.stringify(s.subBlockValues)),
+  }
+}
+function _pushSnap(s) {
+  _past.push(_snap(s))
+  if (_past.length > MAX_HISTORY) _past.shift()
+  _future.length = 0
+  _lastPushTime = Date.now()
+}
+/** Throttled push — coalesces rapid calls (e.g. continuous drag) into one snapshot. */
+function _pushSnapThrottled(s) {
+  const now = Date.now()
+  if (now - _lastPushTime < 300 && _past.length > 0) return // skip if recent push
+  _pushSnap(s)
+}
+
 const initialState = {
   nodes: [],
   edges: [],
@@ -53,16 +79,20 @@ export const useWorkflowStore = create()(
       },
 
       onNodesChange(changes) {
+        _pushSnapThrottled(get())
         set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) }))
       },
       onEdgesChange(changes) {
+        _pushSnapThrottled(get())
         set((s) => ({ edges: applyEdgeChanges(changes, s.edges) }))
       },
       onConnect(params) {
+        _pushSnap(get())
         set((s) => ({ edges: rfAddEdge({ ...params, animated: true }, s.edges) }))
       },
 
       addNode(blockType, position, blockConfig) {
+        _pushSnap(get())
         const id = `n_${uuid()}`
         const node = {
           id,
@@ -81,6 +111,7 @@ export const useWorkflowStore = create()(
       },
 
       removeNode(id) {
+        _pushSnap(get())
         set((s) => {
           const { [id]: _dropped, ...restValues } = s.subBlockValues
           return {
@@ -94,6 +125,7 @@ export const useWorkflowStore = create()(
 
       /** Clone a node at a 32px/32px offset and deep-copy its subBlockValues. */
       duplicateNode(id) {
+        _pushSnap(get())
         const s = get()
         const src = s.nodes.find((n) => n.id === id)
         if (!src) return null
@@ -118,6 +150,7 @@ export const useWorkflowStore = create()(
 
       /** Drop every edge incident to this node without removing the node. */
       disconnectNode(id) {
+        _pushSnap(get())
         set((s) => ({
           edges: s.edges.filter((e) => e.source !== id && e.target !== id),
         }))
@@ -159,11 +192,13 @@ export const useWorkflowStore = create()(
 
       /** Remove a single edge by id. */
       removeEdge(id) {
+        _pushSnap(get())
         set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }))
       },
 
       /** Remove all edges from the entire canvas. */
       disconnectAll() {
+        _pushSnap(get())
         set({ edges: [] })
       },
 
@@ -187,6 +222,28 @@ export const useWorkflowStore = create()(
       reset() {
         set(initialState)
       },
+
+      /* ── Undo / Redo ── */
+      undo() {
+        if (_past.length === 0) return
+        const s = get()
+        _future.push(_snap(s))
+        const prev = _past.pop()
+        set({ nodes: prev.nodes, edges: prev.edges, subBlockValues: prev.subBlockValues })
+      },
+      redo() {
+        if (_future.length === 0) return
+        const s = get()
+        _past.push(_snap(s))
+        const next = _future.pop()
+        set({ nodes: next.nodes, edges: next.edges, subBlockValues: next.subBlockValues })
+      },
+      canUndo() { return _past.length > 0 },
+      canRedo() { return _future.length > 0 },
+
+      /* ---------------- MiniMap visibility toggle ---------------- */
+      showMinimap: true,
+      toggleMinimap() { set((s) => ({ showMinimap: !s.showMinimap })) },
 
       /* ---------------- ComfyUI-style run state ---------------- */
       startRun() {

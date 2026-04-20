@@ -98,7 +98,19 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       started.add(n.id)
       const t0 = performance.now()
       const inEdges = incoming[n.id] || []
-      const upstream = inEdges.map((e) => outputs[e.source])
+      // Resolve per-edge output: if the edge's sourceHandle is a named
+      // handle like "out_status", extract just that field from the source
+      // node's output object. This ensures that connecting a single output
+      // handle (e.g. only "status" from a response node) forwards only
+      // that value, not the entire {data, status, headers} object.
+      const resolveEdgeOutput = (e) => {
+        const full = outputs[e.source]
+        const sh = e.sourceHandle || 'out'
+        if (sh === 'out' || full == null || typeof full !== 'object') return full
+        const field = sh.startsWith('out_') ? sh.slice(4) : sh
+        return field in full ? full[field] : full
+      }
+      const upstream = inEdges.map(resolveEdgeOutput)
       const input = upstream.length <= 1 ? upstream[0] : upstream
       // Build per-handle input map so blocks with multiple typed inputs
       // (e.g. response: data, status, headers) can read from each handle.
@@ -107,7 +119,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       for (const e of inEdges) {
         const th = e.targetHandle || 'in'
         const key = th.startsWith('in_') ? th.slice(3) : th
-        inputsByHandle[key] = outputs[e.source]
+        inputsByHandle[key] = resolveEdgeOutput(e)
       }
       const values = subBlockValues[n.id] || {}
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
@@ -138,7 +150,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           input,
           inputsByHandle,    // per-handle connected inputs (e.g. { data: ..., headers: ... })
           output,            // raw value, no truncation (UI truncates for the collapsed preview)
-          values,            // the user-authored sub-block values for this node
+          values: meta?.model ? { ...values, model: meta.model } : values,
           meta,              // per-block rich metadata (prompts after templating, etc.)
           ms: Math.round(performance.now() - t0),
         }
@@ -353,7 +365,11 @@ async function runAgentNode({ node, values, input }) {
       templateBag: bag,
       rawAgentResponse: res,
     },
-    value: res.output,
+    value: {
+      data: res.output,
+      status: 200,
+      headers: { 'x-model': res.model, 'x-duration-ms': res.ms },
+    },
   }
 }
 

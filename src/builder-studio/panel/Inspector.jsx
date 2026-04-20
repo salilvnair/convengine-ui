@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
-import { getTypeColor, hasFeature, getCustomIOSections } from './io-registry'
+import { getTypeColor, getCardPorts, hasFeature, getCustomIOSections } from './io-registry'
 import SubBlockRenderer from './SubBlockRenderer'
 import ConfirmModal from '../components/ConfirmModal'
 import WorkflowInspector from './WorkflowInspector'
@@ -268,10 +268,20 @@ function deriveTemplateVars(node, nodes, edges, lastOutputs) {
  * Inspired by ComfyUI's typed slot badges.
  */
 function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
-  const inputs = cfg.inputs || {}
-  const outputs = cfg.outputs || {}
-  const hasInputs = Object.keys(inputs).length > 0
-  const hasOutputs = Object.keys(outputs).length > 0
+  const cardPorts = useMemo(() => getCardPorts(cfg.type, cfg.inputs, cfg.outputs), [cfg])
+  const cardInputs = cardPorts.inputs || []
+  const cardOutputs = cardPorts.outputs || []
+  const hasInputs = cardInputs.length > 0
+  const hasOutputs = cardOutputs.length > 0
+  const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
+  const hiddenPorts = (subBlockValues[node.id] || {})?._hiddenPorts || {}
+
+  const togglePort = (portKey) => {
+    const next = { ...hiddenPorts, [portKey]: !hiddenPorts[portKey] }
+    // Remove falsy entries to keep the object clean
+    for (const k of Object.keys(next)) { if (!next[k]) delete next[k] }
+    setSubBlockValue(node.id, '_hiddenPorts', next)
+  }
 
   // Upstream connections
   const upstreamEdges = edges.filter((e) => e.target === node.id)
@@ -362,12 +372,23 @@ function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
             Input
           </div>
           <div className="bs-io-slots">
-            {Object.entries(inputs).map(([key, spec]) => (
-              <div key={key} className="bs-io-slot">
-                <span className="bs-io-slot-name">{key}</span>
-                {typeBadge(spec.type)}
-              </div>
-            ))}
+            {cardInputs.map((p) => {
+              const portId = `in_${p.key}`
+              const hidden = !!hiddenPorts[portId]
+              return (
+                <div key={p.key} className={`bs-io-slot ${hidden ? 'bs-io-slot-hidden' : ''}`}>
+                  <span className="bs-io-slot-name">{p.key}</span>
+                  {typeBadge(p.type)}
+                  <button
+                    className={`bs-io-toggle ${hidden ? '' : 'is-on'}`}
+                    onClick={() => togglePort(portId)}
+                    title={hidden ? 'Show on card' : 'Hide from card'}
+                  >
+                    <span className="bs-io-toggle-track"><span className="bs-io-toggle-thumb" /></span>
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -380,13 +401,23 @@ function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
             Output
           </div>
           <div className="bs-io-slots">
-            {Object.entries(outputs).map(([key, spec]) => (
-              <div key={key} className="bs-io-slot">
-                <span className="bs-io-slot-name">{key}</span>
-                {typeBadge(spec.type)}
-                {spec.description && <span className="bs-io-slot-desc">{spec.description}</span>}
-              </div>
-            ))}
+            {cardOutputs.map((p) => {
+              const portId = `out_${p.key}`
+              const hidden = !!hiddenPorts[portId]
+              return (
+                <div key={p.key} className={`bs-io-slot ${hidden ? 'bs-io-slot-hidden' : ''}`}>
+                  <span className="bs-io-slot-name">{p.key}</span>
+                  {typeBadge(p.type)}
+                  <button
+                    className={`bs-io-toggle ${hidden ? '' : 'is-on'}`}
+                    onClick={() => togglePort(portId)}
+                    title={hidden ? 'Show on card' : 'Hide from card'}
+                  >
+                    <span className="bs-io-toggle-track"><span className="bs-io-toggle-thumb" /></span>
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

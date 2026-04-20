@@ -41,6 +41,7 @@ const SHORTCUTS = [
     items: [
       { keys: [MOD, '1'], desc: 'Run active workflow', icon: RunShortcutIcon, tone: 'run' },
       { keys: [MOD, '2'], desc: 'Save active workflow', icon: SaveShortcutIcon, tone: 'save' },
+      { keys: [MOD, 'S'], desc: 'Save active workflow (alt)', icon: SaveShortcutIcon, tone: 'save' },
       { keys: [MOD, '3'], desc: 'Export active workflow as JSON', icon: ExportShortcutIcon, tone: 'export' },
       { keys: [MOD, '4'], desc: 'Deploy active workflow', icon: DeployIcon, tone: 'deploy' },
     ],
@@ -50,6 +51,12 @@ const SHORTCUTS = [
     items: [
       { keys: ['Delete'], or: ['Backspace'], desc: 'Delete the selected node' },
       { keys: [MOD, 'D'], desc: 'Duplicate the selected node' },
+      { keys: [MOD, 'I'], desc: 'Inspect the selected node (after run)' },
+      { keys: [MOD, 'C'], desc: 'Copy selected node ID to clipboard' },
+      { keys: [MOD, 'F'], desc: 'Fit all nodes into view' },
+      { keys: [MOD, 'R'], desc: 'Reset zoom to 1:1' },
+      { keys: [MOD, 'Z'], desc: 'Undo last canvas action' },
+      { keys: [MOD, '⇧', 'Z'], or: [MOD, 'Y'], desc: 'Redo last undone action' },
       { keys: ['F2'], or: ['Enter'], desc: 'Rename the selected node' },
       { keys: ['Esc'], desc: 'Deselect / cancel rename' },
       { keys: ['↑', '↓', '←', '→'], desc: 'Nudge selected node by 10px' },

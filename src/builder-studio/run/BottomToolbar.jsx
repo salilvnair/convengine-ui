@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react'
 import { getRunPanels, onRunPanelsChange } from './panel-registry'
+import { useWorkflowStore } from '../stores/workflow-store'
 
 /* ── tiny inline icons (16×16, stroke-only) ── */
 const PlayIco = (p) => (
@@ -35,6 +36,14 @@ const TodoIco = (p) => (
     <polyline points="2,8.5 5,11.5 9,4.5" /><line x1="11" y1="4" x2="14" y2="4" /><line x1="11" y1="8" x2="14" y2="8" /><line x1="11" y1="12" x2="14" y2="12" />
   </svg>
 )
+const MinimapIco = (p) => (
+  <svg {...p} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="1" y="1" width="14" height="14" rx="1.5" />
+    <rect x="4" y="4" width="2.5" height="2.5" rx="0.4" opacity="0.7" />
+    <rect x="8" y="6" width="2.5" height="2.5" rx="0.4" opacity="0.5" />
+    <rect x="5" y="9.5" width="2.5" height="2" rx="0.4" opacity="0.6" />
+  </svg>
+)
 
 /** Icon lookup keyed by panel id */
 const PANEL_ICONS = {
@@ -47,9 +56,15 @@ const PANEL_ICONS = {
 
 /** Panels shown on the right side of the toolbar */
 const RIGHT_PANEL_IDS = new Set(['todo'])
+/** Standalone toggle buttons shown to the left of right-cluster panels */
+const TOGGLE_BUTTONS = [
+  { id: 'minimap', label: 'Minimap', Icon: MinimapIco },
+]
 
 export default function BottomToolbar({ activeTab, dockOpen, onTabClick }) {
   const [panels, setPanels] = useState(() => getRunPanels())
+  const showMinimap = useWorkflowStore((s) => s.showMinimap)
+  const toggleMinimap = useWorkflowStore((s) => s.toggleMinimap)
 
   useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
 
@@ -79,6 +94,20 @@ export default function BottomToolbar({ activeTab, dockOpen, onTabClick }) {
 
       {/* ── Right cluster ── */}
       <div className="bs-bottombar-right">
+        {TOGGLE_BUTTONS.map((tb) => {
+          const active = tb.id === 'minimap' ? showMinimap : false
+          return (
+            <button
+              key={tb.id}
+              className={`bs-bottombar-tab ${active ? 'is-active' : ''}`}
+              onClick={() => tb.id === 'minimap' && toggleMinimap()}
+              title={tb.label}
+            >
+              <tb.Icon className="bs-bottombar-ico" />
+              <span>{tb.label}</span>
+            </button>
+          )
+        })}
         {rightPanels.map((p) => {
           const Icon = PANEL_ICONS[p.id] || PlayIco
           const active = dockOpen && activeTab === p.id
