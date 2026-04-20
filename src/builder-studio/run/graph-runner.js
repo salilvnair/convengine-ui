@@ -427,6 +427,55 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
       return runMapperNode({ values, input })
     case 'skill':
       return await runSkillNode({ values, input })
+    // ── Server-parity blocks ──────────────────────────────────────────────
+    case 'api':
+      return await runApiNode({ values, input })
+    case 'delay':
+      return await runDelayNode({ values })
+    case 'wait':
+      return await runWaitNode({ values, input })
+    case 'filter':
+      return runFilterNode({ values, input })
+    case 'sort':
+      return runSortNode({ values, input })
+    case 'aggregate':
+      return runAggregateNode({ values, input })
+    case 'merge':
+      return runMergeNode({ values, input })
+    case 'crypto':
+      return await runCryptoNode({ values })
+    case 'error_handler':
+      return runErrorHandlerNode({ values, input })
+    case 'http_response':
+      return runHttpResponseNode({ values, input })
+    case 'sub_workflow':
+      return { result: input, status: 'pass-through', duration: 0 }
+    case 'ai_classifier':
+      return await runAiClassifierNode({ node, values, input })
+    case 'variables':
+      return runVariablesNode({ values })
+    case 'condition':
+      return runConditionNode({ values, input })
+    case 'router_v2':
+      return await runRouterV2Node({ node, values, input })
+    case 'loop':
+    case 'parallel':
+    case 'table':
+      return input
+    case 'slack':
+      return { ok: false, error: 'Slack integration requires server-side execution via convengine' }
+    case 'smtp':
+      return { success: false, error: 'SMTP requires server-side execution via convengine' }
+    case 'postgresql':
+      return { error: 'PostgreSQL requires server-side execution via convengine' }
+    case 'redis':
+      return { error: 'Redis requires server-side execution via convengine' }
+    case 'mongodb':
+      return { error: 'MongoDB requires server-side execution via convengine' }
+    case 'schedule':
+      return { firedAt: new Date().toISOString() }
+    case 'webhook_request':
+      return { body: input, headers: {}, query: {} }
     default:
       // Unknown block type: pass input through so the graph keeps moving.
       return input
@@ -746,7 +795,10 @@ function runJsonValidator({ values, input }) {
   let parsed
   try { parsed = typeof input === 'string' ? JSON.parse(input) : input }
   catch { return { valid: false, errors: ['input is not valid JSON'] } }
-  const rules = Array.isArray(values.rules) ? values.rules : []
+  // Support rules as a JSON string (matches server behaviour)
+  const rules = typeof values.rules === 'string'
+    ? (() => { try { return JSON.parse(values.rules) } catch { return [] } })()
+    : (Array.isArray(values.rules) ? values.rules : [])
   const errors = []
   for (const r of rules) {
     const path = r.path ?? r[0]
@@ -758,6 +810,290 @@ function runJsonValidator({ values, input }) {
     if (rule === 'type' && typeof got !== String(expected)) errors.push(`${path} not a ${expected}`)
   }
   return { valid: errors.length === 0, errors, value: parsed }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Server-parity block handlers (ported from graph-runner.ts)                */
+/* ------------------------------------------------------------------------- */
+
+async function runApiNode({ values, input }) {
+  const method = String(values.method || 'GET').toUpperCase()
+  let url = String(values.url || '')
+  let params = Array.isArray(values.params) ? values.params : []
+  if (typeof values.params === 'string') { try { params = JSON.parse(values.params) } catch { params = [] } }
+  if (params.length > 0) {
+    const qs = params.filter((p) => p.Key).map((p) => encodeURIComponent(p.Key) + '=' + encodeURIComponent(String(p.Value ?? ''))).join('&')
+    url += (url.includes('?') ? '&' : '?') + qs
+  }
+  let headerEntries = Array.isArray(values.headers) ? values.headers : []
+  if (typeof values.headers === 'string') { try { headerEntries = JSON.parse(values.headers) } catch { headerEntries = [] } }
+  const headers = {}
+  for (const h of headerEntries) { if (h.Key) headers[h.Key] = String(h.Value ?? '') }
+  let body
+  if (method !== 'GET' && method !== 'HEAD') {
+    const rawBody = values.body
+    if (typeof rawBody === 'string' && rawBody.trim()) {
+      body = rawBody
+      if (!headers['Content-Type'] && !headers['content-type']) headers['Content-Type'] = 'application/json'
+    }
+  }
+  try {
+    const resp = await fetch(url, { method, headers, body })
+    const contentType = resp.headers.get('content-type') || ''
+    const data = contentType.includes('application/json') ? await resp.json() : await resp.text()
+    const respHeaders = {}
+    resp.headers.forEach((v, k) => { respHeaders[k] = v })
+    return { data, status: resp.status, headers: respHeaders }
+  } catch (err) {
+    return { data: null, status: 0, headers: {}, error: err.message }
+  }
+}
+
+async function runDelayNode({ values }) {
+  const duration = Number(values.duration ?? 0)
+  const unit = String(values.unit || 'ms')
+  let ms = duration
+  if (unit === 's') ms = duration * 1000
+  else if (unit === 'm') ms = duration * 60_000
+  else if (unit === 'h') ms = duration * 3_600_000
+  const t0 = Date.now()
+  await new Promise((resolve) => setTimeout(resolve, ms))
+  return { output: null, elapsed: Date.now() - t0 }
+}
+
+async function runWaitNode({ values, input }) {
+  const mode = String(values.mode || 'duration')
+  const t0 = Date.now()
+  if (mode === 'until') {
+    const until = new Date(String(values.until || new Date().toISOString())).getTime()
+    const diff = Math.max(0, until - Date.now())
+    await new Promise((resolve) => setTimeout(resolve, diff))
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, Number(values.duration ?? 0)))
+  }
+  return { output: input, elapsed: Date.now() - t0 }
+}
+
+function runFilterNode({ values, input }) {
+  const mode = String(values.mode || 'keep')
+  let arr = Array.isArray(input) ? input : []
+  if (!Array.isArray(input) && typeof input === 'string') {
+    try { const p = JSON.parse(input); if (Array.isArray(p)) arr = p } catch { arr = [] }
+  }
+  const condSrc = String(values.conditions || 'return true')
+  let filterFn
+  try { filterFn = new Function('item', 'index', condSrc) } catch { return { kept: arr, rejected: [], count: arr.length } }
+  const kept = [], rejected = []
+  for (let i = 0; i < arr.length; i++) {
+    const result = filterFn(arr[i], i)
+    if ((mode === 'keep' && result) || (mode === 'remove' && !result)) kept.push(arr[i])
+    else rejected.push(arr[i])
+  }
+  return { kept, rejected, count: kept.length }
+}
+
+function runSortNode({ values, input }) {
+  const sortKey = String(values.sortKey || '')
+  const order = String(values.order || 'asc')
+  let arr = Array.isArray(input) ? [...input] : []
+  if (!Array.isArray(input) && typeof input === 'string') {
+    try { const p = JSON.parse(input); if (Array.isArray(p)) arr = [...p] } catch { arr = [] }
+  }
+  arr.sort((a, b) => {
+    let va = a, vb = b
+    if (sortKey && typeof a === 'object' && a !== null) va = a[sortKey]
+    if (sortKey && typeof b === 'object' && b !== null) vb = b[sortKey]
+    if (va === vb) return 0
+    if (va == null) return 1
+    if (vb == null) return -1
+    const cmp = String(va) < String(vb) ? -1 : 1
+    return order === 'desc' ? -cmp : cmp
+  })
+  return { sorted: arr, count: arr.length }
+}
+
+function runAggregateNode({ values, input }) {
+  const operation = String(values.operation || 'count')
+  const field = String(values.field || '')
+  let arr = Array.isArray(input) ? input : []
+  if (!Array.isArray(input) && typeof input === 'string') {
+    try { const p = JSON.parse(input); if (Array.isArray(p)) arr = p } catch { arr = [] }
+  }
+  const extract = (item) => field && item && typeof item === 'object' ? item[field] : item
+  const nums = arr.map(extract).map(Number).filter((n) => !isNaN(n))
+  switch (operation) {
+    case 'sum': return { result: nums.reduce((a, b) => a + b, 0), count: arr.length }
+    case 'count': return { result: arr.length, count: arr.length }
+    case 'avg': return { result: nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0, count: arr.length }
+    case 'min': return { result: nums.length > 0 ? Math.min(...nums) : null, count: arr.length }
+    case 'max': return { result: nums.length > 0 ? Math.max(...nums) : null, count: arr.length }
+    case 'concat': return { result: arr.map(extract), count: arr.length }
+    case 'group': {
+      const groups = {}
+      for (const item of arr) {
+        const key = String(extract(item) ?? 'undefined')
+        if (!groups[key]) groups[key] = []
+        groups[key].push(item)
+      }
+      return { result: groups, count: arr.length }
+    }
+    case 'custom': {
+      try {
+        const fn = new Function('input', String(values.customFn || 'return input'))
+        return { result: fn(arr), count: arr.length }
+      } catch { return { result: null, count: arr.length } }
+    }
+    default: return { result: arr.length, count: arr.length }
+  }
+}
+
+function runMergeNode({ values, input }) {
+  const mode = String(values.mode || 'append')
+  const inputs = Array.isArray(input) ? input : [input]
+  switch (mode) {
+    case 'append': {
+      const merged = []
+      for (const item of inputs) { if (Array.isArray(item)) merged.push(...item); else merged.push(item) }
+      return { merged, count: merged.length }
+    }
+    case 'position': {
+      const merged = []
+      for (let i = 0; i < inputs.length; i++) merged[i] = inputs[i]
+      return { merged, count: merged.length }
+    }
+    case 'key':
+    case 'match': {
+      const merged = {}
+      for (const item of inputs) { if (item && typeof item === 'object' && !Array.isArray(item)) Object.assign(merged, item) }
+      return { merged, count: Object.keys(merged).length }
+    }
+    case 'dedupe': {
+      const merged = [], seen = new Set()
+      for (const item of inputs) {
+        const items = Array.isArray(item) ? item : [item]
+        for (const i of items) {
+          const key = JSON.stringify(i)
+          if (!seen.has(key)) { seen.add(key); merged.push(i) }
+        }
+      }
+      return { merged, count: merged.length }
+    }
+    default: {
+      const merged = []
+      for (const item of inputs) { if (Array.isArray(item)) merged.push(...item); else merged.push(item) }
+      return { merged, count: merged.length }
+    }
+  }
+}
+
+async function runCryptoNode({ values }) {
+  const operation = String(values.operation || 'sha256')
+  const data = String(values.data ?? '')
+  const secret = String(values.secret ?? '')
+  const encode = (s) => new TextEncoder().encode(s)
+  const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  switch (operation) {
+    case 'sha256': {
+      const buf = await crypto.subtle.digest('SHA-256', encode(data))
+      return { result: hex(buf) }
+    }
+    case 'md5':
+      return { result: null, error: 'MD5 is not available in browser crypto' }
+    case 'base64_encode':
+      return { result: btoa(data) }
+    case 'base64_decode':
+      return { result: atob(data) }
+    case 'url_encode':
+      return { result: encodeURIComponent(data) }
+    case 'url_decode':
+      return { result: decodeURIComponent(data) }
+    case 'uuid':
+      return { result: crypto.randomUUID() }
+    case 'hmac_sha256': {
+      const key = await crypto.subtle.importKey('raw', encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      const sig = await crypto.subtle.sign('HMAC', key, encode(data))
+      return { result: hex(sig) }
+    }
+    default:
+      return { result: data }
+  }
+}
+
+function runErrorHandlerNode({ values, input }) {
+  const strategy = String(values.strategy || 'fallback')
+  if (strategy === 'fallback' && values.fallbackValue !== undefined) {
+    return { result: values.fallbackValue, error: null, retryCount: 0 }
+  }
+  return { result: input, error: null, retryCount: 0 }
+}
+
+function runHttpResponseNode({ values, input }) {
+  const statusCode = Number(values.statusCode ?? 200)
+  const body = (values.body !== undefined && values.body !== '') ? values.body : input
+  return { sent: true, statusCode, body }
+}
+
+async function runAiClassifierNode({ node, values, input }) {
+  const categories = String(values.categories || '').split(',').map((c) => c.trim()).filter(Boolean)
+  const text = String(values.text || (typeof input === 'string' ? input : JSON.stringify(input)))
+  const instructions = String(values.instructions || '')
+  const model = String(values.model || 'gpt-4o-mini')
+  const systemPrompt =
+    'You are a text classifier. Classify the given text into exactly one of these categories: ' +
+    categories.join(', ') + '. ' +
+    (instructions ? 'Additional instructions: ' + instructions + '. ' : '') +
+    'Respond with ONLY a JSON object in the format: {"category":"<chosen>","confidence":<0_to_1>}'
+  const agent = { id: node.id, model, temperature: 0, systemPrompt, userPrompt: text }
+  const inputStr = typeof input === 'string' ? input : JSON.stringify(input)
+  try {
+    const res = await runAgent({ agent, input: inputStr })
+    const raw = String(res?.output ?? res)
+    const parsed = JSON.parse(raw)
+    const allScores = {}
+    for (const c of categories) allScores[c] = c === parsed.category ? (parsed.confidence ?? 1) : 0
+    return { category: parsed.category ?? categories[0] ?? '', confidence: parsed.confidence ?? 0, allScores }
+  } catch {
+    return { category: categories[0] ?? 'unknown', confidence: 0, allScores: {} }
+  }
+}
+
+function runVariablesNode({ values }) {
+  let vars = Array.isArray(values.variables) ? values.variables : []
+  if (typeof values.variables === 'string') { try { vars = JSON.parse(values.variables) } catch { vars = [] } }
+  const result = {}
+  for (const v of vars) { if (v.variableName) result[v.variableName] = v.value }
+  return result
+}
+
+function runConditionNode({ values, input }) {
+  let conditions = Array.isArray(values.conditions) ? values.conditions : []
+  if (typeof values.conditions === 'string') { try { conditions = JSON.parse(values.conditions) } catch { conditions = [] } }
+  for (const cond of conditions) {
+    if (eval_safe(cond.expression, input)) return { branch: cond.id, value: input }
+  }
+  return { branch: 'else', value: input }
+}
+
+async function runRouterV2Node({ node, values, input }) {
+  const context = String(values.context || (typeof input === 'string' ? input : JSON.stringify(input)))
+  const model = String(values.model || 'gpt-4o-mini')
+  let routes = Array.isArray(values.routes) ? values.routes : []
+  if (typeof values.routes === 'string') { try { routes = JSON.parse(values.routes) } catch { routes = [] } }
+  if (routes.length === 0) return { branch: 'default', value: input }
+  const routeList = routes.map((r, i) => (i + 1) + '. id=' + r.id + ': ' + r.description).join('\n')
+  const systemPrompt =
+    'You are a router. Given the context below, choose the best matching route.\n' +
+    'Available routes:\n' + routeList + '\n\nRespond with ONLY the route id (nothing else).'
+  const agent = { id: node.id, model, temperature: 0, systemPrompt, userPrompt: context }
+  const inputStr = typeof input === 'string' ? input : JSON.stringify(input)
+  try {
+    const res = await runAgent({ agent, input: inputStr })
+    const raw = String(res?.output ?? res).trim()
+    const matched = routes.find((r) => r.id === raw)
+    return { branch: matched ? matched.id : routes[0].id, value: input }
+  } catch {
+    return { branch: routes[0]?.id ?? 'default', value: input }
+  }
 }
 
 /* ------------------------------------------------------------------------- */
