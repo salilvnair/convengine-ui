@@ -199,6 +199,19 @@ function WorkflowNode({ id, data, selected }) {
     return () => window.removeEventListener('bs:inspect-node', onInspect)
   }, [id, traceEntry])
 
+  // Replay the shake animation each time this node is marked as errored.
+  // React may batch the class removal+addition so the browser never sees a
+  // transition; instead we directly manipulate the element's animation via
+  // the ref: reset to none, force a reflow, then restore.
+  useEffect(() => {
+    if (!isError || !nodeRef.current) return
+    const el = nodeRef.current
+    el.style.animation = 'none'
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth // trigger reflow
+    el.style.animation = ''
+  }, [isError, errorShakeKey])
+
   // ─── Connection-drag type compatibility (ComfyUI-style glow/dim) ──────
   const [connectDrag, setConnectDrag] = useState(null) // { handleType, portType } | null
   useEffect(() => {
@@ -329,7 +342,6 @@ function WorkflowNode({ id, data, selected }) {
           resizing ? 'bs-node-resizing' : '',
           resizeMode ? 'bs-node-resize-mode' : '',
         ].filter(Boolean).join(' ')}
-        style={isError ? { animationName: `bs-node-shake-${errorShakeKey}` } : undefined}
         style={{
           width: nodeW || undefined,
           ...(hasJsonPreview
@@ -434,13 +446,22 @@ function WorkflowNode({ id, data, selected }) {
           <div className="bs-node-body">
             {previewRows.map((row) => {
               if (row.sb.type === 'json-preview') {
+                // Detect whether the lastOutput is (or contains) JSON so we can render
+                // the nice tree view vs plain text. Strings that are valid JSON are
+                // rendered as a tree; everything else (including plain strings) is shown
+                // as pre-formatted text.
+                let previewValue = lastOutput
+                // Only treat as JSON if it IS an object/array — strings stay strings.
+                const isJsonOutput = lastOutput !== null && lastOutput !== undefined && typeof lastOutput === 'object'
                 return (
                   <div key={row.id} className="bs-node-jsonpreview" onClick={(e) => { e.stopPropagation(); selectNode(id) }}>
                     <div className="bs-node-jsonpreview-head">{row.label}</div>
                     <div className="bs-node-jsonpreview-body">
                       {lastOutput == null
                         ? <span className="bs-node-jsonpreview-empty">No run yet.</span>
-                        : <JsonView value={lastOutput} />}
+                        : isJsonOutput
+                          ? <JsonView value={previewValue} collapsible defaultExpanded={2} />
+                          : <pre className="bs-node-jsonpreview-text">{String(previewValue)}</pre>}
                     </div>
                   </div>
                 )

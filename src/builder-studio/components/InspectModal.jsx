@@ -128,13 +128,13 @@ export default function InspectModal({ nodeId, nodeData, traceEntry, onClose }) 
                         <div key={key} className="bs-inspect-kv-row">
                           <span className="bs-inspect-kv-key">{key}</span>
                           <span className="bs-inspect-type-pill" style={{ background: tc.bg, borderColor: tc.border, color: tc.text }}>{portType}</span>
-                          <div className="bs-inspect-kv-val"><JsonView value={val} collapsible defaultExpanded={2} /></div>
+                          <div className="bs-inspect-kv-val"><SmartValue value={val} /></div>
                         </div>
                       )
                     })}
                   </div>
                 ) : (
-                  <div className="bs-debug-json"><JsonView value={t.output} collapsible defaultExpanded={2} /></div>
+                  <div className="bs-debug-json"><SmartValue value={t.output} expand={2} /></div>
                 )}
               </Disclosure>
             )}
@@ -275,4 +275,21 @@ function guessType(v) {
   if (typeof v === 'number') return 'number'
   if (typeof v === 'string') return 'string'
   return 'json'
+}
+
+/**
+ * Render a value as-is — no automatic type coercion:
+ * - Objects/arrays → collapsible JsonView tree
+ * - Strings → plain <pre> block (never parsed as JSON — use a mapper block for that)
+ * - Primitives → inline text
+ */
+function SmartValue({ value, expand = 2 }) {
+  if (value == null) return <span className="bs-inspect-null">null</span>
+  if (typeof value === 'object') {
+    return <JsonView value={value} collapsible defaultExpanded={expand} />
+  }
+  if (typeof value === 'string') {
+    return <pre className="bs-inspect-plain-text">{value}</pre>
+  }
+  return <span>{String(value)}</span>
 }
