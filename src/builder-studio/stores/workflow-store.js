@@ -91,6 +91,11 @@ const initialState = {
     edgeType: 'smoothstep',   // 'smoothstep' | 'bezier' | 'straight' | 'step'
     // Node defaults
     defaultNodeWidth: 280,
+    // Toolbar — pan/select mode toggle overlay
+    modeSwitcherBtnSize: 22,  // px — width & height of each mode button
+    modeSwitcherIconSize: 12, // px — SVG icon size inside mode button
+    // Toolbar — zoom controls (+/-/fit)
+    zoomBtnSize: 22,          // px — width & height of each zoom button
   },
 }
 

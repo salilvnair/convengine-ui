@@ -36,7 +36,7 @@ function isEditableTarget(t) {
 
 function CanvasInner() {
   const wrapperRef = useRef(null)
-  const { screenToFlowPosition, fitView, zoomTo } = useReactFlow()
+  const { screenToFlowPosition, fitView, zoomTo, setNodes: rfSetNodes } = useReactFlow()
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
   const onNodesChange = useWorkflowStore((s) => s.onNodesChange)
@@ -67,6 +67,7 @@ function CanvasInner() {
   const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
   const [paneMenu, setPaneMenu] = useState(null) // { x, y } | null
   const showMinimap = useWorkflowStore((s) => s.showMinimap)
+  const canvasConfig = useWorkflowStore((s) => s.canvasConfig)
   const edgeUpdateSuccessful = useRef(true)
 
   // Wire up block resolver for io-registry (avoids circular imports)
@@ -566,7 +567,12 @@ function CanvasInner() {
 
       // Escape — deselect
       if (e.key === 'Escape') {
-        if (selectedNodeId) { e.preventDefault(); selectNode(null) }
+        if (selectedNodeId || selectedNodeIds.length) {
+          e.preventDefault()
+          selectNode(null)
+          setSelectedNodeIds([])
+          rfSetNodes((nds) => nds.map((n) => ({ ...n, selected: false })))
+        }
         return
       }
 
@@ -590,8 +596,14 @@ function CanvasInner() {
 
   return (
     <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
-      {/* ── Pan / Select mode toggle (top-left, mirrors zoom controls) ── */}
-      <div className="bs-canvas-mode-toggle">
+      {/* ── Pan / Select mode toggle (top-left) ── */}
+      <div
+        className="bs-canvas-mode-toggle"
+        style={{
+          '--mode-btn-size': `${canvasConfig?.modeSwitcherBtnSize ?? 22}px`,
+          '--mode-icon-size': `${canvasConfig?.modeSwitcherIconSize ?? 12}px`,
+        }}
+      >
         <button
           className={`bs-mode-btn ${canvasMode === 'select' ? 'is-active' : ''}`}
           title="Select mode — drag to rubber-band select (V)"
@@ -724,7 +736,11 @@ function CanvasInner() {
           <button
             className="bs-multiselect-hud-btn bs-multiselect-hud-btn-muted"
             title="Deselect all (Esc)"
-            onClick={() => { selectNode(null); setSelectedNodeIds([]) }}
+            onClick={() => {
+              selectNode(null)
+              setSelectedNodeIds([])
+              rfSetNodes((nds) => nds.map((n) => ({ ...n, selected: false })))
+            }}
           >
             ✕ Deselect
           </button>

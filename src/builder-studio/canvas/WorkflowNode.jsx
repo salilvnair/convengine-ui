@@ -617,16 +617,12 @@ function renderInlineEditor(sb, value, onChange) {
     case 'combobox': {
       const options = typeof sb.options === 'function' ? safeCall(sb.options) : (sb.options || [])
       return (
-        <select
-          className="bs-node-select"
+        <NodeDropdown
           value={value ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {!value && <option value="">{sb.placeholder || 'Select…'}</option>}
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
+          options={options}
+          placeholder={sb.placeholder}
+          onChange={onChange}
+        />
       )
     }
 
@@ -688,8 +684,59 @@ function renderInlineEditor(sb, value, onChange) {
   }
 }
 
-/**
- * Notion-style "ghost" text input: invisible chrome until hovered/focused.
+/** Compact styled dropdown for inline card fields (replaces native <select>). */
+function NodeDropdown({ value, options = [], onChange, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const selected = options.find((o) => o.id === value) || null
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="bs-node-dropdown">
+      <button
+        type="button"
+        className={`bs-node-dropdown-trigger ${open ? 'is-open' : ''}`}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+      >
+        <span className={`bs-node-dropdown-value ${!selected ? 'is-placeholder' : ''}`}>
+          {selected ? selected.label : (placeholder || 'Select…')}
+        </span>
+        <svg className="bs-node-dropdown-chevron" width="8" height="5" viewBox="0 0 10 6" fill="none">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="bs-node-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={`bs-node-dropdown-option ${o.id === value ? 'is-active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onChange(o.id); setOpen(false) }}
+            >
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</span>
+              {o.id === value && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ flexShrink: 0, color: 'var(--bs-dropdown-check-color, var(--bs-accent))' }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Notion-style "ghost" text input: invisible chrome until hovered/focused.
  * Commits on change; blurs on Enter; Escape reverts to last committed value.
  */
 function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
@@ -788,13 +835,14 @@ function SkillChip({ skillIds, onChange }) {
       ) : (
         onChange && (
           <button
-            className="bs-skill-add-btn"
+            className="bs-skill-node-empty"
             onClick={(e) => { e.stopPropagation(); setPickerOpen((v) => !v) }}
             title="Select skill"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
+            <span>Select skill…</span>
           </button>
         )
       )}

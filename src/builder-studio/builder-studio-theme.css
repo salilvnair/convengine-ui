@@ -198,6 +198,44 @@
   --bs-wiki-subgroup-border:    rgba(99,102,241, 0.06);
   --bs-wiki-subgroup-bg:        rgba(255,255,255, 0.01);
   --bs-wiki-subgroup-title:     #a5b4fc;
+
+  /* ── Canvas Toolbar (mode-toggle + zoom controls) ── */
+  --bs-toolbar-bg:              #0f172a;
+  --bs-toolbar-border:          #1f2937;
+  --bs-toolbar-shadow:          0 2px 8px rgba(0,0,0,0.35);
+  --bs-toolbar-btn-color:       #94a3b8;
+  --bs-toolbar-btn-hover-bg:    rgba(99,102,241, 0.14);
+  --bs-toolbar-btn-hover-color: #6366f1;
+  --bs-toolbar-btn-active-bg:   rgba(99,102,241, 0.20);
+  --bs-toolbar-btn-active-color:#818cf8;
+  --bs-toolbar-btn-active-ring: rgba(99,102,241, 0.40);
+
+  /* ── Node preview panel (Final Preview block on canvas) ── */
+  --bs-node-preview-bg:         rgba(6,10,22, 0.75);
+  --bs-node-preview-head-bg:    rgba(0,0,0, 0.20);
+  --bs-node-preview-head-color: #64748b;
+  --bs-node-preview-border:     rgba(148,163,184, 0.12);
+  --bs-node-preview-text:       #94a3b8;
+
+  /* ── I/O Inspector panel slots ── */
+  --bs-io-slot-bg:              rgba(255,255,255, 0.02);
+  --bs-io-slot-border:          rgba(255,255,255, 0.04);
+  --bs-io-slot-bg-hover:        rgba(255,255,255, 0.04);
+  --bs-io-slot-name:            #e2e8f0;
+  --bs-io-panel-divider:        rgba(255,255,255, 0.06);
+  --bs-io-type-menu-bg:         #1e1e2e;
+  --bs-io-type-menu-border:     rgba(255,255,255, 0.08);
+  --bs-io-type-option-hover:    rgba(255,255,255, 0.06);
+  --bs-io-type-option-active:   rgba(255,255,255, 0.10);
+
+  /* ── Custom dropdown (inspector StyledSelect + card NodeDropdown) ── */
+  --bs-dropdown-menu-bg:        #0f172a;
+  --bs-dropdown-menu-border:    rgba(148,163,184, 0.15);
+  --bs-dropdown-menu-shadow:    0 8px 24px rgba(0,0,0,0.45);
+  --bs-dropdown-option-color:   #e5e7eb;
+  --bs-dropdown-option-hover:   rgba(99,102,241, 0.10);
+  --bs-dropdown-option-active:  rgba(99,102,241, 0.16);
+  --bs-dropdown-check-color:    #818cf8;
 }
 
 /* ── LIGHT THEME overrides ── */
@@ -336,4 +374,42 @@
   --bs-wiki-subgroup-border:    rgba(0,0,0, 0.06);
   --bs-wiki-subgroup-bg:        rgba(0,0,0, 0.01);
   --bs-wiki-subgroup-title:     #4338ca;
+
+  /* ── Canvas Toolbar ── */
+  --bs-toolbar-bg:              #ffffff;
+  --bs-toolbar-border:          #e2e8f0;
+  --bs-toolbar-shadow:          0 2px 8px rgba(0,0,0,0.10);
+  --bs-toolbar-btn-color:       #64748b;
+  --bs-toolbar-btn-hover-bg:    rgba(79,70,229, 0.08);
+  --bs-toolbar-btn-hover-color: #4f46e5;
+  --bs-toolbar-btn-active-bg:   rgba(79,70,229, 0.12);
+  --bs-toolbar-btn-active-color:#4f46e5;
+  --bs-toolbar-btn-active-ring: rgba(79,70,229, 0.28);
+
+  /* ── Node preview panel ── */
+  --bs-node-preview-bg:         #f8fafc;
+  --bs-node-preview-head-bg:    #e2e8f0;
+  --bs-node-preview-head-color: #64748b;
+  --bs-node-preview-border:     #e2e8f0;
+  --bs-node-preview-text:       #64748b;
+
+  /* ── I/O Inspector panel slots ── */
+  --bs-io-slot-bg:              rgba(0,0,0, 0.02);
+  --bs-io-slot-border:          rgba(0,0,0, 0.06);
+  --bs-io-slot-bg-hover:        rgba(0,0,0, 0.04);
+  --bs-io-slot-name:            #1e293b;
+  --bs-io-panel-divider:        rgba(0,0,0, 0.08);
+  --bs-io-type-menu-bg:         #ffffff;
+  --bs-io-type-menu-border:     #e2e8f0;
+  --bs-io-type-option-hover:    rgba(0,0,0, 0.04);
+  --bs-io-type-option-active:   rgba(79,70,229, 0.08);
+
+  /* ── Custom dropdown ── */
+  --bs-dropdown-menu-bg:        #ffffff;
+  --bs-dropdown-menu-border:    #e2e8f0;
+  --bs-dropdown-menu-shadow:    0 8px 24px rgba(0,0,0,0.12);
+  --bs-dropdown-option-color:   #1e293b;
+  --bs-dropdown-option-hover:   rgba(79,70,229, 0.06);
+  --bs-dropdown-option-active:  rgba(79,70,229, 0.10);
+  --bs-dropdown-check-color:    #4f46e5;
 }

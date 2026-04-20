@@ -134,11 +134,11 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
     case 'dropdown':
     case 'combobox':
       return (
-        <select
-          className="bs-input"
+        <StyledSelect
           value={defaultValue ?? ''}
-          onChange={(e) => {
-            const nextValue = e.target.value
+          options={options || []}
+          placeholder={sub.placeholder}
+          onChange={(nextValue) => {
             set(nextValue)
             if (sub.id === 'model' && nextValue) {
               void changeRuntimeProvider({
@@ -147,14 +147,7 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
               }).then((config) => useLlmConfigStore.getState().setConfig(config)).catch(() => {})
             }
           }}
-        >
-          {!defaultValue && <option value="">{sub.placeholder || 'Select...'}</option>}
-          {(options || []).map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        />
       )
 
     case 'switch':
@@ -313,8 +306,59 @@ function safeCall(fn) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Skill picker chip — single-skill variant for the Skill block inspector   */
+/* Styled dropdown — replaces <select> in inspector for dropdown/combobox  */
 /* ─────────────────────────────────────────────────────────────────────────── */
+
+function StyledSelect({ value, options = [], onChange, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const selected = options.find((o) => o.id === value) || null
+
+  useEffect(() => {
+    if (!open) return
+    function onOut(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [open])
+
+  return (
+    <div ref={ref} className="bs-styled-select">
+      <button
+        type="button"
+        className={`bs-styled-select-trigger ${open ? 'is-open' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={`bs-styled-select-value ${!selected ? 'is-placeholder' : ''}`}>
+          {selected ? selected.label : (placeholder || 'Select…')}
+        </span>
+        <svg className="bs-styled-select-chevron" width="12" height="7" viewBox="0 0 12 7" fill="none">
+          <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="bs-styled-select-menu">
+          {options.length === 0 ? (
+            <div className="bs-styled-select-empty">No options</div>
+          ) : options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={`bs-styled-select-option ${o.id === value ? 'is-active' : ''}`}
+              onClick={() => { onChange(o.id); setOpen(false) }}
+            >
+              <span className="bs-styled-select-option-label">{o.label}</span>
+              {o.id === value && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ flexShrink: 0, color: 'var(--bs-dropdown-check-color, var(--bs-accent))' }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function SkillPickerChip({ skills, value, onChange, placeholder }) {
   const [open, setOpen] = useState(false)
