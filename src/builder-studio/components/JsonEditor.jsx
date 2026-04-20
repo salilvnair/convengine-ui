@@ -14,8 +14,13 @@
  * existing serialization is untouched). If the incoming value isn't valid
  * JSON we fall back to the text view automatically.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { JSONEditor, Mode } from 'vanilla-jsoneditor'
+
+/** Returns true when the app is currently in dark mode. */
+function getIsDark() {
+  return document.documentElement.dataset.theme !== 'light'
+}
 
 export default function JsonEditor({
   value,
@@ -28,6 +33,14 @@ export default function JsonEditor({
   const holderRef = useRef(null)
   const editorRef = useRef(null)
   const lastEmittedRef = useRef(null)
+  const [isDark, setIsDark] = useState(getIsDark)
+
+  // Watch for theme changes (light ↔ dark) and re-apply the jse class.
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsDark(getIsDark()))
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!holderRef.current) return
@@ -67,7 +80,7 @@ export default function JsonEditor({
   return (
     <div
       ref={holderRef}
-      className={`bs-jsoneditor jse-theme-dark ${className}`}
+      className={`bs-jsoneditor ${isDark ? 'jse-theme-dark' : 'bs-jsoneditor-light'} ${className}`}
       style={{ height }}
     />
   )

@@ -38,7 +38,7 @@ function SearchIcon() {
 function collectLeaves(items) {
   const result = []
   for (const it of items) {
-    if (it.separator || it.disabled) continue
+    if (it.separator || it.disabled || it.isHeader || !it.label) continue
     if (it.children) result.push(...collectLeaves(it.children))
     else result.push(it)
   }
@@ -111,7 +111,7 @@ function SubMenu({ parentRect, items, onClose, onAction, searchable }) {
   const q = query.trim().toLowerCase()
   const showSearch = searchable && items.length > 8
   const filteredItems = q
-    ? collectLeaves(items).filter((it) => it.label.toLowerCase().includes(q))
+    ? collectLeaves(items).filter((it) => it.label?.toLowerCase().includes(q))
     : items
 
   return createPortal(
@@ -232,7 +232,7 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
 
   // When searching, flatten all leaves and filter
   const displayItems = isSearching
-    ? collectLeaves(items).filter((it) => it.label.toLowerCase().includes(q))
+    ? collectLeaves(items).filter((it) => it.label?.toLowerCase().includes(q))
     : items
 
   const menu = (

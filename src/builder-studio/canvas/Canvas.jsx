@@ -17,10 +17,11 @@ import { useWorkflowStore } from '../stores/workflow-store'
 import { DeployIcon } from '../components/icons'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
-import { isTypeCompatible, resolvePortType, setBlockResolver } from '../panel/io-registry'
+import { isTypeCompatible, resolvePortType, setBlockResolver, getTypeColor } from '../panel/io-registry'
 import WorkflowNode from './WorkflowNode'
 import ConfirmModal from '../components/ConfirmModal'
 import ContextMenu from '../sidenav/ContextMenu'
+import { EDGE as EDGE_CONFIG } from './canvas-visual.config'
 
 const nodeTypes = { builderBlock: WorkflowNode }
 
@@ -143,7 +144,7 @@ function CanvasInner() {
           sourceHandle: newConnection.sourceHandle,
           target: newConnection.target,
           targetHandle: newConnection.targetHandle,
-          animated: true,
+          animated: false,
         }},
       ])
     },
@@ -427,21 +428,44 @@ function CanvasInner() {
     const doneSet = new Set(completedNodeIds)
     return edges.map((e) => {
       const cls = []
-      if (activeSet.has(e.id)) cls.push('bs-edge-flowing')
-      else if (doneSet.has(e.source) && doneSet.has(e.target)) cls.push('bs-edge-done')
+      const isActive = activeSet.has(e.id)
+      const isDone = !isActive && doneSet.has(e.source) && doneSet.has(e.target)
+      if (isActive) cls.push('bs-edge-flowing')
+      else if (isDone) cls.push('bs-edge-done')
+      // Branch-semantic classes (their CSS !important stroke overrides inline)
+      const hasBranchClass = e.sourceHandle === 'true' || e.sourceHandle === 'false'
+        || e.sourceHandle === 'else' || e.sourceHandle === 'default'
+        || e.sourceHandle?.startsWith('case_') || e.sourceHandle?.startsWith('branch_')
       if (e.sourceHandle === 'true') cls.push('bs-edge-true')
       else if (e.sourceHandle === 'false') cls.push('bs-edge-false')
       else if (e.sourceHandle === 'else' || e.sourceHandle === 'default') cls.push('bs-edge-else')
-      else if (e.sourceHandle && e.sourceHandle.startsWith('case_')) cls.push('bs-edge-case')
-      else if (e.sourceHandle && e.sourceHandle.startsWith('branch_')) cls.push('bs-edge-case')
+      else if (e.sourceHandle?.startsWith('case_')) cls.push('bs-edge-case')
+      else if (e.sourceHandle?.startsWith('branch_')) cls.push('bs-edge-case')
       const className = [e.className, ...cls].filter(Boolean).join(' ')
+      // Port-type colored stroke (skipped for branch/active/done edges — CSS handles those)
+      let edgeStyle = e.style || {}
+      if (!hasBranchClass && !isActive && !isDone) {
+        const srcType = resolvePortType(e.source, e.sourceHandle, 'source', subBlockValues, nodes)
+        const color = EDGE_CONFIG.colorByPortType
+          ? (getTypeColor(srcType)?.solid || EDGE_CONFIG.defaultColor)
+          : EDGE_CONFIG.defaultColor
+        edgeStyle = {
+          ...edgeStyle,
+          stroke: color,
+          strokeWidth: EDGE_CONFIG.strokeWidth,
+          opacity: EDGE_CONFIG.opacity,
+        }
+      } else if (isActive) {
+        edgeStyle = { ...edgeStyle, strokeWidth: EDGE_CONFIG.strokeWidthActive, opacity: EDGE_CONFIG.opacityActive }
+      }
       return {
         ...e,
         className,
-        animated: true,
+        animated: isActive,
+        style: edgeStyle,
       }
     })
-  }, [edges, activeEdgeIds, completedNodeIds])
+  }, [edges, activeEdgeIds, completedNodeIds, subBlockValues, nodes])
 
   const onDragOver = useCallback((e) => {
     e.preventDefault()

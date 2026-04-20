@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
+import StyledSelect from '../components/StyledSelect'
 import { changeRuntimeProvider } from '../api/llm-provider-client'
 import { useMcpStore } from '../mcp/mcp-store'
 import { useWorkflowStore } from '../stores/workflow-store'
@@ -290,6 +291,15 @@ function JsonPreviewInspector({ nodeId }) {
       </div>
     )
   }
+  // Plain strings: render as preformatted text with the json-string colour so
+  // it doesn't accidentally get wrapped in a JsonView object explorer.
+  if (typeof lastOutput === 'string') {
+    return (
+      <div className="bs-json-wrap bs-json-wrap-wordwrap" style={{ flex: '1 1 auto' }}>
+        <pre className="bs-preview-plain-text">{lastOutput}</pre>
+      </div>
+    )
+  }
   return (
     <div className="bs-json-wrap bs-json-wrap-wordwrap" style={{ flex: '1 1 auto' }}>
       <JsonView value={lastOutput} />
@@ -306,59 +316,8 @@ function safeCall(fn) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
-/* Styled dropdown — replaces <select> in inspector for dropdown/combobox  */
+/* Skill picker chip — single-skill variant for the Skill block inspector   */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
-function StyledSelect({ value, options = [], onChange, placeholder }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  const selected = options.find((o) => o.id === value) || null
-
-  useEffect(() => {
-    if (!open) return
-    function onOut(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', onOut)
-    return () => document.removeEventListener('mousedown', onOut)
-  }, [open])
-
-  return (
-    <div ref={ref} className="bs-styled-select">
-      <button
-        type="button"
-        className={`bs-styled-select-trigger ${open ? 'is-open' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className={`bs-styled-select-value ${!selected ? 'is-placeholder' : ''}`}>
-          {selected ? selected.label : (placeholder || 'Select…')}
-        </span>
-        <svg className="bs-styled-select-chevron" width="12" height="7" viewBox="0 0 12 7" fill="none">
-          <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      {open && (
-        <div className="bs-styled-select-menu">
-          {options.length === 0 ? (
-            <div className="bs-styled-select-empty">No options</div>
-          ) : options.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className={`bs-styled-select-option ${o.id === value ? 'is-active' : ''}`}
-              onClick={() => { onChange(o.id); setOpen(false) }}
-            >
-              <span className="bs-styled-select-option-label">{o.label}</span>
-              {o.id === value && (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ flexShrink: 0, color: 'var(--bs-dropdown-check-color, var(--bs-accent))' }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function SkillPickerChip({ skills, value, onChange, placeholder }) {
   const [open, setOpen] = useState(false)

@@ -10,6 +10,7 @@ import { getConfiguredProviderForModel, useLlmConfigStore } from '../stores/llm-
 import { AgentsIcon, SkillsIcon } from '../components/icons'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
+import StyledSelect from '../components/StyledSelect'
 
 export default function AgentEditor({ agentId }) {
   const agent = useWorkspaceStore((s) => s.agents.find((a) => a.id === agentId))
@@ -55,20 +56,18 @@ export default function AgentEditor({ agentId }) {
 
       <section className="bs-editor-section">
         <label className="bs-label">Model</label>
-        <select
-          className="bs-input"
+        <StyledSelect
           value={agent.model}
-          onChange={(e) => {
-            const model = e.target.value
+          options={models}
+          placeholder="Select model…"
+          onChange={(model) => {
             updateAgent(agent.id, { model })
             void changeRuntimeProvider({
               provider: getConfiguredProviderForModel(model) || undefined,
               model,
             }).then((config) => useLlmConfigStore.getState().setConfig(config)).catch(() => {})
           }}
-        >
-          {models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-        </select>
+        />
       </section>
 
       <section className="bs-editor-section">

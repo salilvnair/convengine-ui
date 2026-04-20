@@ -252,6 +252,7 @@ function TypeChipDropdown({ value, onChange, allTypes }) {
     <div className="bs-type-chip-wrap" ref={ref}>
       <button
         className="bs-type-chip"
+        data-iotype={value || 'any'}
         style={{ background: c.bg, borderColor: c.border, color: c.text }}
         onClick={() => setOpen((v) => !v)}
       >
@@ -269,6 +270,7 @@ function TypeChipDropdown({ value, onChange, allTypes }) {
               <button
                 key={t}
                 className={`bs-type-chip-option ${active ? 'is-active' : ''}`}
+                data-iotype={t}
                 style={{ color: tc.text }}
                 onClick={() => { onChange(t); setOpen(false) }}
               >

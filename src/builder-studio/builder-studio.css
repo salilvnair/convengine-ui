@@ -113,7 +113,7 @@
 .bs-jsoneditor {
   /* vanilla-jsoneditor ships the `jse-theme-dark` class as a wrapper; adding
      the class to our host element flips every child into dark mode. */
-  border: 1px solid var(--ce-border, #1f2937);
+  border: 1px solid var(--bs-input-border, rgba(255,255,255,0.08));
   border-radius: 10px;
   overflow: hidden;
   background: var(--bs-editor-bg);
@@ -122,8 +122,8 @@
 }
 .bs-jsoneditor:hover { border-color: var(--bs-editor-hover-border); }
 .bs-jsoneditor:focus-within {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+  border-color: var(--bs-accent, #6366f1);
+  box-shadow: 0 0 0 3px var(--bs-accent-ring, rgba(99,102,241,0.18));
 }
 .bs-jsoneditor .jse-main,
 .bs-jsoneditor .jse-text-mode,
@@ -132,8 +132,8 @@
   font-size: 13px;
   line-height: 1.6;
 }
-.bs-jsoneditor.jse-theme-dark,
-.bs-jsoneditor { /* fallback when we forget to add .jse-theme-dark */
+/* Dark mode: apply full dark override via jse CSS vars. */
+.bs-jsoneditor.jse-theme-dark {
   --jse-theme-color: var(--bs-jse-theme-color);
   --jse-theme-color-highlight: #6366f1;
   --jse-background-color: var(--bs-jse-bg);
@@ -142,6 +142,22 @@
   --jse-text-color-inverse: var(--bs-jse-text);
   --jse-delimiter-color: #6366f1;
   --jse-selection-background-color: rgba(99,102,241,0.25);
+}
+/* Light mode: vanilla-jsoneditor's default IS a light theme — just
+   nudge accent colors to match our brand and ensure the border/bg
+   inherit from our design tokens. */
+.bs-jsoneditor.bs-jsoneditor-light {
+  --jse-theme-color: #4f46e5;
+  --jse-theme-color-highlight: #6366f1;
+  --jse-background-color: var(--bs-jse-bg, #f8fafc);
+  --jse-panel-background: var(--bs-jse-panel-bg, #f1f5f9);
+  --jse-text-color: var(--bs-jse-text, #1e293b);
+  --jse-delimiter-color: #6366f1;
+  --jse-selection-background-color: rgba(99,102,241,0.15);
+  box-shadow: none;
+}
+[data-theme='light'] .bs-jsoneditor {
+  box-shadow: none;
 }
 
 .bs-root {
@@ -477,9 +493,12 @@
   border-color: rgba(0,0,0,0.1);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
 }
+[data-theme='light'] .bs-ctx-item { color: #1e293b; }
+[data-theme='light'] .bs-ctx-item.is-danger { color: #dc2626; }
+[data-theme='light'] .bs-ctx-item.is-danger:hover:not(:disabled) { background: rgba(239,68,68,0.08); color: #b91c1c; }
 [data-theme='light'] .bs-ctx-item:hover:not(:disabled) {
-  background: rgba(99,102,241,0.08);
-  color: #4338ca;
+  background: rgba(0,0,0,0.05);
+  color: #0f172a;
 }
 
 /* ---------- Entity editors (agent / skill tabs) ----------
@@ -1449,7 +1468,16 @@
 }
 .bs-row:hover .bs-row-action,
 .bs-row.is-active .bs-row-action { opacity: 1; }
-.bs-row-action:hover { background: rgba(239,68,68,0.12); color: #ef4444; }
+.bs-row-action:hover { background: rgba(148,163,184,0.10); color: var(--text-primary, #e5e7eb); }
+.bs-row-action-danger:hover { background: rgba(239,68,68,0.12) !important; color: #ef4444 !important; }
+
+/* Team-editor specific rows — colour accents */
+.bs-te-pool-row  .bs-row-lead { color: #f59e0b; }
+.bs-te-agent-row .bs-row-lead { color: #818cf8; }
+.bs-te-skill-row .bs-row-lead { color: #34d399; }
+.bs-te-wf-row    .bs-row-lead { color: #38bdf8; }
+.bs-te-node-row  { cursor: default !important; }
+.bs-te-node-row:hover { background: transparent; }
 
 .bs-row-header { padding-left: 4px; }
 
@@ -2247,6 +2275,40 @@ button.bs-palette-group-toggle:hover {
   background: rgba(255,255,255,0.06);
   color: #94a3b8;
 }
+
+/* ---------- Multi-select HUD — light theme ---------- */
+[data-theme='light'] .bs-multiselect-hud {
+  background: #ffffff;
+  border-color: rgba(99,102,241,0.35);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(99,102,241,0.10);
+}
+[data-theme='light'] .bs-multiselect-hud-count { color: #4f46e5; }
+[data-theme='light'] .bs-multiselect-hud-divider { background: rgba(99,102,241,0.18); }
+[data-theme='light'] .bs-multiselect-hud-btn {
+  background: rgba(79,70,229,0.07);
+  color: #4f46e5;
+}
+[data-theme='light'] .bs-multiselect-hud-btn:hover {
+  background: rgba(79,70,229,0.16);
+  color: #3730a3;
+}
+[data-theme='light'] .bs-multiselect-hud-btn-danger {
+  background: rgba(239,68,68,0.06);
+  color: #dc2626;
+}
+[data-theme='light'] .bs-multiselect-hud-btn-danger:hover {
+  background: rgba(239,68,68,0.14);
+  color: #b91c1c;
+}
+[data-theme='light'] .bs-multiselect-hud-btn-muted {
+  background: transparent;
+  color: #94a3b8;
+}
+[data-theme='light'] .bs-multiselect-hud-btn-muted:hover {
+  background: rgba(0,0,0,0.04);
+  color: #64748b;
+}
+
 .bs-node-container { border-style: dashed; }
 .bs-node-resizing { cursor: default !important; }
 
@@ -3282,6 +3344,15 @@ button.bs-palette-group-toggle:hover {
 .bs-type-chip-dot {
   width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
 }
+
+/* ── Type chip / port badge — saturated dark text + stronger bg in light mode ── */
+/* Uses !important to override inline style={{ color / background / borderColor: ... }} */
+[data-theme='light'] [data-iotype='string']  { color: #15803d !important; background: rgba(34,197,94,0.10) !important; border-color: rgba(21,128,61,0.35) !important; }
+[data-theme='light'] [data-iotype='number']  { color: #b45309 !important; background: rgba(245,158,11,0.10) !important; border-color: rgba(180,83,9,0.35) !important; }
+[data-theme='light'] [data-iotype='boolean'] { color: #be185d !important; background: rgba(244,114,182,0.10) !important; border-color: rgba(190,24,93,0.30) !important; }
+[data-theme='light'] [data-iotype='json']    { color: #4338ca !important; background: rgba(99,102,241,0.10) !important; border-color: rgba(67,56,202,0.35) !important; }
+[data-theme='light'] [data-iotype='array']   { color: #0369a1 !important; background: rgba(14,165,233,0.10) !important; border-color: rgba(3,105,161,0.30) !important; }
+[data-theme='light'] [data-iotype='any']     { color: #475569 !important; background: rgba(148,163,184,0.12) !important; border-color: rgba(71,85,105,0.25) !important; }
 /* Port visibility toggle (mini switch) */
 .bs-io-toggle {
   margin-left: auto; flex-shrink: 0;
@@ -3491,6 +3562,26 @@ button.bs-palette-group-toggle:hover {
 [data-theme='light'] .bs-ctxmenu-compact-btn:hover:not(:disabled) {
   background: rgba(0,0,0,0.06); color: #1e293b; border-color: rgba(0,0,0,0.08);
 }
+/* ── Context menu (ContextMenu.jsx) — light mode overrides ── */
+[data-theme='light'] .bs-ctxmenu {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+  color: #1e293b;
+}
+[data-theme='light'] .bs-ctxmenu-item { color: #1e293b; }
+[data-theme='light'] .bs-ctxmenu-item:hover:not(:disabled) { background: rgba(0,0,0,0.05); color: #0f172a; }
+[data-theme='light'] .bs-ctxmenu-item.is-open { background: rgba(0,0,0,0.04); }
+[data-theme='light'] .bs-ctxmenu-item.is-danger { color: #dc2626; }
+[data-theme='light'] .bs-ctxmenu-item.is-danger:hover { background: rgba(239,68,68,0.08); color: #b91c1c; }
+[data-theme='light'] .bs-ctxmenu-kbd { color: #94a3b8; }
+[data-theme='light'] .bs-ctxmenu-sep { background: rgba(0,0,0,0.08); }
+[data-theme='light'] .bs-ctxmenu-search { border-bottom-color: rgba(0,0,0,0.08); color: #1e293b; }
+[data-theme='light'] .bs-ctxmenu-search-input { color: #1e293b; }
+[data-theme='light'] .bs-ctxmenu-search-input::placeholder { color: rgba(0,0,0,0.30); }
+[data-theme='light'] .bs-ctxmenu-empty { color: rgba(0,0,0,0.35); }
+[data-theme='light'] .bs-ctxmenu-scroll { scrollbar-color: rgba(0,0,0,0.15) transparent; }
+[data-theme='light'] .bs-ctxmenu-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
 
 /* ---------- Canvas mode toggle (top-left overlay) ---------- */
 .bs-canvas-mode-toggle {
@@ -3605,8 +3696,14 @@ button.bs-palette-group-toggle:hover {
 .bs-skill-chip-option.is-selected { background: rgba(124,58,237,0.1); color: #c4b5fd; }
 .bs-skill-chip-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 [data-theme='light'] .bs-skill-chip-popover { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
-[data-theme='light'] .bs-skill-chip-badge { background: rgba(124,58,237,0.05); border-color: rgba(124,58,237,0.2); }
+[data-theme='light'] .bs-skill-chip-badge { background: rgba(124,58,237,0.05); border-color: rgba(124,58,237,0.2); color: #1e293b; }
 [data-theme='light'] .bs-skill-chip-lang { background: rgba(124,58,237,0.12); color: #7c3aed; }
+[data-theme='light'] .bs-skill-chip-option { color: #1e293b; }
+[data-theme='light'] .bs-skill-chip-option:hover { background: rgba(124,58,237,0.08); }
+[data-theme='light'] .bs-skill-chip-change,
+[data-theme='light'] .bs-skill-chip-remove {
+  background: #f8fafc; border-color: #e2e8f0; color: #475569;
+}
 
 /* ---------- Inspector custom dropdown (StyledSelect) ---------- */
 .bs-styled-select { position: relative; width: 100%; }
@@ -3683,6 +3780,10 @@ button.bs-palette-group-toggle:hover {
   font: inherit; font-size: 11px; text-align: left; cursor: pointer;
   transition: border-color 120ms, background 120ms;
 }
+[data-theme='light'] .bs-node-dropdown-trigger {
+  background: #f8fafc; color: #1e293b; border-color: #e2e8f0;
+}
+[data-theme='light'] .bs-node-dropdown-trigger:hover { border-color: #cbd5e1; }
 .bs-node-dropdown-trigger:hover { border-color: rgba(148,163,184,0.3); }
 .bs-node-dropdown-trigger.is-open {
   border-color: var(--bs-accent);
@@ -3731,6 +3832,7 @@ button.bs-palette-group-toggle:hover {
   outline: none;
   box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
 }
+[data-theme='light'] .bs-inline-edit { background: #f8fafc; color: #1e293b; }
 
 /* ---------- Node width hardening (prevent overflow) ---------- */
 .bs-node, .bs-node * { min-width: 0; }
@@ -3835,7 +3937,7 @@ button.bs-palette-group-toggle:hover {
   white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word;
   line-height: 1.55;
 }
-/* Plain text output inside card preview */
+/* Plain text output inside card preview — same colour as JSON string values */
 .bs-node-jsonpreview-text {
   margin: 0; padding: 10px 12px;
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
@@ -3843,13 +3945,17 @@ button.bs-palette-group-toggle:hover {
   color: var(--bs-json-str, #86efac);
   white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word;
 }
+/* Plain text output inside inspector preview */
+.bs-preview-plain-text {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 12.5px; line-height: 1.6;
+  color: var(--bs-json-str, #86efac);
+  white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word;
+}
 .bs-node-jsonpreview-empty {
   display: block; padding: 12px; color: var(--text-secondary, #94a3b8);
   font-size: 11.5px; font-style: italic;
-}
-/* Light theme overrides for card preview */
-:root:not([data-theme='dark']) .bs-node-jsonpreview-text {
-  color: var(--bs-node-preview-text, #64748b);
 }
 
 /* Error: red border + shake to draw the eye. */
@@ -3885,30 +3991,43 @@ button.bs-palette-group-toggle:hover {
   background-repeat: repeat;
 }
 
-/* ── Disabled / muted node (ComfyUI-style) ── */
+/* ── Disabled / muted node (ComfyUI-style full-card overlay) ── */
+/* Colors controlled by --bs-disabled-* vars in builder-studio-theme.css */
 .bs-node-disabled {
-  opacity: 0.45;
-  border-color: #a855f6 !important;
-  box-shadow: 0 0 0 1.5px rgba(168,85,246,0.35);
+  border-color: var(--bs-disabled-border, #a855f6) !important;
+  box-shadow: 0 0 0 1.5px var(--bs-disabled-glow, rgba(168,85,246,0.45));
   pointer-events: auto;
 }
-.bs-node-disabled::after {
-  content: 'DISABLED';
+/* Full-card overlay rendered as a JSX div (.bs-node-disabled-overlay) */
+.bs-node-disabled-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #a855f6;
-  background: rgba(15,15,25,0.85);
-  padding: 3px 10px;
-  border-radius: 4px;
-  border: 1px solid rgba(168,85,246,0.4);
+  inset: 0;
+  border-radius: inherit;
+  background: var(--bs-disabled-overlay, rgba(60,20,160,0.60));
+  backdrop-filter: blur(var(--bs-disabled-blur, 2px));
+  -webkit-backdrop-filter: blur(var(--bs-disabled-blur, 2px));
+  z-index: 8;
   pointer-events: none;
-  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* "Disabled in workflow" banner floating at top of the overlay */
+.bs-node-disabled-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--bs-disabled-banner-bg, rgba(15,5,40,0.55));
+  border: 1px solid var(--bs-disabled-banner-border, rgba(168,85,246,0.45));
+  color: var(--bs-disabled-banner-text, rgba(233,213,255,0.95));
+  user-select: none;
+}
+.bs-node-disabled-banner svg { flex-shrink: 0; }
 .bs-node-disabled .bs-node-body,
 .bs-node-disabled .bs-port-strip {
   pointer-events: none;
@@ -3962,11 +4081,12 @@ button.bs-palette-group-toggle:hover {
 .react-flow__handle.bs-handle-case { background: #6366f1 !important; }
 
 /* Edges — branch-colored strokes. ReactFlow renders edges as <path>
-   with className we set; we style both the path and marker. */
-.react-flow__edge.bs-edge-true .react-flow__edge-path { stroke: #10b981 !important; stroke-width: 2.2 !important; }
-.react-flow__edge.bs-edge-false .react-flow__edge-path { stroke: #ef4444 !important; stroke-width: 2.2 !important; }
-.react-flow__edge.bs-edge-else .react-flow__edge-path { stroke: #f59e0b !important; stroke-width: 2.2 !important; }
-.react-flow__edge.bs-edge-case .react-flow__edge-path { stroke: #818cf8 !important; stroke-width: 2.2 !important; }
+   with className we set; we style both the path and marker.
+   Base stroke-width here matches EDGE.strokeWidth in canvas-visual.config.js (3px). */
+.react-flow__edge.bs-edge-true .react-flow__edge-path  { stroke: #10b981 !important; stroke-width: 3 !important; }
+.react-flow__edge.bs-edge-false .react-flow__edge-path { stroke: #ef4444 !important; stroke-width: 3 !important; }
+.react-flow__edge.bs-edge-else .react-flow__edge-path  { stroke: #f59e0b !important; stroke-width: 3 !important; }
+.react-flow__edge.bs-edge-case .react-flow__edge-path  { stroke: #818cf8 !important; stroke-width: 3 !important; }
 
 /* Active (flowing) edge — animated dash like ComfyUI's node-link pulse. */
 @keyframes bs-edge-flow {
@@ -3974,7 +4094,7 @@ button.bs-palette-group-toggle:hover {
 }
 .react-flow__edge.bs-edge-flowing .react-flow__edge-path {
   stroke: #6366f1 !important;
-  stroke-width: 3 !important;
+  stroke-width: 3.5 !important;
   stroke-dasharray: 8 6 !important;
   animation: bs-edge-flow 0.6s linear infinite;
   filter: drop-shadow(0 0 4px rgba(99,102,241,0.6));
@@ -3983,7 +4103,7 @@ button.bs-palette-group-toggle:hover {
 /* Done edge — subtle green */
 .react-flow__edge.bs-edge-done .react-flow__edge-path {
   stroke: rgba(16,185,129,0.5) !important;
-  stroke-width: 2 !important;
+  stroke-width: 2.5 !important;
 }
 
 /* Edge interactivity — hover highlight + cursor */
@@ -3992,12 +4112,12 @@ button.bs-palette-group-toggle:hover {
 }
 .react-flow__edge:hover .react-flow__edge-path {
   stroke: #818cf8 !important;
-  stroke-width: 2.5 !important;
+  stroke-width: 3.5 !important;
   filter: drop-shadow(0 0 3px rgba(99,102,241,0.4));
 }
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #a5b4fc !important;
-  stroke-width: 2.5 !important;
+  stroke-width: 3.5 !important;
 }
 
 /* ---------- Modal overlay + base (used by ConfirmModal, CreateWorkflowModal) */
@@ -4075,6 +4195,50 @@ button.bs-palette-group-toggle:hover {
   padding: 20px 24px;
 }
 
+/* ---------- Confirm / create modal — light theme ---------- */
+[data-theme='light'] .bs-modal-overlay {
+  background: rgba(100,116,139, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+[data-theme='light'] .bs-modal-overlay > .bs-modal {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.04),
+    0 8px 24px rgba(0,0,0,0.10),
+    0 32px 80px -12px rgba(0,0,0,0.12);
+}
+[data-theme='light'] .bs-confirm-title { color: #0f172a; }
+[data-theme='light'] .bs-confirm-message { color: #475569; }
+[data-theme='light'] .bs-modal-title { color: #0f172a; }
+[data-theme='light'] .bs-modal-sub { color: #64748b; }
+[data-theme='light'] .bs-create-modal .bs-modal-body {
+  border-top-color: rgba(0,0,0,0.06);
+}
+[data-theme='light'] .bs-btn,
+[data-theme='light'] .bs-btn-primary,
+[data-theme='light'] .bs-btn-ghost {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1e293b;
+}
+[data-theme='light'] .bs-btn:hover,
+[data-theme='light'] .bs-btn-primary:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+[data-theme='light'] .bs-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: #64748b;
+}
+[data-theme='light'] .bs-btn-ghost:hover {
+  background: rgba(0,0,0,0.04);
+  color: #1e293b;
+}
+
 /* ---------- Create-workflow modal ---------- */
 .bs-create-modal {
   display: flex;
@@ -4130,34 +4294,34 @@ button.bs-palette-group-toggle:hover {
 /* ---------- Fullscreen editor wrapper (Response Format, etc.) ---------- */
 .bs-fsw {
   display: flex; flex-direction: column;
-  border: 1px solid var(--ce-border, #1f2937);
+  border: 1px solid var(--bs-input-border, rgba(255,255,255,0.08));
   border-radius: 8px;
-  background: var(--bg-secondary, #111827);
+  background: var(--bs-editor-bg, #111827);
   overflow: hidden;
 }
 .bs-fsw-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 4px 6px 4px 10px;
-  background: var(--bs-preview-head-bg);
-  border-bottom: 1px solid var(--ce-border, #1f2937);
+  background: var(--bs-node-preview-head-bg, rgba(15,23,42,0.6));
+  border-bottom: 1px solid var(--bs-input-border, rgba(255,255,255,0.08));
   min-height: 30px;
 }
 .bs-fsw-label {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--bs-node-preview-head-color, #94a3b8);
 }
 .bs-fsw-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 8px; border-radius: 5px;
   background: transparent; border: 1px solid transparent;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--bs-toolbar-btn-color, #94a3b8);
   font-size: 11px; font-weight: 500; cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .bs-fsw-btn:hover {
-  color: var(--text-primary, #e5e7eb);
-  background: rgba(99,102,241,0.1);
-  border-color: rgba(99,102,241,0.3);
+  color: var(--bs-toolbar-btn-hover-color, #6366f1);
+  background: var(--bs-toolbar-btn-hover-bg, rgba(99,102,241,0.1));
+  border-color: var(--bs-toolbar-btn-active-ring, rgba(99,102,241,0.3));
 }
 .bs-fsw-btn-text { font-size: 11px; }
 .bs-fsw-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -6040,6 +6204,24 @@ button.bs-palette-group-toggle:hover {
 .bs-node-unconnected-banner svg { flex-shrink: 0; }
 [data-theme="light"] .bs-node-unconnected-banner {
   background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.22);
+  color: #b45309;
+}
+
+/* When an unconnected node also has an error (e.g. run attempted), red wins */
+.bs-node-error.bs-node-unconnected {
+  border-color: #ef4444 !important;
+  box-shadow:
+    0 0 0 1.5px rgba(239,68,68,0.35),
+    0 0 16px rgba(239,68,68,0.25),
+    inset 0 0 20px rgba(239,68,68,0.06);
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 3px,
+      rgba(239,68,68,0.08) 3px,
+      rgba(239,68,68,0.08) 4px
+    );
 }
 
 /* ── Jump chips on agent inspect card ── */

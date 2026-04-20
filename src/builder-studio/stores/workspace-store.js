@@ -258,7 +258,7 @@ export const useWorkspaceStore = create()(
             id: `ag_${uuid()}`,
             name: partial.name || 'New Agent',
             poolId,
-            model: partial.model || 'claude-sonnet-4-6',
+            model: partial.model || useLlmConfigStore.getState().models?.[0]?.id || 'claude-sonnet-4-6',
             provider: partial.provider,
             systemPrompt: partial.systemPrompt || 'You are a helpful agent.',
             userPrompt: partial.userPrompt || '{{input}}',

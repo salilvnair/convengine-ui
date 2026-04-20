@@ -24,7 +24,7 @@ export const ShowPreviewBlock = {
       type: 'short-input',
       placeholder: 'Final output',
       value: () => 'Final output',
-      description: 'Heading shown above the inline JSON preview area.',
+      description: 'Title shown in the preview header on the canvas card.',
     },
     {
       id: '__preview',

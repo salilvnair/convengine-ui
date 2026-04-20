@@ -56,6 +56,7 @@ const INLINE_SUMMARY = new Set([
   'checkbox-list', 'grouped-checkbox-list',
   'table',
   'tool-input', 'skill-input',
+  'skill-picker',
 ])
 const INLINE_EDITABLE = new Set([...INLINE_INTERACTIVE, ...INLINE_SUMMARY])
 
@@ -369,6 +370,21 @@ function WorkflowNode({ id, data, selected }) {
           </>
         )}
 
+        {/* ── Disabled overlay (ComfyUI-style full-card, toggled via ⌘B) ── */}
+        {isDisabled && (
+          <div className="bs-node-disabled-overlay">
+            <div className="bs-node-disabled-banner">
+              {/* Broken-link icon */}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                <line x1="2" y1="2" x2="22" y2="22"/>
+              </svg>
+              <span>Disabled in workflow</span>
+            </div>
+          </div>
+        )}
+
         {/* ── Header ── */}
         <div className="bs-node-header">
           <div className="bs-node-icon-well" style={{ background: cfg?.bgColor || data.bgColor }}>
@@ -408,7 +424,7 @@ function WorkflowNode({ id, data, selected }) {
           </button>
         </div>
 
-        {/* Unconnected warning */}
+        {/* Unconnected warning banner */}
         {isUnconnected && (
           <div className="bs-node-unconnected-banner" title="This block has no incoming connections and won't receive any data during execution. Connect an edge from another block's output to this block's input.">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -679,6 +695,20 @@ function renderInlineEditor(sb, value, onChange) {
       return <SkillChip skillIds={arr} onChange={onChange} />
     }
 
+    case 'skill-picker': {
+      // skill-picker stores a single skill ID string; adapt to SkillChip's array API
+      const arr = value ? [value] : []
+      return (
+        <SkillChip
+          skillIds={arr}
+          onChange={(v) => {
+            const ids = safeJsonArray(v)
+            onChange(ids[0] ?? '')
+          }}
+        />
+      )
+    }
+
     default:
       return null
   }
@@ -912,6 +942,7 @@ function PortTypeBadge({ type, color, portId, nodeId }) {
     <span className="bs-port-badge-wrap" ref={wrapRef}>
       <span
         className="bs-port-type-badge bs-port-type-badge-clickable"
+        data-iotype={type}
         style={{ background: color.bg, borderColor: color.border, color: color.text }}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
       >
@@ -925,6 +956,7 @@ function PortTypeBadge({ type, color, portId, nodeId }) {
               <button
                 key={t}
                 className={`bs-type-chip-option ${t === type ? 'is-active' : ''}`}
+                data-iotype={t}
                 onClick={(e) => pick(t, e)}
               >
                 <span className="bs-type-chip-dot" style={{ background: c.solid }} />

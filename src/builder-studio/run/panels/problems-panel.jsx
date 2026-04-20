@@ -115,7 +115,7 @@ function collectProblems(ctx) {
       problems.push({
         severity: 'warning',
         node: n.data?.title || n.id,
-        message: `Node is disconnected from the workflow.`,
+        message: `Node has no incoming connection — disabled in workflow.`,
       })
     }
   })
