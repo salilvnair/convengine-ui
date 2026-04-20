@@ -61,6 +61,12 @@ function ProblemRow({ problem: p }) {
       </div>
       {open && hasDetail && (
         <div className="bs-problem-detail">
+          {p.detail.hint && (
+            <div className="bs-problem-hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>{p.detail.hint}</span>
+            </div>
+          )}
           <ErrorDetailView errorDetail={p.detail} />
         </div>
       )}
@@ -94,7 +100,7 @@ function collectProblems(ctx) {
           severity: 'error',
           node: t.title || t.nodeId,
           message: msg,
-          detail,
+          detail: { ...detail, hint: detail.hint || null },
         })
       }
     }

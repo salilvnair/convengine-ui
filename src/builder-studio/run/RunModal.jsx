@@ -14,7 +14,7 @@
  *      "LLM stream", or "Cost" tab just registers a panel.
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { executeGraph } from './graph-runner'
+import { executeGraph, GraphValidationError } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, MinimizeIcon } from '../components/icons'
 import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
@@ -169,6 +169,38 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
         showToast?.('Workflow completed', 'success')
       }
     } catch (err) {
+      // ── GraphValidationError: mark affected nodes and build rich trace ──
+      if (err instanceof GraphValidationError) {
+        // Mark the primary offending node as errored on the canvas
+        if (err.nodeId) markNodeError(err.nodeId)
+        // Also mark any additional affected nodes
+        for (const affected of (err.affectedNodes || [])) {
+          if (affected.id && affected.id !== err.nodeId) markNodeError(affected.id)
+        }
+        const traceEntries = (err.affectedNodes?.length > 0 ? err.affectedNodes : [{ id: err.nodeId, title: err.nodeTitle, blockType: err.blockType }])
+          .map((nd) => ({
+            nodeId: nd.id,
+            blockType: nd.blockType,
+            title: nd.title,
+            error: `"${nd.title}" has no input connection`,
+            errorDetail: {
+              ...err.errorDetail,
+              nodeId: nd.id,
+              nodeTitle: nd.title,
+              blockType: nd.blockType,
+              hint: err.hint,
+            },
+          }))
+        setResult({ output: null, trace: traceEntries })
+        setError(err.message)
+        endRun()
+        showToast?.('Validation failed', 'error')
+        setActiveTab('problems')
+        onOpen?.()
+        setBusy(false)
+        return
+      }
+
       // Build a synthetic result from progress events so Problems tab gets full detail
       const errorEvents = progressRef.current.filter((p) => p.type === 'error' && p.errorDetail)
       const errorTrace = errorEvents.map((p) => ({

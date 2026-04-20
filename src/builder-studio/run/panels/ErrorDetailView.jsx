@@ -35,7 +35,19 @@ export default function ErrorDetailView({ error, errorDetail: d }) {
           {d.timestamp && <Chip label="Time" value={d.timestamp} />}
           {d.cause && <Chip label="Cause" value={d.cause} />}
           {d.message && <Chip label="Message" value={d.message} />}
+          {d.totalNodes != null && <Chip label="Nodes" value={d.totalNodes} />}
+          {d.totalEdges != null && <Chip label="Edges" value={d.totalEdges} />}
+          {d.reachableCount != null && <Chip label="Reachable" value={d.reachableCount} />}
         </div>
+      )}
+      {d?.unreachableNodes && d.unreachableNodes.length > 0 && (
+        <Disclosure label={`Unreachable nodes (${d.unreachableNodes.length})`} defaultOpen>
+          <div className="bs-debug-chips" style={{ flexWrap: 'wrap' }}>
+            {d.unreachableNodes.map((nd, i) => (
+              <Chip key={i} label={nd.blockType || '?'} value={nd.title} variant="error" />
+            ))}
+          </div>
+        </Disclosure>
       )}
       {d?.resolvedUrl && (
         <div className="bs-debug-chips" style={{ marginTop: 2 }}>

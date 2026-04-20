@@ -92,7 +92,8 @@ function WorkflowNode({ id, data, selected }) {
   const values = useWorkflowStore((s) => s.subBlockValues[id])
   const activeNodeId = useWorkflowStore((s) => s.activeNodeId)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
-  const errorNodeId = useWorkflowStore((s) => s.errorNodeId)
+  const errorNodeIds = useWorkflowStore((s) => s.errorNodeIds)
+  const errorShakeKey = useWorkflowStore((s) => s.errorShakeKey)
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
   // Check if this non-seed, non-disabled node has no incoming edges
@@ -103,7 +104,7 @@ function WorkflowNode({ id, data, selected }) {
   })
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
-  const isError = errorNodeId === id
+  const isError = errorNodeIds?.has?.(id) ?? false
   const isUnconnected = hasNoIncoming
   const isDisabled = !!data.disabled
   const cfg = getBlock(data.blockType)
@@ -328,6 +329,7 @@ function WorkflowNode({ id, data, selected }) {
           resizing ? 'bs-node-resizing' : '',
           resizeMode ? 'bs-node-resize-mode' : '',
         ].filter(Boolean).join(' ')}
+        style={isError ? { animationName: `bs-node-shake-${errorShakeKey}` } : undefined}
         style={{
           width: nodeW || undefined,
           ...(hasJsonPreview
@@ -534,7 +536,7 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
             { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); resizeNodeStore(id, nodeW, undefined) } },
             { separator: true },
-            { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', onSelect: () => toggleDisabled(id) },
+            { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', shortcut: '⌘B', onSelect: () => toggleDisabled(id) },
             { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
             { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', shortcut: '⌘C', onSelect: copyId },
             { separator: true },

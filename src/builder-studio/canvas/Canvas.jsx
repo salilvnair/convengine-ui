@@ -7,6 +7,7 @@
  * Keyboard:
  *   - Delete / Backspace  → remove selected node
  *   - ⌘D / Ctrl-D         → duplicate selected node
+ *   - ⌘B / Ctrl-B         → toggle disable/enable (ComfyUI-style)
  * (Both are suppressed while typing inside inputs/textareas/contentEditable.)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -426,6 +427,14 @@ function CanvasInner() {
         if (!selectedNodeId) return
         e.preventDefault()
         duplicateNode(selectedNodeId)
+        return
+      }
+
+      // ⌘B — Toggle Disable/Enable (ComfyUI-style)
+      if (meta && (e.key === 'b' || e.key === 'B') && !e.shiftKey) {
+        if (!selectedNodeId) return
+        e.preventDefault()
+        useWorkflowStore.getState().toggleDisabled(selectedNodeId)
         return
       }
 

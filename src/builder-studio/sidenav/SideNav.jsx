@@ -93,10 +93,10 @@ export default function SideNav() {
     }
   }, [])
 
-  // Keyboard: Cmd/Ctrl+B toggles, matching Claude Code convention
+  // Keyboard: Cmd/Ctrl+\ toggles left panel
   useEffect(() => {
     function onKey(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault()
         setOpen((o) => !o)
       }
@@ -144,7 +144,7 @@ export default function SideNav() {
         <button
           className="bs-rail-btn"
           onClick={() => setOpen((o) => !o)}
-          title={open ? 'Collapse panel (⌘B)' : 'Expand panel (⌘B)'}
+          title={open ? 'Collapse panel (⌘\\)' : 'Expand panel (⌘\\)'}
         >
           <PanelLeftIcon className="bs-rail-ico" />
         </button>
@@ -174,7 +174,7 @@ export default function SideNav() {
         <div className="bs-splitter-grip" />
         {showTip && !dragging && (
           <div className="bs-splitter-tip">
-            <div>Click to {open ? 'collapse' : 'expand'} <kbd>⌘B</kbd></div>
+            <div>Click to {open ? 'collapse' : 'expand'} <kbd>⌘\</kbd></div>
             <div>Drag to resize</div>
           </div>
         )}

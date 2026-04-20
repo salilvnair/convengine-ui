@@ -10,7 +10,7 @@
  *
  * Left rail+panel+splitter is managed inside `SideNav`.
  * Right splitter is managed here (mirrors the left one: drag to resize,
- * click to toggle, ⌘. shortcut).
+ * click to toggle, ⌘/ shortcut).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import SideNav from './sidenav/SideNav'
@@ -241,8 +241,10 @@ export default function AgentBuilderPage() {
     function onKey(e) {
       const meta = e.metaKey || e.ctrlKey
       const onWorkflowCanvas = activeTabId?.startsWith('workflow:')
-      // ⌘. — toggle inspector
-      if (meta && e.key === '.') { e.preventDefault(); setROpen((o) => !o); return }
+      // ⌘. — toggle bottom panel
+      if (meta && e.key === '.') { e.preventDefault(); setRunOpen((o) => !o); return }
+      // ⌘/ — toggle inspector
+      if (meta && e.key === '/') { e.preventDefault(); setROpen((o) => !o); return }
       // ⌘, — open Settings tab
       if (meta && e.key === ',') { e.preventDefault(); openSettings(); return }
       // ? — open Settings (only when not typing)
@@ -357,7 +359,7 @@ export default function AgentBuilderPage() {
           <button
             className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
-            title={rOpen ? 'Hide inspector (⌘.)' : 'Show inspector (⌘.)'}
+            title={rOpen ? 'Hide inspector (⌘/)' : 'Show inspector (⌘/)'}
           >
             <PanelRightIcon className="bs-ico-sm" />
           </button>
@@ -414,7 +416,7 @@ export default function AgentBuilderPage() {
           <div className="bs-splitter-grip" />
           {rTip && !rDragging && (
             <div className="bs-splitter-tip bs-splitter-tip-right">
-              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>⌘.</kbd></div>
+              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>⌘/</kbd></div>
               <div>Drag to resize</div>
             </div>
           )}

@@ -57,7 +57,8 @@ const initialState = {
   activeNodeId: null,
   completedNodeIds: [],
   activeEdgeIds: [],
-  errorNodeId: null,
+  errorNodeIds: new Set(),
+  errorShakeKey: 0,
   /** Per-node last output from the most recent run. Drives the Save-to-Files
    *  preview body and can be consumed by any block that wants to show what
    *  it last produced. Keyed by node id. Cleared by `clearRunHighlights`. */
@@ -294,7 +295,7 @@ export const useWorkflowStore = create()(
 
       /* ---------------- ComfyUI-style run state ---------------- */
       startRun() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {}, lastNodeTrace: {} })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeIds: new Set(), lastOutputs: {}, lastNodeTrace: {} })
       },
       recordNodeOutput(nodeId, output) {
         set((s) => ({ lastOutputs: { ...s.lastOutputs, [nodeId]: output } }))
@@ -319,14 +320,14 @@ export const useWorkflowStore = create()(
         }))
       },
       markNodeError(nodeId) {
-        set({ errorNodeId: nodeId, activeNodeId: null, activeEdgeIds: [] })
+        set((s) => ({ errorNodeIds: new Set([...s.errorNodeIds, nodeId]), errorShakeKey: s.errorShakeKey + 1, activeNodeId: null, activeEdgeIds: [] }))
       },
       endRun() {
         // Keep completed highlights for a beat then clear via RunModal.
         set({ activeNodeId: null, activeEdgeIds: [] })
       },
       clearRunHighlights() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {}, lastNodeTrace: {} })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeIds: new Set(), lastOutputs: {}, lastNodeTrace: {} })
       },
     }),
     { name: 'builder-studio-workflow' }

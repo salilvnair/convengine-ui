@@ -39,13 +39,37 @@ function checkValueType(value, expectedType) {
   }
 }
 
+export class GraphValidationError extends Error {
+  constructor(message, details = {}) {
+    super(message)
+    this.name = 'GraphValidationError'
+    this.nodeId = details.nodeId || null
+    this.nodeTitle = details.nodeTitle || null
+    this.blockType = details.blockType || null
+    this.severity = details.severity || 'error'
+    this.hint = details.hint || null
+    this.affectedNodes = details.affectedNodes || []
+    // Build rich errorDetail for Problems panel
+    this.errorDetail = {
+      message,
+      nodeId: this.nodeId,
+      nodeTitle: this.nodeTitle,
+      blockType: this.blockType,
+      cause: details.cause || null,
+      stack: this.stack,
+      timestamp: new Date().toISOString(),
+      ...details.extra,
+    }
+  }
+}
+
 export async function executeGraph({ workflow, inputs, onProgress }) {
   const { nodes: allNodes = [], edges: allEdges = [], subBlockValues = {} } = workflow
 
-  // ── Filter out disabled nodes and their edges ────────────────────────
+  // ── Identify disabled nodes (they will pass-through input as output) ──
   const disabledIds = new Set(allNodes.filter((n) => n.data?.disabled).map((n) => n.id))
-  const nodes = allNodes.filter((n) => !disabledIds.has(n.id))
-  const edges = allEdges.filter((e) => !disabledIds.has(e.source) && !disabledIds.has(e.target))
+  const nodes = allNodes
+  const edges = allEdges
 
   // ── Compute reachable nodes from starter/user_input via edges ────────
   const reachable = new Set()
@@ -73,11 +97,29 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   const seedTypes = new Set(['starter', 'user_input'])
   for (const n of nodes) {
     if (seedTypes.has(n.data?.blockType)) continue
+    if (disabledIds.has(n.id)) continue
     if (!reachable.has(n.id)) {
       const title = n.data?.title || n.data?.blockType || n.id
-      throw new Error(
-        `"${title}" has no input connection. Only Start / User Input nodes can run without incoming edges. ` +
-        `Connect it to the graph or disable it (right-click → Disable).`
+      // Collect all unconnected non-seed nodes for the error
+      const allUnconnected = nodes
+        .filter((nd) => !seedTypes.has(nd.data?.blockType) && !disabledIds.has(nd.id) && !reachable.has(nd.id))
+        .map((nd) => ({ id: nd.id, title: nd.data?.title || nd.data?.blockType || nd.id, blockType: nd.data?.blockType }))
+      throw new GraphValidationError(
+        `"${title}" has no input connection — it is unreachable from any Start or User Input node.`,
+        {
+          nodeId: n.id,
+          nodeTitle: title,
+          blockType: n.data?.blockType,
+          cause: 'No incoming edges found. The graph executor can only run nodes that are connected downstream from a Start or User Input node.',
+          hint: 'Connect an edge from another block\'s output to this block\'s input, or disable it (⌘B / right-click → Disable).',
+          affectedNodes: allUnconnected,
+          extra: {
+            totalNodes: nodes.length,
+            totalEdges: edges.length,
+            reachableCount: reachable.size,
+            unreachableNodes: allUnconnected,
+          },
+        }
       )
     }
   }
@@ -184,7 +226,8 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       const values = subBlockValues[n.id] || {}
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
       try {
-        // ── Runtime port type validation ──────────────────────────────
+        // ── Runtime port type validation (skip for disabled pass-through) ──
+        if (!disabledIds.has(n.id)) {
         for (const e of inEdges) {
           const srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
           const th = e.targetHandle || 'in'
@@ -206,6 +249,30 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
               `Runtime type error: "${srcTitle}" → "${tgtTitle}": ${rtErr}`
             )
           }
+        }
+        } // end type-validation guard
+
+        // ── Disabled node: pass-through input → output (ComfyUI-style) ──
+        if (disabledIds.has(n.id)) {
+          outputs[n.id] = input
+          const traceEntry = {
+            nodeId: n.id,
+            blockType: n.data?.blockType,
+            title: n.data?.title,
+            input,
+            inputsByHandle,
+            output: input,
+            values,
+            meta: { passThrough: true, reason: 'Node is disabled' },
+            ms: Math.round(performance.now() - t0),
+          }
+          trace.push(traceEntry)
+          try { useWorkflowStore.getState().recordNodeTrace(n.id, traceEntry) } catch { /* ignore */ }
+          onProgress?.({
+            type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+            output: input, meta: traceEntry.meta, values, ms: traceEntry.ms,
+          })
+          return
         }
 
         const ran = await runNode({ node: n, values, input, outputs, inputsByHandle })
@@ -237,8 +304,15 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           const rtErr = checkValueType(outVal, declaredType)
           if (rtErr) {
             const srcTitle = n.data?.title || n.id
-            throw new Error(
-              `Output type error on "${srcTitle}": ${rtErr}`
+            throw new GraphValidationError(
+              `Output type error on "${srcTitle}": ${rtErr}`,
+              {
+                nodeId: n.id,
+                nodeTitle: srcTitle,
+                blockType: n.data?.blockType,
+                cause: `Port "${srcHandle}" produced a value that doesn't match its declared type "${declaredType}".`,
+                hint: `Check the output of "${srcTitle}" — it returned a ${typeof outVal} but the port expects ${declaredType}.`,
+              }
             )
           }
         }

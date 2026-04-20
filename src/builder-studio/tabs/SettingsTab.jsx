@@ -51,6 +51,7 @@ const SHORTCUTS = [
     items: [
       { keys: ['Delete'], or: ['Backspace'], desc: 'Delete the selected node' },
       { keys: [MOD, 'D'], desc: 'Duplicate the selected node' },
+      { keys: [MOD, 'B'], desc: 'Toggle disable / enable selected node' },
       { keys: [MOD, 'I'], desc: 'Inspect the selected node (after run)' },
       { keys: [MOD, 'C'], desc: 'Copy selected node ID to clipboard' },
       { keys: [MOD, 'F'], desc: 'Fit all nodes into view' },
@@ -68,7 +69,9 @@ const SHORTCUTS = [
   {
     group: 'Workspace',
     items: [
-      { keys: [MOD, '.'], desc: 'Toggle inspector panel' },
+      { keys: [MOD, '\\'], desc: 'Toggle left panel (block palette)' },
+      { keys: [MOD, '/'], desc: 'Toggle inspector panel' },
+      { keys: [MOD, '.'], desc: 'Toggle bottom panel' },
       { keys: [MOD, ','], desc: 'Open Settings' },
       { keys: ['?'], desc: 'Open Settings (shortcuts cheat-sheet)' },
     ],
