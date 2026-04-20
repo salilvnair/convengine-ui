@@ -45,11 +45,16 @@ function CanvasInner() {
   const addNode = useWorkflowStore((s) => s.addNode)
   const selectNode = useWorkflowStore((s) => s.selectNode)
   const removeNode = useWorkflowStore((s) => s.removeNode)
+  const removeNodes = useWorkflowStore((s) => s.removeNodes)
   const removeEdge = useWorkflowStore((s) => s.removeEdge)
   const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
+  const duplicateNodes = useWorkflowStore((s) => s.duplicateNodes)
   const beginRename = useWorkflowStore((s) => s.beginRename)
   const moveNodeBy = useWorkflowStore((s) => s.moveNodeBy)
+  const moveNodesBy = useWorkflowStore((s) => s.moveNodesBy)
+  const setSelectedNodeIds = useWorkflowStore((s) => s.setSelectedNodeIds)
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
+  const selectedNodeIds = useWorkflowStore((s) => s.selectedNodeIds)
   const activeEdgeIds = useWorkflowStore((s) => s.activeEdgeIds)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
   const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
@@ -58,7 +63,7 @@ function CanvasInner() {
     return wf || null
   })
   const nodesById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes])
-  const [pendingDelete, setPendingDelete] = useState(null) // { id, title } | null
+  const [pendingDelete, setPendingDelete] = useState(null) // { ids[], titles[] } | null
   const [edgeMenu, setEdgeMenu] = useState(null) // { x, y, edgeId } | null
   const [paneMenu, setPaneMenu] = useState(null) // { x, y } | null
   const showMinimap = useWorkflowStore((s) => s.showMinimap)
@@ -66,6 +71,17 @@ function CanvasInner() {
 
   // Wire up block resolver for io-registry (avoids circular imports)
   useEffect(() => { setBlockResolver(getBlock) }, [])
+
+  // Listen for multi-delete requests fired from WorkflowNode context menu
+  useEffect(() => {
+    const handler = (e) => {
+      const ids = e.detail?.ids
+      if (!ids?.length) return
+      setPendingDelete({ ids, titles: ids.map((id) => nodesById[id]?.data?.title || id) })
+    }
+    window.addEventListener('bs:multi-delete', handler)
+    return () => window.removeEventListener('bs:multi-delete', handler)
+  }, [nodesById])
 
   // ─── Strict type-compatible connections (ComfyUI-style) ────────────────
   const [connectingFrom, setConnectingFrom] = useState(null) // { nodeId, handleId, handleType }
@@ -97,6 +113,20 @@ function CanvasInner() {
     setConnectingFrom(null)
     window.dispatchEvent(new CustomEvent('bs:connect-drag', { detail: { dragging: false } }))
   }, [])
+
+  // Stable onSelectionChange — bail out when the selected id set hasn't changed.
+  // Without this guard every ReactFlow render produces a new array → Zustand
+  // write → re-render → onSelectionChange → infinite update loop.
+  const prevSelKey = useRef('')
+  const onSelectionChange = useCallback(({ nodes: sel }) => {
+    const ids = sel.map((n) => n.id)
+    const key = [...ids].sort().join(',')
+    if (key === prevSelKey.current) return
+    prevSelKey.current = key
+    setSelectedNodeIds(ids)
+    if (ids.length === 1) selectNode(ids[0])
+    else if (ids.length === 0) selectNode(null)
+  }, [setSelectedNodeIds, selectNode])
 
   // Edge update (drag an edge endpoint to a different handle)
   const onEdgeUpdateStart = useCallback(() => {
@@ -142,6 +172,13 @@ function CanvasInner() {
     })
   }, [nodesById])
 
+  // ── Canvas interaction mode (pan vs rubber-band select) ──
+  const canvasMode = useWorkflowStore((s) => s.canvasConfig?.mode ?? 'pan')
+  const setCanvasMode = useCallback(
+    (m) => useWorkflowStore.getState().setCanvasConfigValue('mode', m),
+    []
+  )
+
   // ── Pane right-click: "Add Block" menu with groups ──
 
   /* Add-block icon (plus in circle) — teal */
@@ -149,6 +186,27 @@ function CanvasInner() {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" stroke="#22d3ee" /><path d="M12 8v8m-4-4h8" stroke="#5eead4" />
+      </svg>
+    )
+  }
+
+  /* Pan / Select mode icons */
+  function HandIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 11V6a2 2 0 0 0-4 0v5"/>
+        <path d="M14 10V4a2 2 0 0 0-4 0v6"/>
+        <path d="M10 10.5V6a2 2 0 0 0-4 0v8"/>
+        <path d="M18 11a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-2c-1.1 0-2-.9-2-2v-4"/>
+        <path d="M6 14a2 2 0 0 1 2-2h.5"/>
+      </svg>
+    )
+  }
+  function SelectCursorIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+        <path d="m13 13 6 6"/>
       </svg>
     )
   }
@@ -259,6 +317,14 @@ function CanvasInner() {
     return {
       searchable: true,
       items: [
+        {
+          id: 'mode-toggle',
+          label: canvasMode === 'pan' ? 'Switch to Select mode (V)' : 'Switch to Pan mode (H)',
+          icon: canvasMode === 'pan' ? SelectCursorIcon : HandIcon,
+          shortcut: canvasMode === 'pan' ? 'V' : 'H',
+          onSelect: () => setCanvasMode(canvasMode === 'pan' ? 'select' : 'pan'),
+        },
+        { separator: true },
         { id: 'add-block-header', label: 'Add Block', icon: AddBlockIcon, isHeader: true },
         { separator: true },
         ...children,
@@ -266,60 +332,62 @@ function CanvasInner() {
         { id: 'actions-header', label: 'Actions', icon: ActionsIcon, isHeader: true },
         { separator: true },
         {
-          id: 'action-run', label: 'Run', icon: RunIcon,
-          iconColor: '#22c55e',
-          onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'run' })),
-        },
-        {
-          id: 'action-save', label: 'Save', icon: SaveIcon,
-          onSelect: () => {
-            if (!activeWorkflow) return
-            const ws = useWorkspaceStore.getState()
-            ws.saveWorkflow(activeWorkflow.id, { nodes, edges, subBlockValues })
-            ws.syncToServer()
-          },
-        },
-        {
-          id: 'action-export', label: 'Export JSON', icon: ExportIcon,
-          disabled: nodes.length < 2,
-          onSelect: () => {
-            if (!activeWorkflow) return
-            const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
-            const blob = new Blob([json], { type: 'application/json' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = (activeWorkflow.name || activeWorkflow.id || 'workflow').replace(/\s+/g, '_') + '.json'
-            document.body.appendChild(a)
-            a.click()
-            document.body.removeChild(a)
-            URL.revokeObjectURL(url)
-          },
-        },
-        {
-          id: 'action-deploy', label: 'Deploy', icon: DeployIcon,
-          onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'deploy' })),
-        },
-        {
-          id: 'action-fit', label: 'Fit View', icon: FitViewIcon,
-          shortcut: '⌘F',
-          onSelect: () => fitView({ padding: 0.15, duration: 200 }),
-        },
-        {
-          id: 'action-zoom-reset', label: 'Reset Zoom', icon: ZoomResetIcon,
-          shortcut: '⌘R',
-          onSelect: () => zoomTo(1, { duration: 200 }),
-        },
-        { separator: true },
-        {
-          id: 'action-disconnect-all', label: 'Disconnect All Edges', icon: DisconnectAllIcon,
-          iconColor: '#f87171',
-          disabled: edges.length === 0,
-          onSelect: () => useWorkflowStore.getState().disconnectAll(),
+          compactRow: true,
+          id: 'actions-row',
+          items: [
+            {
+              id: 'action-run', label: 'Run', icon: RunIcon, iconColor: '#22c55e',
+              onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'run' })),
+            },
+            {
+              id: 'action-save', label: 'Save', icon: SaveIcon,
+              onSelect: () => {
+                if (!activeWorkflow) return
+                const ws = useWorkspaceStore.getState()
+                ws.saveWorkflow(activeWorkflow.id, { nodes, edges, subBlockValues })
+                ws.syncToServer()
+              },
+            },
+            {
+              id: 'action-export', label: 'Export JSON', icon: ExportIcon,
+              disabled: nodes.length < 2,
+              onSelect: () => {
+                if (!activeWorkflow) return
+                const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+                const blob = new Blob([json], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = (activeWorkflow.name || activeWorkflow.id || 'workflow').replace(/\s+/g, '_') + '.json'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(url)
+              },
+            },
+            {
+              id: 'action-deploy', label: 'Deploy', icon: DeployIcon,
+              onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'deploy' })),
+            },
+            {
+              id: 'action-fit', label: 'Fit View', icon: FitViewIcon, shortcut: '⌘F',
+              onSelect: () => fitView({ padding: 0.15, duration: 200 }),
+            },
+            {
+              id: 'action-zoom-reset', label: 'Reset Zoom', icon: ZoomResetIcon, shortcut: '⌘R',
+              onSelect: () => zoomTo(1, { duration: 200 }),
+            },
+            {
+              id: 'action-disconnect-all', label: 'Disconnect All Edges', icon: DisconnectAllIcon,
+              iconColor: '#f87171', danger: true,
+              disabled: edges.length === 0,
+              onSelect: () => useWorkflowStore.getState().disconnectAll(),
+            },
+          ],
         },
       ],
     }
-  }, [addNode, screenToFlowPosition, existingTypes, activeWorkflow, nodes, edges, subBlockValues])
+  }, [addNode, screenToFlowPosition, existingTypes, activeWorkflow, nodes, edges, subBlockValues, canvasMode, setCanvasMode])
 
   // Capture-phase contextmenu listener on document.
   // ReactFlow + selectionOnDrag swallows contextmenu in its Pane component
@@ -424,9 +492,11 @@ function CanvasInner() {
 
       // ⌘D — Duplicate
       if (meta && (e.key === 'd' || e.key === 'D')) {
-        if (!selectedNodeId) return
+        const multiIds = selectedNodeIds.length > 1 ? selectedNodeIds : (selectedNodeId ? [selectedNodeId] : [])
+        if (!multiIds.length) return
         e.preventDefault()
-        duplicateNode(selectedNodeId)
+        if (multiIds.length === 1) duplicateNode(multiIds[0])
+        else duplicateNodes(multiIds)
         return
       }
 
@@ -468,12 +538,21 @@ function CanvasInner() {
         return
       }
 
-      // Delete / Backspace — prompt before removing the selected node.
+      // H — Pan mode, V — Select mode (Figma-style; skip if typing)
+      if (!meta && !e.shiftKey && !e.altKey && e.key === 'h') { e.preventDefault(); setCanvasMode('pan'); return }
+      if (!meta && !e.shiftKey && !e.altKey && e.key === 'v') { e.preventDefault(); setCanvasMode('select'); return }
+
+      // Delete / Backspace — prompt before removing selected node(s).
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (!selectedNodeId) return
+        const multiIds = selectedNodeIds.length > 1 ? selectedNodeIds : (selectedNodeId ? [selectedNodeId] : [])
+        if (!multiIds.length) return
         e.preventDefault()
-        const n = nodesById[selectedNodeId]
-        setPendingDelete({ id: selectedNodeId, title: n?.data?.title || n?.data?.blockType || 'this block' })
+        if (multiIds.length === 1) {
+          const n = nodesById[multiIds[0]]
+          setPendingDelete({ ids: multiIds, titles: [n?.data?.title || n?.data?.blockType || 'this block'] })
+        } else {
+          setPendingDelete({ ids: multiIds, titles: multiIds.map((id) => nodesById[id]?.data?.title || nodesById[id]?.data?.blockType || id) })
+        }
         return
       }
 
@@ -493,22 +572,41 @@ function CanvasInner() {
 
       // Arrow keys — nudge position (10px; 50px with Shift)
       if (e.key.startsWith('Arrow')) {
-        if (!selectedNodeId) return
+        const multiIds = selectedNodeIds.length > 1 ? selectedNodeIds : (selectedNodeId ? [selectedNodeId] : [])
+        if (!multiIds.length) return
         const step = e.shiftKey ? 50 : 10
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
         if (dx || dy) {
           e.preventDefault()
-          moveNodeBy(selectedNodeId, dx, dy)
+          if (multiIds.length === 1) moveNodeBy(multiIds[0], dx, dy)
+          else moveNodesBy(multiIds, dx, dy)
         }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectedNodeId, pendingDelete, removeNode, duplicateNode, beginRename, moveNodeBy, selectNode, fitView, zoomTo])
+  }, [selectedNodeId, selectedNodeIds, pendingDelete, removeNode, duplicateNode, duplicateNodes, beginRename, moveNodeBy, moveNodesBy, selectNode, fitView, zoomTo])
 
   return (
     <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+      {/* ── Pan / Select mode toggle (top-left, mirrors zoom controls) ── */}
+      <div className="bs-canvas-mode-toggle">
+        <button
+          className={`bs-mode-btn ${canvasMode === 'select' ? 'is-active' : ''}`}
+          title="Select mode — drag to rubber-band select (V)"
+          onClick={() => setCanvasMode('select')}
+        >
+          <SelectCursorIcon />
+        </button>
+        <button
+          className={`bs-mode-btn ${canvasMode === 'pan' ? 'is-active' : ''}`}
+          title="Pan mode — drag to pan the canvas (H)"
+          onClick={() => setCanvasMode('pan')}
+        >
+          <HandIcon />
+        </button>
+      </div>
       <ReactFlow
         nodes={nodes}
         edges={displayedEdges}
@@ -525,10 +623,13 @@ function CanvasInner() {
         onEdgeUpdateEnd={onEdgeUpdateEnd}
         onPaneClick={() => { selectNode(null); setPaneMenu(null); window.dispatchEvent(new Event('bs:close-context-menus')) }}
         onNodeClick={(_, node) => selectNode(node.id)}
+        onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
-        multiSelectionKeyCode="Shift"
+        multiSelectionKeyCode={['Meta', 'Control']}
+        selectionMode="partial"
         deleteKeyCode={null}
-        selectionOnDrag
+        panOnDrag={canvasMode === 'pan' ? true : [1, 2]}
+        selectionOnDrag={canvasMode === 'select'}
         edgesUpdatable
         fitView
         proOptions={{ hideAttribution: true }}
@@ -547,15 +648,26 @@ function CanvasInner() {
         )}
       </ReactFlow>
 
-      {pendingDelete && (
-        <ConfirmModal
-          title="Delete block?"
-          message={`"${pendingDelete.title}" and all its connections will be removed. This cannot be undone.`}
-          confirmLabel="Delete block"
-          onCancel={() => setPendingDelete(null)}
-          onConfirm={() => { removeNode(pendingDelete.id); setPendingDelete(null) }}
-        />
-      )}
+      {pendingDelete && (() => {
+        const multi = pendingDelete.ids.length > 1
+        return (
+          <ConfirmModal
+            title={multi ? `Delete ${pendingDelete.ids.length} blocks?` : 'Delete block?'}
+            message={
+              multi
+                ? `${pendingDelete.ids.length} selected blocks and all their connections will be removed. This cannot be undone.`
+                : `"${pendingDelete.titles[0]}" and all its connections will be removed. This cannot be undone.`
+            }
+            confirmLabel={multi ? `Delete ${pendingDelete.ids.length} blocks` : 'Delete block'}
+            onCancel={() => setPendingDelete(null)}
+            onConfirm={() => {
+              if (pendingDelete.ids.length === 1) removeNode(pendingDelete.ids[0])
+              else removeNodes(pendingDelete.ids)
+              setPendingDelete(null)
+            }}
+          />
+        )
+      })()}
 
       {edgeMenu && (
         <ContextMenu
@@ -582,6 +694,42 @@ function CanvasInner() {
           />
         )
       })()}
+
+      {/* ── Multi-select floating HUD ── */}
+      {selectedNodeIds.length > 1 && (
+        <div className="bs-multiselect-hud">
+          <span className="bs-multiselect-hud-count">{selectedNodeIds.length} selected</span>
+          <div className="bs-multiselect-hud-divider" />
+          <button
+            className="bs-multiselect-hud-btn"
+            title="Duplicate selected (⌘D)"
+            onClick={() => duplicateNodes(selectedNodeIds)}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Duplicate
+          </button>
+          <button
+            className="bs-multiselect-hud-btn bs-multiselect-hud-btn-danger"
+            title="Delete selected (⌫)"
+            onClick={() => setPendingDelete({ ids: selectedNodeIds, titles: selectedNodeIds.map((id) => nodesById[id]?.data?.title || id) })}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+            Delete
+          </button>
+          <div className="bs-multiselect-hud-divider" />
+          <button
+            className="bs-multiselect-hud-btn bs-multiselect-hud-btn-muted"
+            title="Deselect all (Esc)"
+            onClick={() => { selectNode(null); setSelectedNodeIds([]) }}
+          >
+            ✕ Deselect
+          </button>
+        </div>
+      )}
     </div>
   )
 }

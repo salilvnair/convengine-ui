@@ -50,6 +50,20 @@ function MenuItemList({ items, onClose, onAction }) {
   return items.map((it, i) =>
     it.separator ? (
       <div key={`sep-${i}`} className="bs-ctxmenu-sep" />
+    ) : it.compactRow ? (
+      <div key={it.id || `cr-${i}`} className="bs-ctxmenu-compact-row">
+        {(it.items || []).map((btn) => (
+          <button
+            key={btn.id}
+            className={`bs-ctxmenu-compact-btn${btn.danger ? ' is-danger' : ''}`}
+            onClick={() => { btn.onSelect?.(); onAction() }}
+            disabled={btn.disabled}
+            title={btn.label + (btn.shortcut ? ` (${btn.shortcut})` : '')}
+          >
+            {btn.icon && <btn.icon className="bs-ico-xs" style={btn.iconColor ? { color: btn.iconColor } : undefined} />}
+          </button>
+        ))}
+      </div>
     ) : it.children ? (
       <SubMenuItem key={it.id || i} item={it} onClose={onClose} onAction={onAction} />
     ) : (
@@ -286,6 +300,20 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
               </button>
             ) : it.separator ? (
               <div key={`sep-${i}`} className="bs-ctxmenu-sep" />
+            ) : it.compactRow ? (
+              <div key={it.id || `cr-${i}`} className="bs-ctxmenu-compact-row">
+                {(it.items || []).map((btn) => (
+                  <button
+                    key={btn.id}
+                    className={`bs-ctxmenu-compact-btn${btn.danger ? ' is-danger' : ''}`}
+                    onClick={() => { btn.onSelect?.(); onClose() }}
+                    disabled={btn.disabled}
+                    title={btn.label + (btn.shortcut ? ` (${btn.shortcut})` : '')}
+                  >
+                    {btn.icon && <btn.icon className="bs-ico-xs" style={btn.iconColor ? { color: btn.iconColor } : undefined} />}
+                  </button>
+                ))}
+              </div>
             ) : it.children ? (
               <SubMenuItem key={it.id || i} item={it} onClose={onClose} onAction={onClose} />
             ) : (
@@ -314,8 +342,8 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
 }
 
 function clamp(x, y, w, h) {
-  const pad = 8
-  const left = Math.max(pad, Math.min(x, window.innerWidth - w - pad))
-  const top = Math.max(pad, Math.min(y, window.innerHeight - h - pad))
+  const padX = 8, padTop = 8, padBottom = 64
+  const left = Math.max(padX, Math.min(x, window.innerWidth - w - padX))
+  const top = Math.max(padTop, Math.min(y, window.innerHeight - h - padBottom))
   return { left, top }
 }

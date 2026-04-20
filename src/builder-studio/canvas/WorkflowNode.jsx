@@ -82,7 +82,9 @@ function conditionPasses(condition, vals) {
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
   const removeNode = useWorkflowStore((s) => s.removeNode)
+  const removeNodes = useWorkflowStore((s) => s.removeNodes)
   const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
+  const duplicateNodes = useWorkflowStore((s) => s.duplicateNodes)
   const disconnectNode = useWorkflowStore((s) => s.disconnectNode)
   const renameNode = useWorkflowStore((s) => s.renameNode)
   const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
@@ -93,6 +95,8 @@ function WorkflowNode({ id, data, selected }) {
   const activeNodeId = useWorkflowStore((s) => s.activeNodeId)
   const completedNodeIds = useWorkflowStore((s) => s.completedNodeIds)
   const errorNodeIds = useWorkflowStore((s) => s.errorNodeIds)
+  const selectedNodeIds = useWorkflowStore((s) => s.selectedNodeIds)
+  const isInMultiSelect = selectedNodeIds.length > 1 && selectedNodeIds.includes(id)
   const errorShakeKey = useWorkflowStore((s) => s.errorShakeKey)
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
@@ -550,6 +554,12 @@ function WorkflowNode({ id, data, selected }) {
           y={menu.y}
           onClose={() => setMenu(null)}
           items={[
+            ...(isInMultiSelect ? [
+              { id: 'multi-header', label: `${selectedNodeIds.length} nodes selected`, disabled: true },
+              { id: 'multi-dup', label: `Duplicate ${selectedNodeIds.length} nodes`, icon: CtxDuplicateIcon, iconColor: '#22d3ee', shortcut: '⌘D', onSelect: () => duplicateNodes(selectedNodeIds) },
+              { id: 'multi-del', label: `Delete ${selectedNodeIds.length} nodes`, icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: () => window.dispatchEvent(new CustomEvent('bs:multi-delete', { detail: { ids: selectedNodeIds } })) },
+              { separator: true },
+            ] : []),
             { id: 'open', label: 'Open in Inspector', icon: CtxInspectorIcon, iconColor: '#818cf8', onSelect: () => selectNode(id) },
             { id: 'rename', label: 'Rename', icon: CtxRenameIcon, iconColor: '#fbbf24', shortcut: 'F2', onSelect: () => setEditing(true) },
             { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, iconColor: '#22d3ee', shortcut: '⌘D', onSelect: () => duplicateNode(id) },
@@ -699,142 +709,118 @@ function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
   )
 }
 
-/** Skill chip: ≤5 skills rendered inline on the card, >5 shows a popover on click.
- *  Each skill item opens the SkillEditor tab. + button opens a picker to add/remove. */
+/** Skill chip: single-select compact badge on the node card.
+ *  Empty → dashed + button. Selected → ⚡ badge + change + remove.
+ *  Clicking the badge itself opens the SkillEditor tab. */
 function SkillChip({ skillIds, onChange }) {
   const skills = useWorkspaceStore((s) => s.skills)
   const openTab = useTabsStore((s) => s.openTab)
-  const [open, setOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const chipRef = useRef(null)
-  const popRef = useRef(null)
-  const pickerRef = useRef(null)
+  const ref = useRef(null)
 
-  const resolved = useMemo(() => {
-    if (!skillIds.length) return []
-    return skillIds
-      .map((id) => skills.find((s) => s.id === id))
-      .filter(Boolean)
-  }, [skillIds, skills])
+  // Single-select: use only the first element
+  const selectedId = skillIds[0] ?? null
+  const selected = selectedId ? (skills.find((s) => s.id === selectedId) ?? null) : null
 
-  // Close popover on outside click
   useEffect(() => {
-    if (!open && !pickerOpen) return
+    if (!pickerOpen) return
     function handler(e) {
-      if (chipRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return
-      if (pickerRef.current?.contains(e.target)) return
-      setOpen(false)
-      setPickerOpen(false)
+      if (ref.current && !ref.current.contains(e.target)) setPickerOpen(false)
     }
     document.addEventListener('pointerdown', handler)
     return () => document.removeEventListener('pointerdown', handler)
-  }, [open, pickerOpen])
+  }, [pickerOpen])
 
-  function openSkill(skill, e) {
+  function selectSkill(skillId, e) {
     e.stopPropagation()
-    openTab({ id: skillTabId(skill.id), kind: 'skill', entityId: skill.id, title: skill.name })
-    setOpen(false)
+    if (onChange) onChange(JSON.stringify([skillId]))
+    setPickerOpen(false)
   }
 
-  function toggleSkill(skillId, e) {
+  function removeSkill(e) {
     e.stopPropagation()
-    if (!onChange) return
-    const current = [...skillIds]
-    const idx = current.indexOf(skillId)
-    if (idx >= 0) current.splice(idx, 1)
-    else current.push(skillId)
-    onChange(JSON.stringify(current, null, 2))
+    if (onChange) onChange(JSON.stringify([]))
   }
 
-  const selectedSet = useMemo(() => new Set(skillIds), [skillIds])
-
-  const addButton = onChange ? (
-    <button
-      className="bs-skill-add-btn"
-      onClick={(e) => { e.stopPropagation(); setPickerOpen((v) => !v) }}
-      title="Add / remove skills"
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-  ) : null
-
-  const pickerPopup = pickerOpen && skills.length > 0 ? (
-    <div className="bs-skill-picker" ref={pickerRef}>
-      <div className="bs-skill-picker-title">Skills / Tools</div>
-      {skills.map((sk) => (
-        <button
-          key={sk.id}
-          className={`bs-skill-picker-item ${selectedSet.has(sk.id) ? 'is-selected' : ''}`}
-          onClick={(e) => toggleSkill(sk.id, e)}
-        >
-          <span className="bs-skill-picker-check">{selectedSet.has(sk.id) ? '✓' : ''}</span>
-          <span className="bs-skill-popover-icon">⚡</span>
-          <span className="bs-skill-popover-name">{sk.name}</span>
-          <span className="bs-skill-popover-lang">{sk.language}</span>
-        </button>
-      ))}
-    </div>
-  ) : null
-
-  if (!resolved.length) {
-    return (
-      <span className="bs-skill-chip-wrap" ref={chipRef}>
-        <span className="bs-node-chip">none</span>
-        {addButton}
-        {pickerPopup}
-      </span>
-    )
+  function openSkillTab(e) {
+    e.stopPropagation()
+    if (!selected) return
+    openTab({ id: skillTabId(selected.id), kind: 'skill', entityId: selected.id, title: selected.name })
   }
 
-  // ≤5 skills: render inline skill cards directly on the node
-  if (resolved.length <= 5) {
-    return (
-      <span className="bs-skill-chip-wrap" ref={chipRef}>
-        <div className="bs-skill-inline-list">
-          {resolved.map((sk) => (
-            <button
-              key={sk.id}
-              className="bs-skill-inline-item"
-              onClick={(e) => openSkill(sk, e)}
-            >
-              <span className="bs-skill-popover-icon">⚡</span>
-              <span className="bs-skill-popover-name">{sk.name}</span>
-              <span className="bs-skill-popover-lang">{sk.language}</span>
-            </button>
-          ))}
-        </div>
-        {addButton}
-        {pickerPopup}
-      </span>
-    )
-  }
-
-  // >5 skills: show count chip with popover on click
   return (
-    <span className="bs-skill-chip-wrap" ref={chipRef}>
-      <span
-        className="bs-node-chip bs-node-chip-clickable"
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
-      >
-        {resolved.length} attached
-      </span>
-      {addButton}
-      {open && (
-        <div className="bs-skill-popover" ref={popRef}>
-          {resolved.map((sk) => (
+    <span ref={ref} className="bs-skill-chip-wrap">
+      {selected ? (
+        <>
+          <button className="bs-skill-node-badge" onClick={openSkillTab} title={`Open "${selected.name}"`}>
+            <span className="bs-skill-node-icon">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+            </span>
+            <span className="bs-skill-popover-name">{selected.name}</span>
+            {selected.language && <span className="bs-skill-popover-lang">{selected.language}</span>}
+          </button>
+          {onChange && (
+            <>
+              <button
+                className="bs-skill-node-action"
+                onClick={(e) => { e.stopPropagation(); setPickerOpen((v) => !v) }}
+                title="Change skill"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/>
+                  <path d="M17.5 2.5a2.12 2.12 0 0 1 3 3L12 14l-4 1 1-4 7.5-7.5z"/>
+                </svg>
+              </button>
+              <button
+                className="bs-skill-node-action bs-skill-node-action--remove"
+                onClick={removeSkill}
+                title="Remove skill"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </>
+          )}
+        </>
+      ) : (
+        onChange && (
+          <button
+            className="bs-skill-add-btn"
+            onClick={(e) => { e.stopPropagation(); setPickerOpen((v) => !v) }}
+            title="Select skill"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        )
+      )}
+      {pickerOpen && (
+        <div className="bs-skill-picker">
+          <div className="bs-skill-picker-title">Skills / Tools</div>
+          {skills.length === 0 ? (
+            <div className="bs-skill-picker-empty">No skills defined yet</div>
+          ) : skills.map((sk) => (
             <button
               key={sk.id}
-              className="bs-skill-popover-item"
-              onClick={(e) => openSkill(sk, e)}
+              className={`bs-skill-picker-item ${sk.id === selectedId ? 'is-selected' : ''}`}
+              onClick={(e) => selectSkill(sk.id, e)}
             >
-              <span className="bs-skill-popover-icon">⚡</span>
+              <span className="bs-skill-picker-check">{sk.id === selectedId ? '✓' : ''}</span>
+              <span className="bs-skill-node-icon" style={{ fontSize: 12 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+              </span>
               <span className="bs-skill-popover-name">{sk.name}</span>
-              <span className="bs-skill-popover-lang">{sk.language}</span>
+              {sk.language && <span className="bs-skill-popover-lang">{sk.language}</span>}
             </button>
           ))}
         </div>
       )}
-      {pickerPopup}
     </span>
   )
 }

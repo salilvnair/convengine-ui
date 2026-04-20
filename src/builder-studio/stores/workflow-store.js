@@ -45,6 +45,9 @@ const initialState = {
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  /** IDs of all nodes currently selected (multi-select). ReactFlow keeps
+   *  node.selected in sync; this mirrors it so other components can subscribe. */
+  selectedNodeIds: [],
   /** Node currently in inline-rename mode. Set by keyboard (F2/Enter) or the
    *  context menu; `WorkflowNode` observes this to enter edit state. */
   renamingNodeId: null,
@@ -65,6 +68,30 @@ const initialState = {
   lastOutputs: {},
   /** Per-node trace entry from the most recent run. Keyed by node id. */
   lastNodeTrace: {},
+
+  /**
+   * Canvas-level configuration — persisted with the workflow.
+   * Every visual / behavioural preference lives here so it can be toggled
+   * from Settings or context menus without touching component state.
+   */
+  canvasConfig: {
+    // Interaction
+    mode: 'pan',              // 'pan' | 'select'  — default drag behaviour
+    snapToGrid: false,        // snap node positions to grid while dragging
+    snapGrid: [16, 16],       // [x, y] grid size in px
+    selectionMode: 'partial', // 'partial' | 'full'  — ReactFlow selectionMode
+    // Display
+    showMinimap: false,
+    showBackground: true,
+    backgroundVariant: 'dots', // 'dots' | 'lines' | 'cross'
+    backgroundGap: 18,
+    backgroundSize: 1.2,
+    // Edges
+    animateEdges: true,
+    edgeType: 'smoothstep',   // 'smoothstep' | 'bezier' | 'straight' | 'step'
+    // Node defaults
+    defaultNodeWidth: 280,
+  },
 }
 
 export const useWorkflowStore = create()(
@@ -254,6 +281,71 @@ export const useWorkflowStore = create()(
         set({ selectedNodeId: id })
       },
 
+      /** Sync the multi-selection id list from ReactFlow's onSelectionChange. */
+      setSelectedNodeIds(ids) {
+        set({ selectedNodeIds: ids })
+      },
+
+      /** Batch-remove multiple nodes and all their incident edges. */
+      removeNodes(ids) {
+        _pushSnap(get())
+        const idSet = new Set(ids)
+        set((s) => {
+          const newValues = { ...s.subBlockValues }
+          ids.forEach((id) => { delete newValues[id] })
+          return {
+            nodes: s.nodes.filter((n) => !idSet.has(n.id)),
+            edges: s.edges.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)),
+            subBlockValues: newValues,
+            selectedNodeId: idSet.has(s.selectedNodeId) ? null : s.selectedNodeId,
+            selectedNodeIds: [],
+          }
+        })
+      },
+
+      /** Duplicate multiple nodes at a cascading offset. Replaces the current
+       *  selection with the newly created copies. */
+      duplicateNodes(ids) {
+        _pushSnap(get())
+        const s = get()
+        const newNodes = []
+        const newValues = { ...s.subBlockValues }
+        ids.forEach((id, i) => {
+          const src = s.nodes.find((n) => n.id === id)
+          if (!src) return
+          const newId = `n_${uuid()}`
+          newNodes.push({
+            ...src,
+            id: newId,
+            position: { x: (src.position?.x || 0) + 40 + i * 6, y: (src.position?.y || 0) - 60 + i * 6 },
+            data: { ...src.data, title: `${src.data?.title || src.data?.blockType} copy` },
+            selected: true,
+          })
+          if (s.subBlockValues[id]) {
+            newValues[newId] = JSON.parse(JSON.stringify(s.subBlockValues[id]))
+          }
+        })
+        set({
+          nodes: [...s.nodes.map((n) => ({ ...n, selected: false })), ...newNodes],
+          subBlockValues: newValues,
+          selectedNodeIds: newNodes.map((n) => n.id),
+          selectedNodeId: newNodes[newNodes.length - 1]?.id ?? s.selectedNodeId,
+        })
+      },
+
+      /** Nudge all given nodes by (dx, dy) pixels — used by arrow-key shortcuts
+       *  when multiple nodes are selected. */
+      moveNodesBy(ids, dx, dy) {
+        const idSet = new Set(ids)
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            idSet.has(n.id)
+              ? { ...n, position: { x: (n.position?.x || 0) + dx, y: (n.position?.y || 0) + dy } }
+              : n
+          ),
+        }))
+      },
+
       setSubBlockValue(nodeId, subBlockId, value) {
         set((s) => ({
           subBlockValues: {
@@ -290,8 +382,32 @@ export const useWorkflowStore = create()(
       canRedo() { return _future.length > 0 },
 
       /* ---------------- MiniMap visibility toggle ---------------- */
-      showMinimap: true,
+      showMinimap: false,
       toggleMinimap() { set((s) => ({ showMinimap: !s.showMinimap })) },
+
+      /* ---------------- Canvas config ---------------- */
+      /** Set a single key inside canvasConfig. */
+      setCanvasConfigValue(key, value) {
+        set((s) => ({
+          canvasConfig: { ...s.canvasConfig, [key]: value },
+        }))
+      },
+      /** Merge a partial canvasConfig object. */
+      updateCanvasConfig(patch) {
+        set((s) => ({
+          canvasConfig: { ...s.canvasConfig, ...patch },
+        }))
+      },
+      /** Reset canvasConfig to defaults. */
+      resetCanvasConfig() {
+        set((s) => ({
+          canvasConfig: {
+            ...initialState.canvasConfig,
+            // preserve mode the user set during this session
+            mode: s.canvasConfig?.mode ?? initialState.canvasConfig.mode,
+          },
+        }))
+      },
 
       /* ---------------- ComfyUI-style run state ---------------- */
       startRun() {

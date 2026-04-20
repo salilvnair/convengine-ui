@@ -49,8 +49,8 @@ const SHORTCUTS = [
   {
     group: 'Canvas',
     items: [
-      { keys: ['Delete'], or: ['Backspace'], desc: 'Delete the selected node' },
-      { keys: [MOD, 'D'], desc: 'Duplicate the selected node' },
+      { keys: ['Delete'], or: ['Backspace'], desc: 'Delete selected node(s) — confirm dialog' },
+      { keys: [MOD, 'D'], desc: 'Duplicate selected node(s)' },
       { keys: [MOD, 'B'], desc: 'Toggle disable / enable selected node' },
       { keys: [MOD, 'I'], desc: 'Inspect the selected node (after run)' },
       { keys: [MOD, 'C'], desc: 'Copy selected node ID to clipboard' },
@@ -60,10 +60,14 @@ const SHORTCUTS = [
       { keys: [MOD, '⇧', 'Z'], or: [MOD, 'Y'], desc: 'Redo last undone action' },
       { keys: ['F2'], or: ['Enter'], desc: 'Rename the selected node' },
       { keys: ['Esc'], desc: 'Deselect / cancel rename' },
-      { keys: ['↑', '↓', '←', '→'], desc: 'Nudge selected node by 10px' },
+      { keys: ['↑', '↓', '←', '→'], desc: 'Nudge selected node(s) by 10px' },
       { keys: ['Shift', '+', 'Arrow'], desc: 'Nudge by 50px' },
       { keys: ['Double-click'], desc: 'Inline rename the node title' },
-      { keys: ['Right-click'], desc: 'Open block context menu' },
+      { keys: ['Right-click'], desc: 'Open canvas / block context menu' },
+      { keys: ['H'], desc: 'Switch to Pan mode — drag canvas to pan' },
+      { keys: ['V'], desc: 'Switch to Select mode — drag to rubber-band select' },
+      { keys: ['Left-drag'], desc: 'Rubber-band select multiple nodes (Select mode)' },
+      { keys: [MOD, 'Click'], desc: 'Add / remove a node from selection' },
     ],
   },
   {

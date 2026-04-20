@@ -6,7 +6,7 @@
  * fall back to a short-input so the field is still editable; the shape is
  * preserved so serialization stays compatible with sim's tool runners.
  */
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
@@ -241,18 +241,7 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
     case 'skill-picker': {
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const skills = useWorkspaceStore((s) => s.skills || [])
-      return (
-        <select
-          className="bs-input"
-          value={defaultValue ?? ''}
-          onChange={(e) => set(e.target.value || null)}
-        >
-          <option value="">{sub.placeholder || 'Select a skill...'}</option>
-          {skills.map((sk) => (
-            <option key={sk.id} value={sk.id}>{sk.name}</option>
-          ))}
-        </select>
-      )
+      return <SkillPickerChip skills={skills} value={defaultValue} onChange={set} placeholder={sub.placeholder} />
     }
 
     case 'tool-input':
@@ -321,6 +310,86 @@ function safeCall(fn) {
   } catch {
     return []
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Skill picker chip — single-skill variant for the Skill block inspector   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function SkillPickerChip({ skills, value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const selected = skills.find((s) => s.id === value) || null
+
+  useEffect(() => {
+    if (!open) return
+    function onOut(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [open])
+
+  return (
+    <div ref={ref} className="bs-skill-picker-chip">
+      {selected ? (
+        <div className="bs-skill-chip-row">
+          <span className="bs-skill-chip-badge">
+            <span className="bs-skill-chip-icon">⚡</span>
+            <span className="bs-skill-chip-name">{selected.name}</span>
+            {selected.language && <span className="bs-skill-chip-lang">{selected.language}</span>}
+          </span>
+          <button
+            className="bs-skill-chip-change"
+            onClick={() => setOpen((o) => !o)}
+            title="Change skill"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M17.5 2.5a2.12 2.12 0 0 1 3 3L12 14l-4 1 1-4 7.5-7.5z"/>
+            </svg>
+          </button>
+          <button
+            className="bs-skill-chip-remove"
+            onClick={() => onChange(null)}
+            title="Remove skill"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <button className="bs-skill-chip-empty" onClick={() => setOpen((o) => !o)}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          {placeholder || 'Select skill'}
+        </button>
+      )}
+      {open && (
+        <div className="bs-skill-chip-popover">
+          {skills.length === 0 ? (
+            <div className="bs-skill-chip-empty-msg">No skills defined yet</div>
+          ) : (
+            skills.map((sk) => (
+              <button
+                key={sk.id}
+                className={`bs-skill-chip-option${sk.id === value ? ' is-selected' : ''}`}
+                onClick={() => { onChange(sk.id); setOpen(false) }}
+              >
+                <span className="bs-skill-chip-icon">⚡</span>
+                <span className="bs-skill-chip-option-name">{sk.name}</span>
+                {sk.language && <span className="bs-skill-chip-lang">{sk.language}</span>}
+                {sk.id === value && (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" style={{ marginLeft: 'auto', color: '#818cf8', flexShrink: 0 }}>
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ------------------------------------------------------------------------- */

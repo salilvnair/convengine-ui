@@ -2122,9 +2122,85 @@ button.bs-palette-group-toggle:hover {
 }
 /* Rubber-band selection area styling */
 .react-flow__selection {
-  background: rgba(99,102,241,0.06) !important;
-  border: 1px solid rgba(99,102,241,0.35) !important;
+  background: rgba(99,102,241,0.08) !important;
+  border: 1.5px solid rgba(99,102,241,0.5) !important;
   border-radius: 4px;
+}
+.bs-node-container { border-style: dashed; }
+.bs-node-resizing { cursor: default !important; }
+
+/* ── Multi-select floating HUD ─────────────────────────────────────────
+   Appears at the bottom-centre of the canvas when ≥2 nodes are selected.
+   Shows the count and quick-action buttons (Duplicate, Delete, Deselect).   */
+.bs-multiselect-hud {
+  position: absolute;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--bg-card, #111827);
+  border: 1px solid rgba(99,102,241,0.45);
+  border-radius: 99px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,102,241,0.12);
+  backdrop-filter: blur(8px);
+  pointer-events: all;
+  white-space: nowrap;
+  animation: bs-hud-in 120ms ease;
+}
+@keyframes bs-hud-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+}
+.bs-multiselect-hud-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a5b4fc;
+  padding: 0 4px;
+  letter-spacing: 0.02em;
+}
+.bs-multiselect-hud-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(99,102,241,0.25);
+  margin: 0 2px;
+}
+.bs-multiselect-hud-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  background: rgba(99,102,241,0.12);
+  color: #c7d2fe;
+}
+.bs-multiselect-hud-btn:hover {
+  background: rgba(99,102,241,0.28);
+  color: #fff;
+}
+.bs-multiselect-hud-btn-danger {
+  background: rgba(239,68,68,0.1);
+  color: #fca5a5;
+}
+.bs-multiselect-hud-btn-danger:hover {
+  background: rgba(239,68,68,0.25);
+  color: #fff;
+}
+.bs-multiselect-hud-btn-muted {
+  background: transparent;
+  color: #64748b;
+}
+.bs-multiselect-hud-btn-muted:hover {
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
 }
 .bs-node-container { border-style: dashed; }
 .bs-node-resizing { cursor: default !important; }
@@ -2396,7 +2472,7 @@ button.bs-palette-group-toggle:hover {
 /* Skill add (+) button */
 .bs-skill-chip-wrap {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   position: relative;
 }
@@ -2418,6 +2494,57 @@ button.bs-palette-group-toggle:hover {
   background: rgba(99,102,241,0.15);
   border-color: rgba(99,102,241,0.4);
   color: #a5b4fc;
+}
+
+/* Node-card single-skill badge — matches screenshot chip style */
+.bs-skill-node-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(124,58,237,0.28);
+  background: rgba(124,58,237,0.1);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 11px; font-weight: 500;
+  cursor: pointer;
+  max-width: 150px;
+  text-align: left;
+  transition: background 100ms, border-color 100ms;
+  flex-shrink: 1; min-width: 0;
+}
+.bs-skill-node-badge:hover {
+  background: rgba(124,58,237,0.2);
+  border-color: rgba(124,58,237,0.5);
+}
+.bs-skill-node-icon {
+  color: #a78bfa; flex-shrink: 0;
+  display: flex; align-items: center;
+}
+/* Small pencil / × action buttons on the node card skill row */
+.bs-skill-node-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex-shrink: 0;
+  border-radius: 5px;
+  border: 1px solid rgba(148,163,184,0.15);
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 100ms;
+}
+.bs-skill-node-action:hover {
+  border-color: rgba(99,102,241,0.45);
+  color: #a5b4fc;
+  background: rgba(99,102,241,0.1);
+}
+.bs-skill-node-action--remove:hover {
+  border-color: rgba(239,68,68,0.4);
+  color: #f87171;
+  background: rgba(239,68,68,0.08);
+}
+/* Empty msg inside picker */
+.bs-skill-picker-empty {
+  padding: 8px 12px; font-size: 11.5px;
+  color: var(--text-secondary, #94a3b8);
+  font-style: italic; text-align: center;
 }
 
 /* Skill picker dropdown */
@@ -3151,7 +3278,7 @@ button.bs-palette-group-toggle:hover {
   border: 1px solid var(--ce-border, #ffffff26);
   border-radius: 10px;
   box-shadow: 0 10px 30px -12px rgba(0,0,0,0.4);
-  padding: 4px;
+  padding: 4px 4px 6px;
   /* Must sit above ReactFlow controls (z-index ~5), modals (~100),
      and every app-level overlay. */
   z-index: 2147483000;
@@ -3246,6 +3373,162 @@ button.bs-palette-group-toggle:hover {
   font-size: 12px;
   color: rgba(255,255,255,0.35);
 }
+
+/* ── Compact icon-only action row ── */
+.bs-ctxmenu-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 6px;
+  flex-wrap: wrap;
+}
+.bs-ctxmenu-compact-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+.bs-ctxmenu-compact-btn .bs-ico-xs { width: 15px; height: 15px; }
+.bs-ctxmenu-compact-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.09);
+  color: var(--text-primary, #e5e7eb);
+  border-color: rgba(255,255,255,0.09);
+}
+.bs-ctxmenu-compact-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.bs-ctxmenu-compact-btn.is-danger { color: #f87171; }
+.bs-ctxmenu-compact-btn.is-danger:hover:not(:disabled) { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.25); }
+[data-theme='light'] .bs-ctxmenu-compact-btn:hover:not(:disabled) {
+  background: rgba(0,0,0,0.06); color: #1e293b; border-color: rgba(0,0,0,0.08);
+}
+
+/* ---------- Canvas mode toggle (top-left overlay) ---------- */
+.bs-canvas-mode-toggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--ce-surface, #0f172a);
+  border: 1px solid var(--ce-border, #1f2937);
+  border-radius: 7px;
+  padding: 3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.bs-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.bs-mode-btn svg { width: 14px; height: 14px; }
+.bs-mode-btn:hover { background: rgba(99,102,241,0.14); color: var(--bs-accent, #6366f1); }
+.bs-mode-btn.is-active {
+  background: rgba(99,102,241,0.2);
+  color: var(--bs-accent, #6366f1);
+  box-shadow: 0 0 0 1px rgba(99,102,241,0.4);
+}
+[data-theme='light'] .bs-canvas-mode-toggle {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+[data-theme='light'] .bs-mode-btn { color: #1e293b; }
+[data-theme='light'] .bs-mode-btn:hover { background: rgba(99,102,241,0.08); color: #4f46e5; }
+
+/* ---------- Inspector single-skill picker chip ---------- */
+.bs-skill-picker-chip { position: relative; width: 100%; }
+.bs-skill-chip-row { display: flex; align-items: center; gap: 6px; }
+.bs-skill-chip-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  flex: 1; min-width: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(124,58,237,0.1);
+  border: 1px solid rgba(124,58,237,0.3);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 12.5px; font-weight: 500;
+}
+.bs-skill-chip-icon { font-size: 13px; flex-shrink: 0; }
+.bs-skill-chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-skill-chip-lang {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  background: rgba(124,58,237,0.2); color: #c4b5fd;
+  text-transform: lowercase; letter-spacing: 0.03em; flex-shrink: 0;
+}
+.bs-skill-chip-change,
+.bs-skill-chip-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid var(--ce-border, #1f2937);
+  background: var(--bg-secondary, #111827);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 120ms;
+}
+.bs-skill-chip-change:hover { border-color: #6366f1; color: var(--bs-accent); }
+.bs-skill-chip-remove:hover { border-color: #ef4444; color: #f87171; background: rgba(239,68,68,0.08); }
+.bs-skill-chip-empty {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 12px;
+  border: 1.5px dashed rgba(148,163,184,0.22);
+  border-radius: 9px; background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12.5px; font-family: inherit; cursor: pointer;
+  transition: all 120ms;
+}
+.bs-skill-chip-empty:hover {
+  border-color: rgba(124,58,237,0.5);
+  color: #a78bfa;
+  background: rgba(124,58,237,0.06);
+}
+.bs-skill-chip-popover {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--ce-surface, #0f172a);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 9px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 4px; z-index: 60;
+  display: flex; flex-direction: column; gap: 1px;
+  max-height: 200px; overflow-y: auto;
+}
+.bs-skill-chip-empty-msg {
+  padding: 10px 12px; font-size: 12px;
+  color: var(--text-secondary, #94a3b8);
+  text-align: center; font-style: italic;
+}
+.bs-skill-chip-option {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px;
+  border: none; border-radius: 6px; background: transparent;
+  color: var(--text-primary, #e5e7eb);
+  font-size: 12px; font-family: inherit; cursor: pointer; text-align: left;
+  transition: background 100ms;
+}
+.bs-skill-chip-option:hover { background: rgba(124,58,237,0.12); }
+.bs-skill-chip-option.is-selected { background: rgba(124,58,237,0.1); color: #c4b5fd; }
+.bs-skill-chip-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+[data-theme='light'] .bs-skill-chip-popover { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+[data-theme='light'] .bs-skill-chip-badge { background: rgba(124,58,237,0.05); border-color: rgba(124,58,237,0.2); }
+[data-theme='light'] .bs-skill-chip-lang { background: rgba(124,58,237,0.12); color: #7c3aed; }
 
 /* Inline-edit input (rename in place) */
 .bs-inline-edit {
