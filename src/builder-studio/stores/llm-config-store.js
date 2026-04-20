@@ -73,7 +73,7 @@ function humanizeProvider(key) {
  */
 function deriveModelsFromConfig(config) {
   const models = []
-  const reserved = new Set(['provider', 'temperature', 'maxTokens', 'timeout'])
+  const reserved = new Set(['provider', 'temperature', 'maxTokens', 'timeout', 'defaults', 'source'])
 
   for (const [key, value] of Object.entries(config)) {
     if (reserved.has(key)) continue
@@ -201,6 +201,12 @@ export const useLlmConfigStore = create((set, get) => ({
     return cfg[providerKey]
   },
 
+  /** Resolve which provider owns a given model id. */
+  getProviderForModel(modelId) {
+    const match = get().models.find((m) => m.id === modelId)
+    return match?.provider || null
+  },
+
   /** Get the active provider's config */
   getActiveProviderConfig() {
     const cfg = get().consumerConfig
@@ -224,4 +230,8 @@ export function getConfiguredDefaultModel() {
 /** Returns the configured temperature or fallback */
 export function getConfiguredTemperature(fallback = 0.3) {
   return useLlmConfigStore.getState().temperature ?? fallback
+}
+
+export function getConfiguredProviderForModel(modelId) {
+  return useLlmConfigStore.getState().getProviderForModel(modelId)
 }

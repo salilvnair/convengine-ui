@@ -42,6 +42,8 @@ export default function CenterPane() {
   const closeAllTabs = useTabsStore((s) => s.closeAllTabs)
   const closeAllWorkflowTabs = useTabsStore((s) => s.closeAllWorkflowTabs)
   const closeOtherTabs = useTabsStore((s) => s.closeOtherTabs)
+  const closeTabsToRight = useTabsStore((s) => s.closeTabsToRight)
+  const closeTabsToLeft = useTabsStore((s) => s.closeTabsToLeft)
   const openWorkflow = useWorkspaceStore((s) => s.openWorkflow)
   const initDone = useRef(false)
   const [ctxMenu, setCtxMenu] = useState(null)
@@ -103,21 +105,46 @@ export default function CenterPane() {
           )
         })}
       </div>
-      {ctxMenu && (
+      {ctxMenu && (() => {
+        const ctxIdx = tabs.findIndex((t) => t.id === ctxMenu.tabId)
+        const hasRight = tabs.slice(ctxIdx + 1).some((t) => t.id !== pinnedWorkflowTabId)
+        const hasLeft = tabs.slice(0, ctxIdx).some((t) => t.id !== pinnedWorkflowTabId)
+        return (
         <div
           className="bs-ctx-menu"
           style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {!ctxMenu.pinned && (
-            <button className="bs-ctx-item" onClick={() => { closeTab(ctxMenu.tabId); setCtxMenu(null) }}>Close</button>
+          {tabs.length > 1 && !ctxMenu.pinned && (
+            <button className="bs-ctx-item" onClick={() => { closeTab(ctxMenu.tabId); setCtxMenu(null) }}>
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              Close
+            </button>
           )}
-          <button className="bs-ctx-item" onClick={() => { closeOtherTabs(ctxMenu.tabId); setCtxMenu(null) }}>Close Others</button>
-          <button className="bs-ctx-item" onClick={() => { closeAllWorkflowTabs(); setCtxMenu(null) }}>Close All Workflows</button>
+          <button className="bs-ctx-item" disabled={tabs.length <= 1} onClick={() => { closeOtherTabs(ctxMenu.tabId); setCtxMenu(null) }}>
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /><rect x="1" y="1" width="7" height="7" rx="1.5" opacity="0.4" /></svg>
+            Close Others
+          </button>
+          <button className="bs-ctx-item" disabled={!hasRight} onClick={() => { closeTabsToRight(ctxMenu.tabId); setCtxMenu(null) }}>
+            <svg viewBox="0 0 24 24"><path d="M13 6l6 6-6 6" /><line x1="5" y1="12" x2="19" y2="12" /><line x1="16" y1="9" x2="22" y2="15" opacity="0.4" /><line x1="22" y1="9" x2="16" y2="15" opacity="0.4" /></svg>
+            Close to the Right
+          </button>
+          <button className="bs-ctx-item" disabled={!hasLeft} onClick={() => { closeTabsToLeft(ctxMenu.tabId); setCtxMenu(null) }}>
+            <svg viewBox="0 0 24 24"><path d="M11 18l-6-6 6-6" /><line x1="19" y1="12" x2="5" y2="12" /><line x1="8" y1="9" x2="2" y2="15" opacity="0.4" /><line x1="2" y1="9" x2="8" y2="15" opacity="0.4" /></svg>
+            Close to the Left
+          </button>
+          <button className="bs-ctx-item" disabled={tabs.filter((t) => t.kind === 'workflow').length <= 1} onClick={() => { closeAllWorkflowTabs(); setCtxMenu(null) }}>
+            <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4" /><path d="M15 3h4a2 2 0 0 1 2 2v4" /><path d="M9 21H5a2 2 0 0 1-2-2v-4" /><path d="M15 21h4a2 2 0 0 0 2-2v-4" /><line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" /></svg>
+            Close All Workflows
+          </button>
           <div className="bs-ctx-sep" />
-          <button className="bs-ctx-item" onClick={() => { closeAllTabs(); setCtxMenu(null) }}>Close All</button>
+          <button className="bs-ctx-item is-danger" disabled={tabs.length <= 1} onClick={() => { closeAllTabs(); setCtxMenu(null) }}>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+            Close All
+          </button>
         </div>
-      )}
+        )
+      })()}
       <div className="bs-tab-body">
         {active?.kind === 'workflow' && <Canvas />}
         {active?.kind === 'agent' && <AgentEditor agentId={active.entityId} />}

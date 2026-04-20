@@ -34,6 +34,8 @@ const initialState = {
    *  preview body and can be consumed by any block that wants to show what
    *  it last produced. Keyed by node id. Cleared by `clearRunHighlights`. */
   lastOutputs: {},
+  /** Per-node trace entry from the most recent run. Keyed by node id. */
+  lastNodeTrace: {},
 }
 
 export const useWorkflowStore = create()(
@@ -99,7 +101,7 @@ export const useWorkflowStore = create()(
         const copy = {
           ...src,
           id: newId,
-          position: { x: (src.position?.x || 0) + 32, y: (src.position?.y || 0) + 32 },
+          position: { x: (src.position?.x || 0) + 32, y: (src.position?.y || 0) - 60 },
           data: { ...src.data, title: `${src.data?.title || src.data?.blockType} copy` },
           selected: false,
         }
@@ -160,6 +162,11 @@ export const useWorkflowStore = create()(
         set((s) => ({ edges: s.edges.filter((e) => e.id !== id) }))
       },
 
+      /** Remove all edges from the entire canvas. */
+      disconnectAll() {
+        set({ edges: [] })
+      },
+
       selectNode(id) {
         set({ selectedNodeId: id })
       },
@@ -183,10 +190,13 @@ export const useWorkflowStore = create()(
 
       /* ---------------- ComfyUI-style run state ---------------- */
       startRun() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {} })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {}, lastNodeTrace: {} })
       },
       recordNodeOutput(nodeId, output) {
         set((s) => ({ lastOutputs: { ...s.lastOutputs, [nodeId]: output } }))
+      },
+      recordNodeTrace(nodeId, traceEntry) {
+        set((s) => ({ lastNodeTrace: { ...s.lastNodeTrace, [nodeId]: traceEntry } }))
       },
       markNodeRunning(nodeId) {
         set((s) => {
@@ -212,7 +222,7 @@ export const useWorkflowStore = create()(
         set({ activeNodeId: null, activeEdgeIds: [] })
       },
       clearRunHighlights() {
-        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {} })
+        set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeId: null, lastOutputs: {}, lastNodeTrace: {} })
       },
     }),
     { name: 'builder-studio-workflow' }

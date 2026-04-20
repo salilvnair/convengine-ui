@@ -5,14 +5,46 @@
  * driven by `SHORTCUTS` so adding a new binding in Canvas.jsx /
  * AgentBuilderPage.jsx only needs a corresponding row here.
  */
-import { useState, useMemo, useCallback } from 'react'
-import { SettingsIcon, KeyboardIcon, McpIcon } from '../components/icons'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { SettingsIcon, KeyboardIcon, McpIcon, DeployIcon } from '../components/icons'
+import { changeRuntimeProvider, fetchAvailableProviders } from '../api/llm-provider-client'
 import McpServersPanel from './McpServersPanel'
 import { useLlmConfigStore } from '../stores/llm-config-store'
 
 const MOD = /Mac|iPhone|iPad/.test(typeof navigator !== 'undefined' ? navigator.platform : '') ? '⌘' : 'Ctrl'
 
+const RunShortcutIcon = (p) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <polygon points="8,6 18,12 8,18" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+const SaveShortcutIcon = (p) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+)
+
+const ExportShortcutIcon = (p) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+)
+
 const SHORTCUTS = [
+  {
+    group: 'Actions',
+    items: [
+      { keys: [MOD, '1'], desc: 'Run active workflow', icon: RunShortcutIcon, tone: 'run' },
+      { keys: [MOD, '2'], desc: 'Save active workflow', icon: SaveShortcutIcon, tone: 'save' },
+      { keys: [MOD, '3'], desc: 'Export active workflow as JSON', icon: ExportShortcutIcon, tone: 'export' },
+      { keys: [MOD, '4'], desc: 'Deploy active workflow', icon: DeployIcon, tone: 'deploy' },
+    ],
+  },
   {
     group: 'Canvas',
     items: [
@@ -128,7 +160,7 @@ function KeyboardShortcutsSection() {
                         </>
                       )}
                     </td>
-                    <td className="bs-kbd-desc">{it.desc}</td>
+                    <td className="bs-kbd-desc"><ShortcutDescription item={it} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -189,58 +221,70 @@ function TipsAndTricksSection() {
 
 /* ── LLM Provider Configuration Panel ────────────────────────────────── */
 
-const SAMPLE_CONFIG = `{
-  "provider": "openai",
-  "temperature": 0.3,
-  "openai": {
-    "api-key": "\${OPENAI_API_KEY}",
-    "model": "gpt-4.1",
-    "base-url": "https://api.openai.com"
-  },
-  "lmstudio": {
-    "api-key": "\${LMSTUDIO_API_KEY}",
-    "model": "openai/gpt-oss-20b",
-    "base-url": "http://localhost:1234"
-  }
-}`
-
 function LlmConfigPanel() {
   const consumerConfig = useLlmConfigStore((s) => s.consumerConfig)
   const models = useLlmConfigStore((s) => s.models)
   const defaultModel = useLlmConfigStore((s) => s.defaultModel)
   const activeProvider = useLlmConfigStore((s) => s.activeProvider)
   const setConfig = useLlmConfigStore((s) => s.setConfig)
+  const initialConfigRef = useRef(null)
 
-  const [raw, setRaw] = useState(() =>
-    consumerConfig ? JSON.stringify(consumerConfig, null, 2) : ''
-  )
+  const [raw, setRaw] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const apply = useCallback(() => {
+  const refreshFromBackend = useCallback(async ({ keepInitial = false } = {}) => {
+    setLoading(true)
+    const config = await fetchAvailableProviders()
+    if (!keepInitial || !initialConfigRef.current) initialConfigRef.current = config
+    setConfig(config)
+    setRaw(JSON.stringify(config, null, 2))
+    setError('')
+    setLoading(false)
+    return config
+  }, [setConfig])
+
+  useEffect(() => {
+    refreshFromBackend().catch((e) => {
+      setError(e.message || 'Failed to load provider config')
+      setLoading(false)
+    })
+  }, [refreshFromBackend])
+
+  const apply = useCallback(async () => {
     if (!raw.trim()) {
-      setConfig(null)
-      setError('')
+      setError('Provider config cannot be empty')
       return
     }
     try {
       const parsed = JSON.parse(raw)
-      setConfig(parsed)
+      const provider = parsed.provider || parsed.defaults?.provider
+      const providerConfig = provider ? parsed[provider] : null
+      const next = await changeRuntimeProvider({
+        provider,
+        model: providerConfig?.model,
+        temperature: parsed.temperature,
+      })
+      setConfig(next)
+      setRaw(JSON.stringify(next, null, 2))
       setError('')
     } catch (e) {
       setError(`Invalid JSON: ${e.message}`)
     }
   }, [raw, setConfig])
 
-  const reset = useCallback(() => {
-    setConfig(null)
-    setRaw('')
-    setError('')
+  const reset = useCallback(async () => {
+    try {
+      const defaults = initialConfigRef.current?.defaults
+      if (!defaults) return
+      const next = await changeRuntimeProvider(defaults)
+      setConfig(next)
+      setRaw(JSON.stringify(next, null, 2))
+      setError('')
+    } catch (e) {
+      setError(e.message || 'Failed to reset provider config')
+    }
   }, [setConfig])
-
-  const loadSample = useCallback(() => {
-    setRaw(SAMPLE_CONFIG)
-    setError('')
-  }, [])
 
   return (
     <div className="bs-llm-config">
@@ -257,14 +301,19 @@ function LlmConfigPanel() {
       <p className="bs-llm-config-desc">
         Provide your LLM provider config as JSON. The <code>provider</code> key sets the active provider
         whose <code>model</code> becomes the default in Agent and Router blocks. Each provider entry can
-        specify <code>model</code>, <code>api-key</code>, and <code>base-url</code>.
+        specify <code>model</code>, <code>base-url</code>, and metadata returned by the backend.
       </p>
 
       <div className="bs-llm-config-actions">
-        <button className="bs-btn-sm bs-btn-secondary" onClick={loadSample}>Load sample</button>
-        <button className="bs-btn-sm bs-btn-primary" onClick={apply} disabled={!raw.trim()}>Apply</button>
-        {consumerConfig && (
-          <button className="bs-btn-sm bs-btn-danger-ghost" onClick={reset}>Reset to defaults</button>
+        <button className="bs-btn-sm bs-btn-primary" onClick={apply} disabled={!raw.trim() || loading}>
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>
+          {loading ? 'Loading…' : 'Apply'}
+        </button>
+        {initialConfigRef.current && (
+          <button className="bs-btn-sm bs-btn-danger-ghost" onClick={reset}>
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 2.5v4h4"/><path d="M2.9 6.5A5.5 5.5 0 1 1 3 10"/></svg>
+            Reset to defaults
+          </button>
         )}
       </div>
 
@@ -272,7 +321,7 @@ function LlmConfigPanel() {
         className="bs-llm-config-editor"
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
-        placeholder={SAMPLE_CONFIG}
+        placeholder="Loading provider config from backend…"
         rows={12}
         spellCheck={false}
       />
@@ -323,6 +372,19 @@ function KeyCombo({ keys }) {
           {k === '+' || k === 'or' ? <span className="bs-kbd-plus">{k}</span> : <kbd className="bs-kbd">{k}</kbd>}
         </span>
       ))}
+    </span>
+  )
+}
+
+function ShortcutDescription({ item }) {
+  if (!item.icon) return item.desc
+  const Icon = item.icon
+  return (
+    <span className="bs-kbd-action-desc">
+      <span className={`bs-kbd-action-icon is-${item.tone || 'default'}`}>
+        <Icon className="bs-kbd-action-svg" />
+      </span>
+      <span>{item.desc}</span>
     </span>
   )
 }

@@ -60,7 +60,7 @@ function MenuItemList({ items, onClose, onAction }) {
         onClick={() => { it.onSelect?.(); onAction() }}
         disabled={it.disabled}
       >
-        {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+        {it.icon ? <it.icon className="bs-ico-xs" style={it.iconColor ? { color: it.iconColor } : undefined} /> : <span className="bs-ico-xs" />}
         <span className="bs-ctxmenu-label">{it.label}</span>
         {it.shortcut && <span className="bs-ctxmenu-kbd">{it.shortcut}</span>}
       </button>
@@ -281,7 +281,7 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
                 role="menuitem"
                 className="bs-ctxmenu-item bs-ctxmenu-item-header"
               >
-                {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+                {it.icon ? <it.icon className="bs-ico-xs" style={it.iconColor ? { color: it.iconColor } : undefined} /> : <span className="bs-ico-xs" />}
                 <span className="bs-ctxmenu-label">{it.label}</span>
               </button>
             ) : it.separator ? (
@@ -296,7 +296,7 @@ export default function ContextMenu({ x, y, items, onClose, searchable }) {
                 onClick={() => { it.onSelect?.(); onClose() }}
                 disabled={it.disabled}
               >
-                {it.icon ? <it.icon className="bs-ico-xs" /> : <span className="bs-ico-xs" />}
+                {it.icon ? <it.icon className="bs-ico-xs" style={it.iconColor ? { color: it.iconColor } : undefined} /> : <span className="bs-ico-xs" />}
                 <span className="bs-ctxmenu-label">{it.label}</span>
                 {it.shortcut && <span className="bs-ctxmenu-kbd">{it.shortcut}</span>}
               </button>

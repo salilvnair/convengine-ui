@@ -21,6 +21,7 @@ import { runAgent } from '../api/run-client'
 import { callTool as callMcpTool } from '../mcp/mcp-client'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { useLlmConfigStore } from '../stores/llm-config-store'
 
 export async function executeGraph({ workflow, inputs, onProgress }) {
   const { nodes = [], edges = [], subBlockValues = {} } = workflow
@@ -43,7 +44,9 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   // cards never flipped to the "done" state after a run.
   for (const n of nodes) {
     if (n.data?.blockType === 'user_input') {
-      outputs[n.id] = inputs[n.id] ?? ''
+      outputs[n.id] = Object.prototype.hasOwnProperty.call(inputs || {}, n.id)
+        ? inputs[n.id]
+        : null
       trace.push({
         nodeId: n.id,
         blockType: 'user_input',
@@ -94,12 +97,22 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
     await Promise.all(ready.map(async (n) => {
       started.add(n.id)
       const t0 = performance.now()
-      const upstream = (incoming[n.id] || []).map((e) => outputs[e.source])
+      const inEdges = incoming[n.id] || []
+      const upstream = inEdges.map((e) => outputs[e.source])
       const input = upstream.length <= 1 ? upstream[0] : upstream
+      // Build per-handle input map so blocks with multiple typed inputs
+      // (e.g. response: data, status, headers) can read from each handle.
+      // Edge targetHandle is like "in_data", "in_headers" etc.
+      const inputsByHandle = {}
+      for (const e of inEdges) {
+        const th = e.targetHandle || 'in'
+        const key = th.startsWith('in_') ? th.slice(3) : th
+        inputsByHandle[key] = outputs[e.source]
+      }
       const values = subBlockValues[n.id] || {}
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
       try {
-        const ran = await runNode({ node: n, values, input, outputs })
+        const ran = await runNode({ node: n, values, input, outputs, inputsByHandle })
         // runNode may return either a raw value or `{ __meta, value }` so that
         // agent/mcp blocks can attach rich debugging info (systemPrompt,
         // userPrompt after interpolation, skill output, model, etc.). The meta
@@ -118,16 +131,19 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           outputs[n.id] = output
         }
         try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
-        trace.push({
+        const traceEntry = {
           nodeId: n.id,
           blockType: n.data?.blockType,
           title: n.data?.title,
           input,
+          inputsByHandle,    // per-handle connected inputs (e.g. { data: ..., headers: ... })
           output,            // raw value, no truncation (UI truncates for the collapsed preview)
           values,            // the user-authored sub-block values for this node
           meta,              // per-block rich metadata (prompts after templating, etc.)
           ms: Math.round(performance.now() - t0),
-        })
+        }
+        trace.push(traceEntry)
+        try { useWorkflowStore.getState().recordNodeTrace(n.id, traceEntry) } catch { /* ignore */ }
         onProgress?.({
           type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
           output, meta, values, ms: Math.round(performance.now() - t0),
@@ -151,16 +167,19 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           nodeId: n.id,
           nodeTitle: n.data?.title,
         }
-        trace.push({
+        const errTraceEntry = {
           nodeId: n.id,
           blockType: n.data?.blockType,
           title: n.data?.title,
           input,
+          inputsByHandle,
           values,
           error: err.message || String(err),
           errorDetail,
           ms: Math.round(performance.now() - t0),
-        })
+        }
+        trace.push(errTraceEntry)
+        try { useWorkflowStore.getState().recordNodeTrace(n.id, errTraceEntry) } catch { /* ignore */ }
         onProgress?.({
           type: 'error', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
           error: err.message || String(err), errorDetail,
@@ -180,14 +199,14 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
 /* Per-block execution                                                        */
 /* ------------------------------------------------------------------------- */
 
-async function runNode({ node, values, input, outputs }) {
+async function runNode({ node, values, input, outputs, inputsByHandle }) {
   const type = node.data?.blockType
   switch (type) {
     case 'starter':
     case 'user_input':
       return outputs[node.id] // already seeded
     case 'response':
-      return interpolate(values.data ?? '', outputs, input)
+      return runResponseNode({ values, input, inputsByHandle, outputs })
     case 'agent':
       return await runAgentNode({ node, values, input })
     case 'mcp':
@@ -222,6 +241,24 @@ async function runNode({ node, values, input, outputs }) {
       // Unknown block type: pass input through so the graph keeps moving.
       return input
   }
+}
+
+/**
+ * Response block: build structured output from per-handle connected inputs.
+ * Each typed input (data, status, headers) can be connected individually.
+ * Fallback: if no per-handle input, use subBlock values or flat input.
+ */
+function runResponseNode({ values, input, inputsByHandle, outputs }) {
+  const data = inputsByHandle?.data ?? (values.data ? interpolate(values.data, outputs, input) : input)
+  const status = inputsByHandle?.status ?? (values.status ? Number(values.status) : 200)
+  const headers = inputsByHandle?.headers ?? parseJsonSafe(values.headers)
+  return { data, status, headers }
+}
+
+function parseJsonSafe(v) {
+  if (v == null || v === '') return null
+  if (typeof v === 'object') return v
+  try { return JSON.parse(v) } catch { return v }
 }
 
 async function runAgentNode({ node, values, input }) {
@@ -284,9 +321,19 @@ async function runAgentNode({ node, values, input }) {
     }
   }
 
+  // Resolve model & provider from the LLM config store. If the stored model
+  // is stale (e.g. from built-in defaults before consumer config was applied),
+  // fall back to the configured default.
+  const llmState = useLlmConfigStore.getState()
+  const availableModelIds = llmState.models.map((m) => m.id)
+  const rawModel = values.model || llmState.getDefaultModel() || 'gpt-4o-mini'
+  const resolvedModel = availableModelIds.includes(rawModel) ? rawModel : (llmState.getDefaultModel() || rawModel)
+  const resolvedProvider = llmState.getProviderForModel(resolvedModel) || llmState.activeProvider || undefined
+
   const agent = {
     id: node.id,
-    model: values.model || 'gpt-4o-mini',
+    provider: resolvedProvider,
+    model: resolvedModel,
     temperature: values.temperature,
     systemPrompt: interpolateBag(values.systemPrompt || '', bag),
     userPrompt: interpolateBag(values.userPrompt || '{{input}}', bag),
@@ -519,13 +566,11 @@ function eval_safe(expr, input) { try { return new Function('input', `return (${
 function runJsonMapNode({ values, input }) {
   let obj = typeof input === 'string' ? safeJson(input) : input
   if (obj == null) obj = {}
-  let mappings = values.mappings
-  if (typeof mappings === 'string') {
-    try { mappings = JSON.parse(mappings) } catch (e) {
-      throw new Error(`JSON Map: mappings is not valid JSON — ${e.message}`)
-    }
-  }
+
+  // Resolve mappings from table rows (mappingPairs) or raw JSON (mappings).
+  let mappings = resolveMappings(values.mappingPairs, values.mappings)
   if (!Array.isArray(mappings) || mappings.length === 0) return obj
+
   const result = {}
   for (const m of mappings) {
     const key = m.key || m.k
@@ -535,6 +580,36 @@ function runJsonMapNode({ values, input }) {
     result[key] = val !== undefined ? val : null
   }
   return result
+}
+
+/**
+ * Resolve json_map mappings from either table rows or a raw JSON string/array.
+ * Table rows are arrays of [key, path]. JSON can be a string or parsed array
+ * of { key, path } objects.
+ */
+function resolveMappings(tableRows, rawMappings) {
+  // Table rows take precedence when they have content.
+  if (Array.isArray(tableRows) && tableRows.length > 0) {
+    const fromTable = tableRows
+      .map((row) => {
+        if (!Array.isArray(row)) return null
+        const key = String(row[0] ?? '').trim()
+        const path = String(row[1] ?? '').trim()
+        if (!key) return null
+        return { key, path: path || '$' }
+      })
+      .filter(Boolean)
+    if (fromTable.length > 0) return fromTable
+  }
+
+  // Fall back to raw JSON (advanced mode or legacy workflows).
+  if (!rawMappings) return []
+  if (typeof rawMappings === 'string') {
+    try { return JSON.parse(rawMappings) } catch (e) {
+      throw new Error(`JSON Map: mappings is not valid JSON — ${e.message}`)
+    }
+  }
+  return rawMappings
 }
 
 /* ── Text Template block ───────────────────────────────────────────────────── */

@@ -330,6 +330,7 @@ export const useWorkspaceStore = create()(
             description: partial.description || '',
             nodes: [],
             edges: [],
+            subBlockValues: {},
             // Advanced / runtime defaults surfaced in the workflow inspector.
             metadata: {
               defaultTimeoutMs: partial.defaultTimeoutMs ?? 30000,
@@ -411,7 +412,11 @@ export const useWorkspaceStore = create()(
             agentPools: s.agentPools,
             agents: s.agents,
             skills: s.skills,
-            workflows: s.workflows,
+            // Ensure every workflow has subBlockValues (never null) for Postgres NOT NULL constraint
+            workflows: s.workflows.map((w) => ({
+              ...w,
+              subBlockValues: w.subBlockValues || {},
+            })),
             llmConfig: useLlmConfigStore.getState().consumerConfig,
           }
           return syncWorkspaceToServer(workspaceId, snapshot)

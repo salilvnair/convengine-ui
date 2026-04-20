@@ -113,43 +113,50 @@ function CanvasInner() {
 
   // ── Pane right-click: "Add Block" menu with groups ──
 
-  /* Add-block icon (plus in circle) */
+  /* Add-block icon (plus in circle) — teal */
   function AddBlockIcon({ className }) {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><path d="M12 8v8m-4-4h8" />
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" stroke="#22d3ee" /><path d="M12 8v8m-4-4h8" stroke="#5eead4" />
       </svg>
     )
   }
 
-  /* Action icons for context menu */
+  /* Action icons for context menu — indigo layers */
   function ActionsIcon({ className }) {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#818cf8"/><path d="M2 17l10 5 10-5" stroke="#c084fc"/><path d="M2 12l10 5 10-5" stroke="#a78bfa"/>
       </svg>
     )
   }
   function RunIcon({ className }) {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="5 3 19 12 5 21 5 3" />
+        <polygon points="5 3 19 12 5 21 5 3" fill="#22c55e" opacity="0.15" />
       </svg>
     )
   }
   function SaveIcon({ className }) {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="#818cf8" fill="#818cf8" fillOpacity="0.1"/>
+        <polyline points="17 21 17 13 7 13 7 21" stroke="#818cf8"/><polyline points="7 3 7 8 15 8" stroke="#a5b4fc"/>
       </svg>
     )
   }
   function ExportIcon({ className }) {
     return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#f59e0b"/>
+        <polyline points="7 10 12 15 17 10" stroke="#fbbf24"/><line x1="12" y1="15" x2="12" y2="3" stroke="#fbbf24"/>
+      </svg>
+    )
+  }
+  function DisconnectAllIcon({ className }) {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 6 6 18" stroke="#f87171"/><path d="m6 6 12 12" stroke="#f87171"/>
       </svg>
     )
   }
@@ -167,6 +174,7 @@ function CanvasInner() {
       id: `add-${b.type}`,
       label: b.name,
       icon: b.icon || null,
+      iconColor: b.bgColor || null,
       onSelect: () => {
         const cfg = getBlock(b.type)
         if (!cfg) return
@@ -212,6 +220,7 @@ function CanvasInner() {
         { separator: true },
         {
           id: 'action-run', label: 'Run', icon: RunIcon,
+          iconColor: '#22c55e',
           onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'run' })),
         },
         {
@@ -225,6 +234,7 @@ function CanvasInner() {
         },
         {
           id: 'action-export', label: 'Export JSON', icon: ExportIcon,
+          disabled: nodes.length < 2,
           onSelect: () => {
             if (!activeWorkflow) return
             const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
@@ -242,6 +252,13 @@ function CanvasInner() {
         {
           id: 'action-deploy', label: 'Deploy', icon: DeployIcon,
           onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'deploy' })),
+        },
+        { separator: true },
+        {
+          id: 'action-disconnect-all', label: 'Disconnect All Edges', icon: DisconnectAllIcon,
+          iconColor: '#f87171',
+          disabled: edges.length === 0,
+          onSelect: () => useWorkflowStore.getState().disconnectAll(),
         },
       ],
     }

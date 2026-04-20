@@ -23,6 +23,7 @@ import { getBlock } from '../blocks/registry'
 import { getTypeColor, getCardPorts } from '../panel/io-registry'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
+import InspectModal from '../components/InspectModal'
 import JsonView from '../run/JsonView'
 import {
   TrashIcon,
@@ -54,6 +55,26 @@ const INLINE_SUMMARY = new Set([
   'tool-input', 'skill-input',
 ])
 const INLINE_EDITABLE = new Set([...INLINE_INTERACTIVE, ...INLINE_SUMMARY])
+
+/**
+ * Evaluate condition object: {field, value, not?, and?}.
+ * Used to hide conditional subBlock rows on the card when their
+ * condition isn't met (mirrors Inspector's conditionPasses).
+ */
+function conditionPasses(condition, vals) {
+  if (!condition) return true
+  const cond = typeof condition === 'function' ? (() => { try { return condition(vals) } catch { return null } })() : condition
+  if (!cond) return true
+  const current = vals?.[cond.field]
+  const expected = cond.value
+  const matches = Array.isArray(expected)
+    ? expected.map((v) => String(v)).includes(String(current ?? ''))
+    : String(expected ?? '') === String(current ?? '')
+  const primary = cond.not ? !matches : matches
+  if (!primary) return false
+  if (cond.and) return conditionPasses(cond.and, vals)
+  return true
+}
 
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
@@ -153,6 +174,8 @@ function WorkflowNode({ id, data, selected }) {
   const [menu, setMenu] = useState(null)       // { x, y } in screen coords
   const [editing, setEditing] = useState(false) // inline-rename
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [inspectOpen, setInspectOpen] = useState(false)
+  const traceEntry = useWorkflowStore((s) => s.lastNodeTrace?.[id])
 
   const requestDelete = () => setConfirmDelete(true)
 
@@ -166,13 +189,32 @@ function WorkflowNode({ id, data, selected }) {
     if (!selected) setResizeMode(false)
   }, [selected])
 
+  // Auto-fit height when visible content changes (e.g. conditional sub-blocks hide/show)
+  // Only resets when the node has no user-set height (i.e. nodeH is undefined)
+  const visibleSubBlockCount = useMemo(() => {
+    if (!cfg) return 0
+    return (cfg.subBlocks || []).filter(
+      (sb) => !sb.hidden && sb.type !== 'oauth-input' && sb.mode !== 'advanced' && conditionPasses(sb.condition, values)
+    ).length
+  }, [cfg, values])
+
+  // When visible rows change and the node has a stored height, clear it so it auto-fits
+  const prevRowCount = useRef(visibleSubBlockCount)
+  useEffect(() => {
+    if (prevRowCount.current !== visibleSubBlockCount && nodeH != null) {
+      setNodeH(undefined)
+      resizeNodeStore(id, nodeW, undefined)
+    }
+    prevRowCount.current = visibleSubBlockCount
+  }, [visibleSubBlockCount])
+
   const isContainer = data.blockType === 'loop' || data.blockType === 'parallel'
   const isTrigger = data.category === 'triggers' || cfg?.category === 'triggers'
 
   const previewRows = useMemo(() => {
     if (!cfg) return []
     return (cfg.subBlocks || [])
-      .filter((sb) => !sb.hidden && sb.type !== 'oauth-input' && sb.mode !== 'advanced')
+      .filter((sb) => !sb.hidden && sb.type !== 'oauth-input' && sb.mode !== 'advanced' && conditionPasses(sb.condition, values))
       .slice(0, 8)
       .map((sb) => ({
         sb,
@@ -445,16 +487,27 @@ function WorkflowNode({ id, data, selected }) {
           y={menu.y}
           onClose={() => setMenu(null)}
           items={[
-            { id: 'open', label: 'Open in Inspector', icon: CtxInspectorIcon, onSelect: () => selectNode(id) },
-            { id: 'rename', label: 'Rename', icon: CtxRenameIcon, shortcut: 'F2', onSelect: () => setEditing(true) },
-            { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, shortcut: '⌘D', onSelect: () => duplicateNode(id) },
-            { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, onSelect: () => setResizeMode((v) => !v) },
+            { id: 'open', label: 'Open in Inspector', icon: CtxInspectorIcon, iconColor: '#818cf8', onSelect: () => selectNode(id) },
+            { id: 'rename', label: 'Rename', icon: CtxRenameIcon, iconColor: '#fbbf24', shortcut: 'F2', onSelect: () => setEditing(true) },
+            { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, iconColor: '#22d3ee', shortcut: '⌘D', onSelect: () => duplicateNode(id) },
+            { id: 'inspect', label: 'Inspect', icon: CtxInspectIcon, iconColor: '#22d3ee', disabled: !traceEntry, onSelect: () => setInspectOpen(true) },
+            { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
+            { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); resizeNodeStore(id, nodeW, undefined) } },
             { separator: true },
-            { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, onSelect: () => disconnectNode(id) },
-            { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, onSelect: copyId },
+            { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
+            { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', onSelect: copyId },
             { separator: true },
             { id: 'del', label: 'Delete', icon: TrashIcon, danger: true, shortcut: '⌫', onSelect: requestDelete },
           ]}
+        />
+      )}
+
+      {inspectOpen && (
+        <InspectModal
+          nodeId={id}
+          nodeData={data}
+          traceEntry={traceEntry}
+          onClose={() => setInspectOpen(false)}
         />
       )}
 
@@ -658,6 +711,9 @@ function CtxDisconnectIcon(props) {
 }
 function CtxCopyIcon(props) {
   return <svg {...svgProps} {...props}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+}
+function CtxInspectIcon(props) {
+  return <svg {...svgProps} {...props}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
 }
 
 export default memo(WorkflowNode)

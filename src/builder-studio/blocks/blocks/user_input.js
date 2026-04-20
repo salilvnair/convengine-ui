@@ -68,6 +68,15 @@ export const UserInputBlock = {
       condition: { field: 'kind', value: ['dropdown', 'radio', 'checkbox-group'] },
     },
     {
+      id: 'optionPairs',
+      title: 'Option key/value pairs',
+      type: 'table',
+      columns: ['Label', 'Value'],
+      description: 'Structured options. Each row maps visible label to stored value.',
+      value: () => [],
+      condition: { field: 'kind', value: ['dropdown', 'radio', 'checkbox-group'] },
+    },
+    {
       id: 'min',
       title: 'Min',
       type: 'short-input',
@@ -100,14 +109,30 @@ export const UserInputBlock = {
       condition: { field: 'kind', value: ['file'] },
     },
     {
+      id: 'checkedValue',
+      title: 'Checked value',
+      type: 'short-input',
+      description: 'Stored output when checked (optional). Defaults to boolean true.',
+      value: () => '',
+      condition: { field: 'kind', value: ['checkbox', 'toggle'] },
+    },
+    {
+      id: 'uncheckedValue',
+      title: 'Unchecked value',
+      type: 'short-input',
+      description: 'Stored output when unchecked (optional). Defaults to boolean false.',
+      value: () => '',
+      condition: { field: 'kind', value: ['checkbox', 'toggle'] },
+    },
+    {
       // Promoted from advanced → primary. If this is filled, the Run dock
       // skips the prompt step and auto-runs with this value. Behaves like
       // ComfyUI's "this field IS the input" ergonomics.
       id: 'defaultValue',
-      title: 'Value (auto-run)',
+      title: 'Default Value',
       type: 'short-input',
       description:
-        'If set, the workflow runs with this value without opening an input dialog.',
+        'Pre-filled value. If set, the workflow auto-runs with this value without opening an input dialog.',
       value: () => '',
     },
     {
@@ -120,6 +145,6 @@ export const UserInputBlock = {
   tools: { access: [] },
   inputs: {},
   outputs: {
-    value: { type: 'string', description: 'The value the user typed in the Run dialog.' },
+    value: { type: 'any', description: 'Runtime value produced by this input kind.' },
   },
 }

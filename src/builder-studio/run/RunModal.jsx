@@ -18,7 +18,7 @@ import { executeGraph } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, MinimizeIcon } from '../components/icons'
 import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
-import { collectInputNodes } from './input-registry'
+import { coerceInput, collectInputNodes, validateInput } from './input-registry'
 import RunPanel from './panels/run-panel'
 import DebugPanel from './panels/debug-panel'
 import TracePanel from './panels/trace-panel'
@@ -36,8 +36,20 @@ registerRunPanel(TodoPanel)
 const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activeTab: activeTabProp, onTabChange, visible = true, showToast }, ref) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
   const [values, setValues] = useState(() =>
-    Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue || '']))
+    Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue]))
   )
+
+  // Re-sync values whenever inputNodes changes (user edits default values, adds/removes inputs)
+  useEffect(() => {
+    setValues((prev) => {
+      const next = {}
+      for (const n of inputNodes) {
+        // Keep user-typed value if present; otherwise use kind-aware default.
+        next[n.id] = Object.prototype.hasOwnProperty.call(prev, n.id) ? prev[n.id] : n.defaultValue
+      }
+      return next
+    })
+  }, [inputNodes])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
@@ -55,7 +67,15 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const markNodeError = useWorkflowStore((s) => s.markNodeError)
   const endRun = useWorkflowStore((s) => s.endRun)
 
-  const missing = inputNodes.filter((n) => n.required && !String(values[n.id] || '').trim())
+  const invalidInputs = useMemo(() => {
+    const out = {}
+    for (const n of inputNodes) {
+      const msg = validateInput(n, values[n.id])
+      if (msg) out[n.id] = msg
+    }
+    return out
+  }, [inputNodes, values])
+  const missing = useMemo(() => inputNodes.filter((n) => invalidInputs[n.id]), [inputNodes, invalidInputs])
   const runBtnRef = useRef(null)
   const prevMissingRef = useRef(missing.length)
 
@@ -116,13 +136,18 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     startRun()
     try {
       for (const n of inputNodes) {
-        if (n.required && !String(values[n.id] || '').trim()) {
-          throw new Error(`"${n.label}" is required.`)
-        }
+        const validationError = validateInput(n, values[n.id])
+        if (validationError) throw new Error(validationError)
       }
+
+      const runtimeInputs = {}
+      for (const n of inputNodes) {
+        runtimeInputs[n.id] = coerceInput(n, values[n.id])
+      }
+
       const res = await executeGraph({
         workflow,
-        inputs: values,
+        inputs: runtimeInputs,
         onProgress: (p) => {
           const entry = { ...p, at: Date.now() }
           progressRef.current = [...progressRef.current, entry]
@@ -192,7 +217,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
 
   const ctx = {
     workflow, values, setValues, inputNodes, missing,
-    busy, error, result, progress, expanded, setExpanded,
+    invalidInputs, busy, error, result, progress, expanded, setExpanded,
     onRun: doRun,
   }
   const activePanel = panels.find((p) => p.id === activeTab) || panels[0]

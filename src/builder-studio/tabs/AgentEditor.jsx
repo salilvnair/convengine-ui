@@ -4,24 +4,18 @@
  * schema, and attached skills. All edits write through to the workspace store.
  */
 import { useMemo } from 'react'
+import { changeRuntimeProvider } from '../api/llm-provider-client'
 import { useWorkspaceStore } from '../stores/workspace-store'
+import { getConfiguredProviderForModel, useLlmConfigStore } from '../stores/llm-config-store'
 import { AgentsIcon, SkillsIcon } from '../components/icons'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
-
-const MODELS = [
-  'gpt-4o-mini',
-  'gpt-4o',
-  'gpt-4.1-mini',
-  'claude-sonnet-4',
-  'claude-opus-4',
-  'llama-3.1-70b',
-]
 
 export default function AgentEditor({ agentId }) {
   const agent = useWorkspaceStore((s) => s.agents.find((a) => a.id === agentId))
   const skills = useWorkspaceStore((s) => s.skills)
   const updateAgent = useWorkspaceStore((s) => s.updateAgent)
+  const models = useLlmConfigStore((s) => s.models)
   const pool = useWorkspaceStore((s) =>
     agent ? s.agentPools.find((p) => p.id === agent.poolId) : null
   )
@@ -64,9 +58,16 @@ export default function AgentEditor({ agentId }) {
         <select
           className="bs-input"
           value={agent.model}
-          onChange={(e) => updateAgent(agent.id, { model: e.target.value })}
+          onChange={(e) => {
+            const model = e.target.value
+            updateAgent(agent.id, { model })
+            void changeRuntimeProvider({
+              provider: getConfiguredProviderForModel(model) || undefined,
+              model,
+            }).then((config) => useLlmConfigStore.getState().setConfig(config)).catch(() => {})
+          }}
         >
-          {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
+          {models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
       </section>
 

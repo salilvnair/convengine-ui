@@ -140,10 +140,10 @@ registerRunInputKind('radio', {
 registerRunInputKind('checkbox', {
   defaultValue: false,
   isEmpty: () => false,
-  coerce: (v) => v === true || v === 'true',
+  coerce: (v, node) => mapBooleanOutput(v, node),
   render: ({ value, onChange, disabled, config }) => (
     <label className="bs-checkbox-item">
-      <input type="checkbox" checked={value === true || value === 'true'}
+      <input type="checkbox" checked={isCheckedValue(value, config)}
         disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span>{config?.label || ''}</span>
     </label>
@@ -178,13 +178,13 @@ registerRunInputKind('checkbox-group', {
 registerRunInputKind('toggle', {
   defaultValue: false,
   isEmpty: () => false,
-  coerce: (v) => v === true || v === 'true',
+  coerce: (v, node) => mapBooleanOutput(v, node),
   render: ({ value, onChange, disabled }) => (
     <label className="bs-toggle">
-      <input type="checkbox" checked={value === true || value === 'true'}
+      <input type="checkbox" checked={isCheckedValue(value)}
         disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="bs-toggle-track"><span className="bs-toggle-thumb" /></span>
-      <span className="bs-toggle-label">{value ? 'On' : 'Off'}</span>
+      <span className="bs-toggle-label">{isCheckedValue(value) ? 'On' : 'Off'}</span>
     </label>
   ),
 })
@@ -254,3 +254,28 @@ registerRunInputKind('hidden', {
   isEmpty: (v) => !String(v ?? '').trim(),
   render: () => null,
 })
+
+function mapBooleanOutput(value, node) {
+  const checked = isCheckedValue(value, node)
+  if (checked) return node?.checkedValue != null && node.checkedValue !== '' ? node.checkedValue : true
+  return node?.uncheckedValue != null && node.uncheckedValue !== '' ? node.uncheckedValue : false
+}
+
+function isCheckedValue(value, node) {
+  if (value === true) return true
+  if (value === false || value == null) return false
+
+  if (node?.checkedValue != null && node.checkedValue !== '' && value === node.checkedValue) {
+    return true
+  }
+  if (node?.uncheckedValue != null && node.uncheckedValue !== '' && value === node.uncheckedValue) {
+    return false
+  }
+
+  if (typeof value === 'string') {
+    const lower = value.trim().toLowerCase()
+    if (lower === 'true') return true
+    if (lower === 'false') return false
+  }
+  return Boolean(value)
+}

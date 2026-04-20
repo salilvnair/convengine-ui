@@ -65,18 +65,22 @@ export function collectInputNodes(workflow) {
     .filter((n) => n.data?.blockType === 'user_input')
     .map((n) => {
       const v = workflow.subBlockValues?.[n.id] || {}
+      const kind = hasValue(v.kind) ? v.kind : 'short-text'
+      const parsedOptions = parseOptions(v.optionPairs, v.options)
       return {
         id: n.id,
-        label: v.label || n.data?.title || 'Input',
-        kind: v.kind || 'short-text',
-        placeholder: v.placeholder || '',
-        defaultValue: v.defaultValue || '',
+        label: hasValue(v.label) ? v.label : (n.data?.title || 'Input'),
+        kind,
+        placeholder: hasValue(v.placeholder) ? v.placeholder : '',
+        defaultValue: parseDefaultValue(kind, v.defaultValue),
         required: v.required !== false,
-        options: v.options ? parseOptions(v.options) : null,
-        min: v.min,
-        max: v.max,
-        step: v.step,
-        accept: v.accept,
+        options: parsedOptions,
+        min: parseNumberish(v.min),
+        max: parseNumberish(v.max),
+        step: parseNumberish(v.step),
+        accept: hasValue(v.accept) ? v.accept : '',
+        checkedValue: hasValue(v.checkedValue) ? v.checkedValue : null,
+        uncheckedValue: hasValue(v.uncheckedValue) ? v.uncheckedValue : null,
       }
     })
 }
@@ -101,14 +105,81 @@ export function coerceInput(node, value) {
 
 // ─── helpers ────────────────────────────────────────────────────────
 
-function parseOptions(raw) {
+function parseOptions(tableRows, raw) {
+  if (Array.isArray(tableRows) && tableRows.length > 0) {
+    const mapped = tableRows
+      .map((row) => {
+        if (!Array.isArray(row)) return null
+        const label = String(row[0] ?? '').trim()
+        const value = String(row[1] ?? '').trim()
+        if (!label || !value) return null
+        return { label, value }
+      })
+      .filter(Boolean)
+    if (mapped.length > 0) return mapped
+  }
+
   if (Array.isArray(raw)) return raw
   if (typeof raw === 'string') {
-    try { return JSON.parse(raw) } catch {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed
+      if (parsed && typeof parsed === 'object') {
+        return Object.entries(parsed).map(([label, value]) => ({ label, value: String(value) }))
+      }
+    } catch {
       return raw.split(',').map((s) => s.trim()).filter(Boolean)
     }
   }
-  return null
+  return []
+}
+
+function parseDefaultValue(kind, value) {
+  if (!hasValue(value)) {
+    if (kind === 'checkbox' || kind === 'toggle') return false
+    if (kind === 'checkbox-group') return []
+    return ''
+  }
+
+  if (kind === 'checkbox' || kind === 'toggle') {
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      const lower = value.trim().toLowerCase()
+      if (lower === 'true') return true
+      if (lower === 'false') return false
+    }
+    return value
+  }
+
+  if (kind === 'checkbox-group') {
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value)
+        if (Array.isArray(parsed)) return parsed
+      } catch {
+        return value.split(',').map((s) => s.trim()).filter(Boolean)
+      }
+    }
+    return []
+  }
+
+  if (kind === 'number' || kind === 'range') {
+    const n = parseNumberish(value)
+    return n == null ? '' : n
+  }
+
+  return value
+}
+
+function parseNumberish(value) {
+  if (!hasValue(value)) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function hasValue(value) {
+  return value !== undefined && value !== null && !(typeof value === 'string' && value.trim() === '')
 }
 
 function normaliseSpec(spec) {

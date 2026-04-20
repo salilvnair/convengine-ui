@@ -63,6 +63,69 @@ const cardPortOverrides = {
   agent:         { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'response', type: 'string' }] },
   // Function — one input, one output
   function:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] },
+  // Response — multi-input: data, status, headers each individually connectable
+  response:      {
+    inputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
+    outputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
+  },
+  // API — connectable inputs: url, headers, body; multi-output
+  api:           {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
+  },
+  // Merge — two separate inputs
+  merge:         {
+    inputs: [{ key: 'input1', type: 'any' }, { key: 'input2', type: 'any' }],
+    outputs: [{ key: 'merged', type: 'json' }],
+  },
+  // Filter — multi-output
+  filter:        {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'kept', type: 'json' }, { key: 'rejected', type: 'json' }],
+  },
+  // Aggregate — multi-output
+  aggregate:     {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'result', type: 'any' }, { key: 'count', type: 'number' }],
+  },
+  // Sort — multi-output
+  sort:          {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'sorted', type: 'json' }, { key: 'count', type: 'number' }],
+  },
+  // Error Handler — multi-output
+  error_handler: {
+    inputs: [{ key: 'input', type: 'any' }],
+    outputs: [{ key: 'result', type: 'any' }, { key: 'error', type: 'json' }],
+  },
+  // Webhook — no inputs, multi-output
+  webhook_request: {
+    inputs: [],
+    outputs: [{ key: 'body', type: 'json' }, { key: 'headers', type: 'json' }, { key: 'query', type: 'json' }],
+  },
+  // AI Classifier
+  ai_classifier: {
+    inputs: [{ key: 'input', type: 'string' }],
+    outputs: [{ key: 'category', type: 'string' }, { key: 'confidence', type: 'number' }],
+  },
+  // Database blocks — single input, multi-output
+  postgresql:    {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'result', type: 'json' }, { key: 'count', type: 'number' }],
+  },
+  mongodb:       {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'result', type: 'json' }, { key: 'count', type: 'number' }],
+  },
+  redis:         {
+    inputs: [{ key: 'input', type: 'any' }],
+    outputs: [{ key: 'result', type: 'any' }, { key: 'success', type: 'boolean' }],
+  },
+  // Slack
+  slack:         {
+    inputs: [{ key: 'input', type: 'string' }],
+    outputs: [{ key: 'ok', type: 'boolean' }, { key: 'ts', type: 'string' }],
+  },
   // If/Else family — multi-output branching, handled by outputHandles
   if_else:       { inputs: 'auto', outputs: [] },
   if_elseif_else:{ inputs: 'auto', outputs: [] },
@@ -100,11 +163,8 @@ function autoPorts(fullDefs, direction) {
     // Single summary port for inputs
     return [{ key: 'input', type: deriveType(fullDefs) }]
   }
-  // Outputs: show each (up to 3)
-  if (entries.length <= 3) {
-    return entries.map(([k, v]) => ({ key: k, type: v.type || 'any' }))
-  }
-  return entries.slice(0, 3).map(([k, v]) => ({ key: k, type: v.type || 'any' }))
+  // Outputs: show each individually
+  return entries.map(([k, v]) => ({ key: k, type: v.type || 'any' }))
 }
 
 /**

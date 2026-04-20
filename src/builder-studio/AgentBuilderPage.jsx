@@ -19,7 +19,9 @@ import Inspector from './panel/Inspector'
 import RunModal from './run/RunModal'
 import BottomToolbar from './run/BottomToolbar'
 import CreateWorkflowModal from './components/CreateWorkflowModal'
+import { fetchAvailableProviders } from './api/llm-provider-client'
 import { useWorkspaceStore } from './stores/workspace-store'
+import { useLlmConfigStore } from './stores/llm-config-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
 import { PlayIcon, PanelRightIcon, SettingsIcon, DeployIcon } from './components/icons'
@@ -40,6 +42,7 @@ export default function AgentBuilderPage() {
   const createWorkflow = useWorkspaceStore((s) => s.createWorkflow)
   const renameWorkflow = useWorkspaceStore((s) => s.renameWorkflow)
   const teams = useWorkspaceStore((s) => s.teams)
+  const setLlmConfig = useLlmConfigStore((s) => s.setConfig)
   const [editingName, setEditingName] = useState(false)
   const loadWorkflow = useWorkflowStore((s) => s.loadWorkflow)
   const nodes = useWorkflowStore((s) => s.nodes)
@@ -50,6 +53,7 @@ export default function AgentBuilderPage() {
   const initWorkflowTabs = useTabsStore((s) => s.initWorkflowTabs)
   const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
   const renameTab = useTabsStore((s) => s.renameTab)
+  const activeTabId = useTabsStore((s) => s.activeId)
 
   const [rOpen, setROpen] = useState(true)
   const [rWidth, setRWidth] = useState(R_DEFAULT)
@@ -84,6 +88,74 @@ export default function AgentBuilderPage() {
     toastTimer.current = setTimeout(() => setToast(null), 2500)
   }, [])
 
+  const active = workflows.find((w) => w.id === activeWorkflowId)
+  const canRun = !!active && nodes.length >= 2
+  const canSave = !!active
+  const canExport = !!active && nodes.length >= 2
+  const canDeploy = !!active && nodes.length >= 2
+
+  const handleRun = useCallback(() => {
+    if (!canRun) return
+    animateBtn('.bs-topbar-icon-run')
+    setDockTab('run')
+    showToast('Running workflow…', 'run')
+    if (runRef.current) runRef.current.tryRun()
+    else setRunOpen(true)
+  }, [animateBtn, canRun, showToast])
+
+  const handleSave = useCallback(() => {
+    if (!active) return
+    animateBtn('.bs-topbar-icon-save')
+    saveWorkflow(active.id, { nodes, edges, subBlockValues })
+    syncToServer()
+    showToast('Workflow saved', 'save')
+  }, [active, animateBtn, edges, nodes, saveWorkflow, showToast, subBlockValues, syncToServer])
+
+  const handleExport = useCallback(() => {
+    if (!active || !canExport) return
+    animateBtn('.bs-topbar-icon-export')
+    const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = (active.name || active.id || 'workflow').replace(/\s+/g, '_') + '.json'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showToast('Workflow JSON exported', 'save')
+  }, [active, animateBtn, canExport, edges, nodes, showToast, subBlockValues])
+
+  const handleDeploy = useCallback(async () => {
+    if (!active || !canDeploy) return
+    animateBtn('.bs-topbar-icon-deploy')
+    saveWorkflow(active.id, { nodes, edges, subBlockValues })
+    syncToServer()
+    const scheduleNode = nodes.find((n) => n.data?.blockType === 'schedule')
+    const webhookNode = nodes.find((n) => n.data?.blockType === 'webhook_request')
+    let trigger = { type: 'manual' }
+    if (scheduleNode) {
+      const sv = subBlockValues[scheduleNode.id] || {}
+      trigger = { type: 'cron', cron: sv.cron || '0 * * * *', timezone: sv.timezone || 'UTC' }
+    } else if (webhookNode) {
+      trigger = { type: 'webhook' }
+    }
+    try {
+      const result = await deployWorkflow({
+        workflowId: active.id,
+        workflow: { nodes, edges, subBlockValues },
+        trigger,
+      })
+      let msg = 'Workflow deployed'
+      if (result.webhookUrl) msg += ` · Webhook: ${result.webhookUrl}`
+      if (result.cronInterval) msg += ' · Cron active'
+      showToast(msg, 'success')
+    } catch (err) {
+      showToast(`Deploy failed: ${err.message}`, 'error')
+    }
+  }, [active, animateBtn, canDeploy, edges, nodes, saveWorkflow, showToast, subBlockValues, syncToServer])
+
   // Initialize workflow tabs from workspace store on first mount
   useEffect(() => {
     if (tabsInited.current) return
@@ -102,6 +174,12 @@ export default function AgentBuilderPage() {
   }, [loadFromServer])
 
   useEffect(() => {
+    fetchAvailableProviders()
+      .then((config) => setLlmConfig(config))
+      .catch(() => {})
+  }, [setLlmConfig])
+
+  useEffect(() => {
     if (!activeWorkflowId) return
     const wf = workflows.find((w) => w.id === activeWorkflowId)
     if (wf) loadWorkflow({ nodes: wf.nodes, edges: wf.edges, subBlockValues: wf.subBlockValues })
@@ -112,18 +190,15 @@ export default function AgentBuilderPage() {
     const handler = (e) => {
       const action = e.detail
       if (action === 'run') {
-        setDockTab('run')
-        showToast('Running workflow\u2026', 'run')
-        if (runRef.current) runRef.current.tryRun(); else setRunOpen(true)
+        if (!canRun) { showToast('Add at least 2 blocks to run', 'warning'); return }
+        handleRun()
       } else if (action === 'deploy') {
-        // Trigger the same deploy flow as the topbar button
-        const btn = document.querySelector('.bs-topbar-icon-deploy')
-        if (btn) btn.click()
+        handleDeploy()
       }
     }
     window.addEventListener('bs:action', handler)
     return () => window.removeEventListener('bs:action', handler)
-  }, [showToast])
+  }, [canRun, handleDeploy, handleRun, showToast])
 
   // ----- Right splitter -----
   const onSplitterPointerDown = useCallback((e) => {
@@ -165,18 +240,23 @@ export default function AgentBuilderPage() {
     }
     function onKey(e) {
       const meta = e.metaKey || e.ctrlKey
+      const onWorkflowCanvas = activeTabId?.startsWith('workflow:')
       // ⌘. — toggle inspector
       if (meta && e.key === '.') { e.preventDefault(); setROpen((o) => !o); return }
       // ⌘, — open Settings tab
       if (meta && e.key === ',') { e.preventDefault(); openSettings(); return }
       // ? — open Settings (only when not typing)
       if (e.key === '?' && !isEditable(e.target)) { e.preventDefault(); openSettings() }
+      if (!meta || isEditable(e.target) || !onWorkflowCanvas || e.altKey || e.shiftKey) return
+      if (e.key === '1') { e.preventDefault(); handleRun(); return }
+      if (e.key === '2') { e.preventDefault(); handleSave(); return }
+      if (e.key === '3') { e.preventDefault(); handleExport(); return }
+      if (e.key === '4') { e.preventDefault(); handleDeploy() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [openSettings])
+  }, [activeTabId, handleDeploy, handleExport, handleRun, handleSave, openSettings])
 
-  const active = workflows.find((w) => w.id === activeWorkflowId)
   const liveWorkflow = active ? { ...active, nodes, edges, subBlockValues } : null
 
   return (
@@ -229,19 +309,18 @@ export default function AgentBuilderPage() {
         <div className="bs-topbar-actions">
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-run"
-            disabled={!active}
-            onClick={() => { animateBtn('.bs-topbar-icon-run'); setDockTab('run'); showToast('Running workflow\u2026', 'run'); if (runRef.current) runRef.current.tryRun(); else setRunOpen(true) }}
-            data-tooltip="Run"
+            disabled={!canRun}
+            onClick={handleRun}
+            data-tooltip="Run (⌘/Ctrl+1)"
           >
             <PlayIcon className="bs-ico-topbar" />
           </button>
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-save"
-            disabled={!active}
-            onClick={() => { if (!active) return; animateBtn('.bs-topbar-icon-save'); saveWorkflow(active.id, { nodes, edges, subBlockValues }); syncToServer(); showToast('Workflow saved', 'save') }}
-            data-tooltip="Save"
+            disabled={!canSave}
+            onClick={handleSave}
+            data-tooltip="Save (⌘/Ctrl+2)"
           >
-            {/* Save/floppy disk SVG icon */}
             <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
               <polyline points="17 21 17 13 7 13 7 21"/>
@@ -250,25 +329,10 @@ export default function AgentBuilderPage() {
           </button>
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-export"
-            disabled={!active}
-            onClick={() => {
-              if (!active) return
-              animateBtn('.bs-topbar-icon-export')
-              const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
-              const blob = new Blob([json], { type: 'application/json' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = (active.name || active.id || 'workflow').replace(/\s+/g, '_') + '.json'
-              document.body.appendChild(a)
-              a.click()
-              document.body.removeChild(a)
-              URL.revokeObjectURL(url)
-              showToast('Workflow JSON exported', 'save')
-            }}
-            data-tooltip="Export JSON"
+            disabled={!canExport}
+            onClick={handleExport}
+            data-tooltip="Export JSON (⌘/Ctrl+3)"
           >
-            {/* Download/export SVG icon */}
             <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -277,38 +341,9 @@ export default function AgentBuilderPage() {
           </button>
           <button
             className="bs-topbar-icon-btn bs-topbar-icon-deploy"
-            disabled={!active}
-            onClick={async () => {
-              if (!active) return
-              animateBtn('.bs-topbar-icon-deploy')
-              // Save first
-              saveWorkflow(active.id, { nodes, edges, subBlockValues })
-              syncToServer()
-              // Detect trigger type from workflow nodes
-              const scheduleNode = nodes.find((n) => n.data?.blockType === 'schedule')
-              const webhookNode = nodes.find((n) => n.data?.blockType === 'webhook_request')
-              let trigger = { type: 'manual' }
-              if (scheduleNode) {
-                const sv = subBlockValues[scheduleNode.id] || {}
-                trigger = { type: 'cron', cron: sv.cron || '0 * * * *', timezone: sv.timezone || 'UTC' }
-              } else if (webhookNode) {
-                trigger = { type: 'webhook' }
-              }
-              try {
-                const result = await deployWorkflow({
-                  workflowId: active.id,
-                  workflow: { nodes, edges, subBlockValues },
-                  trigger,
-                })
-                let msg = 'Workflow deployed'
-                if (result.webhookUrl) msg += ` \u00b7 Webhook: ${result.webhookUrl}`
-                if (result.cronInterval) msg += ` \u00b7 Cron active`
-                showToast(msg, 'success')
-              } catch (err) {
-                showToast(`Deploy failed: ${err.message}`, 'error')
-              }
-            }}
-            data-tooltip="Deploy"
+            disabled={!canDeploy}
+            onClick={handleDeploy}
+            data-tooltip="Deploy (⌘/Ctrl+4)"
           >
             <DeployIcon className="bs-ico-topbar" />
           </button>
@@ -316,14 +351,13 @@ export default function AgentBuilderPage() {
           <button
             className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
-            title={rOpen ? 'Hide inspector (\u2318.)' : 'Show inspector (\u2318.)'}
+            title={rOpen ? 'Hide inspector (⌘.)' : 'Show inspector (⌘.)'}
           >
             <PanelRightIcon className="bs-ico-sm" />
           </button>
         </div>
       </header>
 
-      {/* ── Canvas-card style top toast ── */}
       {toast && (
         <div key={toast.key} className={`bs-toast bs-toast-${toast.type}`}>
           <span className="bs-toast-dot" />

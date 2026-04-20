@@ -27,12 +27,21 @@ export const JsonMapBlock = {
   icon: JsonMapIcon,
   subBlocks: [
     {
-      id: 'mappings',
+      id: 'mappingPairs',
       title: 'Mappings',
+      type: 'table',
+      columns: ['Mapped Key', 'JSON Path'],
+      description: 'Each row maps a key name to a JSONPath expression. The result is a flat { key: extractedValue } object.',
+      value: () => [['value', '$']],
+    },
+    {
+      id: 'mappings',
+      title: 'Mappings (JSON)',
       type: 'code',
       language: 'json',
       placeholder: '[\n  { "key": "title", "path": "$.article.title" },\n  { "key": "url",   "path": "$.source.url" }\n]',
-      defaultValue: '[\n  { "key": "value", "path": "$" }\n]',
+      mode: 'advanced',
+      description: 'Raw JSON mapping array. Overrides the table above if non-empty.',
     },
   ],
   inputs: {

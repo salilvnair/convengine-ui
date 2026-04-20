@@ -35,7 +35,7 @@ export const ShowPreviewBlock = {
   ],
   tools: { access: [] },
   inputs: {
-    label: { type: 'string', description: 'Display label' },
+    input: { type: 'any', description: 'Upstream payload to display' },
   },
   outputs: {
     payload: { type: 'any', description: 'Pass-through of upstream output' },

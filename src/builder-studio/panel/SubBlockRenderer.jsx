@@ -10,8 +10,10 @@ import { useCallback, useEffect } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import JsonEditor from '../components/JsonEditor'
 import FullscreenWrapper from '../components/FullscreenWrapper'
+import { changeRuntimeProvider } from '../api/llm-provider-client'
 import { useMcpStore } from '../mcp/mcp-store'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { getConfiguredProviderForModel, useLlmConfigStore } from '../stores/llm-config-store'
 import JsonView from '../run/JsonView'
 
 export default function SubBlockRenderer({ sub, value, onChange, blockValues, nodeId }) {
@@ -134,7 +136,16 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
         <select
           className="bs-input"
           value={defaultValue ?? ''}
-          onChange={(e) => set(e.target.value)}
+          onChange={(e) => {
+            const nextValue = e.target.value
+            set(nextValue)
+            if (sub.id === 'model' && nextValue) {
+              void changeRuntimeProvider({
+                provider: getConfiguredProviderForModel(nextValue) || undefined,
+                model: nextValue,
+              }).then((config) => useLlmConfigStore.getState().setConfig(config)).catch(() => {})
+            }
+          }}
         >
           {!defaultValue && <option value="">{sub.placeholder || 'Select...'}</option>}
           {(options || []).map((o) => (

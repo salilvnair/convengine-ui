@@ -4,6 +4,7 @@
  */
 import { useState, useMemo, useRef } from 'react'
 import { getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
+import JsonView from '../run/JsonView'
 import './wiki-guide.css'
 
 /* ── Helpers ── */
@@ -439,7 +440,9 @@ export default function WikiGuide() {
           </p>
 
           <h3 id="json-schema">Full structure</h3>
-          <Code>{WORKFLOW_JSON_EXAMPLE}</Code>
+          <div className="wiki-json-collapsible">
+            <JsonView value={WORKFLOW_JSON_EXAMPLE} collapsible defaultExpanded={1} />
+          </div>
 
           <Tip type="info">
             Use the <strong>Export</strong> button in the toolbar to download
