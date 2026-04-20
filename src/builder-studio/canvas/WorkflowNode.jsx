@@ -754,7 +754,7 @@ function SkillChip({ skillIds }) {
 /** Clickable type badge on card ports — opens a dropdown to change the port type. */
 function PortTypeBadge({ type, color, portId, nodeId }) {
   const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
-  const portTypes = useWorkflowStore((s) => s.subBlockValues[nodeId]?._portTypes || {})
+  const portTypes = useWorkflowStore((s) => s.subBlockValues[nodeId]?._portTypes) ?? {}
   const [open, setOpen] = useState(false)
   const [dropUp, setDropUp] = useState(false)
   const wrapRef = useRef(null)
