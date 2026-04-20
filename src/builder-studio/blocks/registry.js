@@ -52,6 +52,7 @@ const registry = {
   slack: Core.SlackBlock,
   ai_classifier: Core.AiClassifierBlock,
   mapper: Core.MapperBlock,
+  skill: Core.SkillBlock,
 }
 
 /**
@@ -171,7 +172,7 @@ export const CATEGORY_CONFIG = {
   tools: {
     topTypes: [],
     subgroups: [
-      { id: 'scripting', label: 'Scripting',     types: ['function'] },
+      { id: 'scripting', label: 'Scripting',     types: ['function', 'skill'] },
       { id: 'databases', label: 'Databases',     types: ['postgresql', 'redis', 'mongodb'] },
       { id: 'messaging', label: 'Messaging',     types: ['smtp', 'slack'] },
       { id: 'protocols', label: 'Protocols',     types: ['mcp'] },

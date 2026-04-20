@@ -13,6 +13,7 @@ import FullscreenWrapper from '../components/FullscreenWrapper'
 import { changeRuntimeProvider } from '../api/llm-provider-client'
 import { useMcpStore } from '../mcp/mcp-store'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { useWorkspaceStore } from '../stores/workspace-store'
 import { getConfiguredProviderForModel, useLlmConfigStore } from '../stores/llm-config-store'
 import JsonView from '../run/JsonView'
 
@@ -234,6 +235,23 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
             + Add row
           </button>
         </div>
+      )
+    }
+
+    case 'skill-picker': {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const skills = useWorkspaceStore((s) => s.skills || [])
+      return (
+        <select
+          className="bs-input"
+          value={defaultValue ?? ''}
+          onChange={(e) => set(e.target.value || null)}
+        >
+          <option value="">{sub.placeholder || 'Select a skill...'}</option>
+          {skills.map((sk) => (
+            <option key={sk.id} value={sk.id}>{sk.name}</option>
+          ))}
+        </select>
       )
     }
 

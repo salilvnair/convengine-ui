@@ -425,6 +425,8 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
       return runJsonPathNode({ values, input })
     case 'mapper':
       return runMapperNode({ values, input })
+    case 'skill':
+      return await runSkillNode({ values, input })
     default:
       // Unknown block type: pass input through so the graph keeps moving.
       return input
@@ -580,6 +582,26 @@ async function runSkillSource(skill, inputStr) {
   const fn = new Function('params', skill.source)
   const result = await fn(params)
   return result
+}
+
+/**
+ * Skill block executor — finds the selected skill by ID and runs it directly.
+ * The skill receives { input: <upstream value> } as its params argument.
+ * Returns { result, __meta: { skillId, skillName } } so the card preview
+ * and InspectModal show the raw skill output under the `result` key.
+ */
+async function runSkillNode({ values, input }) {
+  const skillId = values.skillId
+  if (!skillId) throw new Error('Skill block: no skill selected. Choose a skill from the dropdown.')
+  const skills = useWorkspaceStore.getState().skills || []
+  const skill = skills.find((s) => s.id === skillId)
+  if (!skill) throw new Error(`Skill block: skill with id "${skillId}" not found in workspace.`)
+  const inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? null)
+  const result = await runSkillSource(skill, inputStr)
+  return {
+    __meta: { skillId: skill.id, skillName: skill.name, input },
+    value: result,
+  }
 }
 
 /**

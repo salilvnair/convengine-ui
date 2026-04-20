@@ -220,6 +220,7 @@ const cardPortOverrides = {
   show_preview:  { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'payload', type: 'any' }] },
   // Mapper — type conversion utility
   mapper:        { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
+  skill:         { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
 }
 
 export function registerCardPorts(blockType, ports) {
