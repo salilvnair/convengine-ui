@@ -2748,6 +2748,24 @@ button.bs-palette-group-toggle:hover {
   pointer-events: none !important;
 }
 
+/* ── Connection-drag type compatibility feedback ── */
+.bs-port-incompatible {
+  opacity: 0.2;
+  pointer-events: none;
+  transition: opacity 150ms;
+}
+.bs-port-compatible .bs-port-dot {
+  box-shadow: 0 0 6px 2px currentColor;
+  animation: bs-port-pulse 1s ease-in-out infinite;
+}
+.bs-port-compatible .bs-port-handle {
+  box-shadow: 0 0 5px 1px rgba(255,255,255,0.25);
+}
+@keyframes bs-port-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
 /* ---------- Inspector ---------- */
 .bs-inspector {
   display: grid;
@@ -2829,6 +2847,40 @@ button.bs-palette-group-toggle:hover {
   max-width: 160px;
 }
 .bs-io-slot-hidden { opacity: 0.45; }
+/* Chip-style type dropdown */
+.bs-type-chip-wrap { position: relative; flex-shrink: 0; }
+.bs-type-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 7px; border-radius: 4px; font-size: 10px;
+  font-weight: 600; letter-spacing: 0.04em; text-transform: lowercase;
+  border: 1px solid; cursor: pointer;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5; transition: filter 120ms;
+}
+.bs-type-chip:hover { filter: brightness(1.3); }
+.bs-type-chip-menu {
+  position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  z-index: 20; min-width: 96px;
+  background: #1e1e2e; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.bs-type-chip-menu-up {
+  top: auto; bottom: calc(100% + 4px);
+}
+.bs-type-chip-option {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border: none; background: none;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  border-radius: 5px; text-transform: lowercase;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  transition: background 100ms;
+}
+.bs-type-chip-option:hover { background: rgba(255,255,255,0.06); }
+.bs-type-chip-option.is-active { background: rgba(255,255,255,0.1); }
+.bs-type-chip-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
 /* Port visibility toggle (mini switch) */
 .bs-io-toggle {
   margin-left: auto; flex-shrink: 0;

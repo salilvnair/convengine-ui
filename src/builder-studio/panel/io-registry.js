@@ -39,6 +39,85 @@ export function getAllTypeColors() {
   return { ...typeColors }
 }
 
+/** Ordered list of available port type names (for the type-picker UI). */
+export function getAllPortTypes() {
+  return Object.keys(typeColors)
+}
+
+// ─── Type Compatibility (ComfyUI-style strict connections) ──────────────────
+// `any` and `json` accept everything. Primitives only match their own kind
+// or json/any. Array matches array, json, or any.
+const compat = {
+  string:  new Set(['string', 'json', 'any']),
+  number:  new Set(['number', 'json', 'any']),
+  boolean: new Set(['boolean', 'json', 'any']),
+  json:    new Set(['string', 'number', 'boolean', 'json', 'array', 'any']),
+  array:   new Set(['array', 'json', 'any']),
+  any:     new Set(['string', 'number', 'boolean', 'json', 'array', 'any']),
+}
+
+/** Check if a source output type can connect to a target input type. */
+export function isTypeCompatible(sourceType, targetType) {
+  const src = sourceType || 'any'
+  const tgt = targetType || 'any'
+  if (src === 'any' || tgt === 'any') return true
+  return (compat[src] || compat.any).has(tgt)
+}
+
+/**
+ * Resolve the effective port type for a given node + handle, accounting for
+ * per-node _portTypes overrides and falling back to registry defaults.
+ *
+ * @param {string} nodeId
+ * @param {string} handleId  — raw handle id from ReactFlow edge (e.g. "in_data", "data", "out", "in")
+ * @param {'source'|'target'} side — which end of the edge
+ * @param {object} subBlockValues — full subBlockValues from the store
+ * @param {object[]} nodes — nodes array from the store
+ */
+export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
+  const nodeData = nodes.find((n) => n.id === nodeId)?.data
+  if (!nodeData) return 'any'
+  const blockType = nodeData.blockType
+  const vals = subBlockValues[nodeId] || {}
+  const portTypes = vals._portTypes || {}
+
+  if (side === 'target') {
+    // Input handle: id is "in_<key>" or fallback "in"
+    if (portTypes[handleId]) return portTypes[handleId]
+    // Look up default from card ports
+    const key = handleId.startsWith('in_') ? handleId.slice(3) : null
+    if (key) {
+      const block = _getBlockSafe(blockType)
+      if (block) {
+        const card = getCardPorts(blockType, block.inputs, block.outputs)
+        const port = card.inputs.find((p) => p.key === key)
+        if (port) return port.type
+      }
+    }
+    return 'any'
+  } else {
+    // Output handle: id is the raw key ("data", "status") or "out"
+    // _portTypes stores as "out_<key>"
+    const ptKey = handleId === 'out' ? 'out_out' : (handleId.startsWith('out_') ? handleId : `out_${handleId}`)
+    if (portTypes[ptKey]) return portTypes[ptKey]
+    // Look up default from card ports
+    const key = handleId === 'out' ? null : (handleId.startsWith('out_') ? handleId.slice(4) : handleId)
+    if (key) {
+      const block = _getBlockSafe(blockType)
+      if (block) {
+        const card = getCardPorts(blockType, block.inputs, block.outputs)
+        const port = card.outputs.find((p) => p.key === key)
+        if (port) return port.type
+      }
+    }
+    return 'any'
+  }
+}
+
+/** Safe block lookup — avoids circular import issues. Set by registry init. */
+let _getBlockSafe = () => null
+export function setBlockResolver(fn) { _getBlockSafe = fn }
+
 // ─── Card Ports — what shows on the node card (simplified) ──────────────────
 // Key: blockType → { inputs: [{ key, type }], outputs: [{ key, type }] }
 //

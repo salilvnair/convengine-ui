@@ -5,11 +5,11 @@
  * Mirrors sim's workflow-block config panel: header, mode switch, and a
  * sequential list of SubBlockRenderer instances.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
-import { getTypeColor, getCardPorts, hasFeature, getCustomIOSections } from './io-registry'
+import { getTypeColor, getCardPorts, getAllPortTypes, hasFeature, getCustomIOSections } from './io-registry'
 import SubBlockRenderer from './SubBlockRenderer'
 import ConfirmModal from '../components/ConfirmModal'
 import WorkflowInspector from './WorkflowInspector'
@@ -224,6 +224,65 @@ function typeBadge(type) {
   )
 }
 
+/** Chip-style dropdown for picking a port type. */
+function TypeChipDropdown({ value, onChange, allTypes }) {
+  const [open, setOpen] = useState(false)
+  const [dropUp, setDropUp] = useState(false)
+  const ref = useRef(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  // Measure after paint: if menu overflows viewport bottom, flip upward
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current || !ref.current) return
+    const chipRect = ref.current.getBoundingClientRect()
+    const menuH = menuRef.current.offsetHeight
+    const spaceBelow = window.innerHeight - chipRect.bottom - 8
+    setDropUp(spaceBelow < menuH)
+  }, [open])
+
+  const c = getTypeColor(value)
+  return (
+    <div className="bs-type-chip-wrap" ref={ref}>
+      <button
+        className="bs-type-chip"
+        style={{ background: c.bg, borderColor: c.border, color: c.text }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {value || 'any'}
+        <svg width="8" height="8" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 3, flexShrink: 0 }}>
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div ref={menuRef} className={`bs-type-chip-menu ${dropUp ? 'bs-type-chip-menu-up' : ''}`}>
+          {allTypes.map((t) => {
+            const tc = getTypeColor(t)
+            const active = t === value
+            return (
+              <button
+                key={t}
+                className={`bs-type-chip-option ${active ? 'is-active' : ''}`}
+                style={{ color: tc.text }}
+                onClick={() => { onChange(t); setOpen(false) }}
+              >
+                <span className="bs-type-chip-dot" style={{ background: tc.solid }} />
+                {t}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Derives template variables available to an agent node based on upstream
  * connections and their last outputs.
@@ -275,13 +334,22 @@ function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
   const hasOutputs = cardOutputs.length > 0
   const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
   const hiddenPorts = (subBlockValues[node.id] || {})?._hiddenPorts || {}
+  const portTypes = (subBlockValues[node.id] || {})?._portTypes || {}
+  const allTypes = useMemo(() => getAllPortTypes(), [])
 
   const togglePort = (portKey) => {
     const next = { ...hiddenPorts, [portKey]: !hiddenPorts[portKey] }
-    // Remove falsy entries to keep the object clean
     for (const k of Object.keys(next)) { if (!next[k]) delete next[k] }
     setSubBlockValue(node.id, '_hiddenPorts', next)
   }
+
+  const setPortType = (portId, newType) => {
+    const next = { ...portTypes, [portId]: newType }
+    setSubBlockValue(node.id, '_portTypes', next)
+  }
+
+  /** Resolve effective type for a port — per-node override or default. */
+  const effectiveType = (portId, defaultType) => portTypes[portId] || defaultType
 
   // Upstream connections
   const upstreamEdges = edges.filter((e) => e.target === node.id)
@@ -375,10 +443,11 @@ function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
             {cardInputs.map((p) => {
               const portId = `in_${p.key}`
               const hidden = !!hiddenPorts[portId]
+              const type = effectiveType(portId, p.type)
               return (
                 <div key={p.key} className={`bs-io-slot ${hidden ? 'bs-io-slot-hidden' : ''}`}>
                   <span className="bs-io-slot-name">{p.key}</span>
-                  {typeBadge(p.type)}
+                  <TypeChipDropdown value={type} allTypes={allTypes} onChange={(t) => setPortType(portId, t)} />
                   <button
                     className={`bs-io-toggle ${hidden ? '' : 'is-on'}`}
                     onClick={() => togglePort(portId)}
@@ -404,10 +473,11 @@ function IOPanel({ node, cfg, nodes, edges, lastOutputs, subBlockValues }) {
             {cardOutputs.map((p) => {
               const portId = `out_${p.key}`
               const hidden = !!hiddenPorts[portId]
+              const type = effectiveType(portId, p.type)
               return (
                 <div key={p.key} className={`bs-io-slot ${hidden ? 'bs-io-slot-hidden' : ''}`}>
                   <span className="bs-io-slot-name">{p.key}</span>
-                  {typeBadge(p.type)}
+                  <TypeChipDropdown value={type} allTypes={allTypes} onChange={(t) => setPortType(portId, t)} />
                   <button
                     className={`bs-io-toggle ${hidden ? '' : 'is-on'}`}
                     onClick={() => togglePort(portId)}

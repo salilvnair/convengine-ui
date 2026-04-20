@@ -16,6 +16,7 @@ import { useWorkflowStore } from '../stores/workflow-store'
 import { DeployIcon } from '../components/icons'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
+import { isTypeCompatible, resolvePortType, setBlockResolver } from '../panel/io-registry'
 import WorkflowNode from './WorkflowNode'
 import ConfirmModal from '../components/ConfirmModal'
 import ContextMenu from '../sidenav/ContextMenu'
@@ -61,6 +62,40 @@ function CanvasInner() {
   const [paneMenu, setPaneMenu] = useState(null) // { x, y } | null
   const showMinimap = useWorkflowStore((s) => s.showMinimap)
   const edgeUpdateSuccessful = useRef(true)
+
+  // Wire up block resolver for io-registry (avoids circular imports)
+  useEffect(() => { setBlockResolver(getBlock) }, [])
+
+  // ─── Strict type-compatible connections (ComfyUI-style) ────────────────
+  const [connectingFrom, setConnectingFrom] = useState(null) // { nodeId, handleId, handleType }
+
+  const isValidConnection = useCallback((connection) => {
+    const { source, sourceHandle, target, targetHandle } = connection
+    if (source === target) return false
+    const store = useWorkflowStore.getState()
+    const srcType = resolvePortType(source, sourceHandle, 'source', store.subBlockValues, store.nodes)
+    const tgtType = resolvePortType(target, targetHandle, 'target', store.subBlockValues, store.nodes)
+    return isTypeCompatible(srcType, tgtType)
+  }, [])
+
+  const onConnectStart = useCallback((_, params) => {
+    setConnectingFrom({ nodeId: params.nodeId, handleId: params.handleId, handleType: params.handleType })
+    // Broadcast so nodes can highlight compatible handles
+    const store = useWorkflowStore.getState()
+    const dragType = resolvePortType(
+      params.nodeId, params.handleId,
+      params.handleType === 'source' ? 'source' : 'target',
+      store.subBlockValues, store.nodes
+    )
+    window.dispatchEvent(new CustomEvent('bs:connect-drag', {
+      detail: { dragging: true, nodeId: params.nodeId, handleType: params.handleType, portType: dragType }
+    }))
+  }, [])
+
+  const onConnectEnd = useCallback(() => {
+    setConnectingFrom(null)
+    window.dispatchEvent(new CustomEvent('bs:connect-drag', { detail: { dragging: false } }))
+  }, [])
 
   // Edge update (drag an edge endpoint to a different handle)
   const onEdgeUpdateStart = useCallback(() => {
@@ -477,6 +512,9 @@ function CanvasInner() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         onEdgesDelete={onEdgesDelete}
         onEdgeContextMenu={onEdgeContextMenu}
         onEdgeUpdateStart={onEdgeUpdateStart}

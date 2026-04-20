@@ -21,7 +21,7 @@ import { createPortal } from 'react-dom'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { getBlock } from '../blocks/registry'
-import { getTypeColor, getCardPorts } from '../panel/io-registry'
+import { getTypeColor, getCardPorts, isTypeCompatible } from '../panel/io-registry'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import InspectModal from '../components/InspectModal'
@@ -187,6 +187,20 @@ function WorkflowNode({ id, data, selected }) {
     return () => window.removeEventListener('bs:inspect-node', onInspect)
   }, [id, traceEntry])
 
+  // ─── Connection-drag type compatibility (ComfyUI-style glow/dim) ──────
+  const [connectDrag, setConnectDrag] = useState(null) // { handleType, portType } | null
+  useEffect(() => {
+    function onDrag(e) {
+      const d = e.detail
+      if (!d.dragging) { setConnectDrag(null); return }
+      // Skip the node we're dragging from
+      if (d.nodeId === id) { setConnectDrag(null); return }
+      setConnectDrag({ handleType: d.handleType, portType: d.portType })
+    }
+    window.addEventListener('bs:connect-drag', onDrag)
+    return () => window.removeEventListener('bs:connect-drag', onDrag)
+  }, [id])
+
   const requestDelete = () => setConfirmDelete(true)
 
   // Keyboard-driven rename (F2/Enter on the canvas) flips us into edit mode.
@@ -268,16 +282,23 @@ function WorkflowNode({ id, data, selected }) {
 
   // ─── Typed port strips (ComfyUI-style) — registry-driven ────────────────
   const hiddenPorts = values?._hiddenPorts || {}
+  const portTypes = values?._portTypes || {}
   const { inputPorts, outputPorts } = useMemo(() => {
     if (!cfg) return { inputPorts: [], outputPorts: [] }
     const card = getCardPorts(cfg.type, cfg.inputs, cfg.outputs)
     // For multi-output branching blocks, skip typed outputs
     const outs = outputHandles.length > 1 ? [] : (card.outputs || [])
     return {
-      inputPorts: (card.inputs || []).filter((p) => !hiddenPorts[`in_${p.key}`]).map((p) => ({ ...p, color: getTypeColor(p.type) })),
-      outputPorts: outs.filter((p) => !hiddenPorts[`out_${p.key}`]).map((p) => ({ ...p, color: getTypeColor(p.type) })),
+      inputPorts: (card.inputs || []).filter((p) => !hiddenPorts[`in_${p.key}`]).map((p) => {
+        const t = portTypes[`in_${p.key}`] || p.type
+        return { ...p, type: t, color: getTypeColor(t) }
+      }),
+      outputPorts: outs.filter((p) => !hiddenPorts[`out_${p.key}`]).map((p) => {
+        const t = portTypes[`out_${p.key}`] || p.type
+        return { ...p, type: t, color: getTypeColor(t) }
+      }),
     }
-  }, [cfg, outputHandles, hiddenPorts])
+  }, [cfg, outputHandles, hiddenPorts, portTypes])
 
   return (
     <>
@@ -359,25 +380,29 @@ function WorkflowNode({ id, data, selected }) {
         {/* ── Input port strip (ComfyUI-style) ── */}
         {inputPorts.length > 0 && (
           <div className="bs-port-strip bs-port-strip-in">
-            {inputPorts.map((p) => (
-              <div key={p.key} className="bs-port-row bs-port-row-in">
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={`in_${p.key}`}
-                  className="bs-port-handle bs-port-handle-in"
-                  style={{ background: p.color.solid }}
-                />
-                <span className="bs-port-dot" style={{ background: p.color.solid }} />
-                <span className="bs-port-name">{p.key}</span>
-                <span
-                  className="bs-port-type-badge"
-                  style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
-                >
-                  {p.type}
-                </span>
-              </div>
-            ))}
+            {inputPorts.map((p) => {
+              const compat = connectDrag && connectDrag.handleType === 'source'
+                ? isTypeCompatible(connectDrag.portType, p.type) : null
+              return (
+                <div key={p.key} className={`bs-port-row bs-port-row-in ${compat === false ? 'bs-port-incompatible' : ''} ${compat === true ? 'bs-port-compatible' : ''}`}>
+                  <Handle
+                    type="target"
+                    position={Position.Left}
+                    id={`in_${p.key}`}
+                    className="bs-port-handle bs-port-handle-in"
+                    style={{ background: p.color.solid }}
+                  />
+                  <span className="bs-port-dot" style={{ background: p.color.solid }} />
+                  <span className="bs-port-name">{p.key}</span>
+                  <span
+                    className="bs-port-type-badge"
+                    style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
+                  >
+                    {p.type}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -432,34 +457,38 @@ function WorkflowNode({ id, data, selected }) {
         {/* ── Output port strip (ComfyUI-style) — single-output blocks ── */}
         {outputPorts.length > 0 && (
           <div className="bs-port-strip bs-port-strip-out">
-            {outputPorts.map((p, i) => (
-              <div key={p.key} className="bs-port-row bs-port-row-out">
-                <span
-                  className="bs-port-type-badge"
-                  style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
-                >
-                  {p.type}
-                </span>
-                <span className="bs-port-name">{p.key}</span>
-                <span className="bs-port-dot" style={{ background: p.color.solid }} />
-                <Handle
-                  type="source"
-                  position={Position.Right}
-                  id={p.key}
-                  className="bs-port-handle bs-port-handle-out"
-                  style={{ background: p.color.solid }}
-                />
-                {/* Backward-compat: first output also responds to legacy "out" handle ID */}
-                {i === 0 && p.key !== 'out' && (
+            {outputPorts.map((p, i) => {
+              const compat = connectDrag && connectDrag.handleType === 'target'
+                ? isTypeCompatible(p.type, connectDrag.portType) : null
+              return (
+                <div key={p.key} className={`bs-port-row bs-port-row-out ${compat === false ? 'bs-port-incompatible' : ''} ${compat === true ? 'bs-port-compatible' : ''}`}>
+                  <span
+                    className="bs-port-type-badge"
+                    style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
+                  >
+                    {p.type}
+                  </span>
+                  <span className="bs-port-name">{p.key}</span>
+                  <span className="bs-port-dot" style={{ background: p.color.solid }} />
                   <Handle
                     type="source"
                     position={Position.Right}
-                    id="out"
-                    className="bs-port-handle-hidden"
+                    id={p.key}
+                    className="bs-port-handle bs-port-handle-out"
+                    style={{ background: p.color.solid }}
                   />
-                )}
-              </div>
-            ))}
+                  {/* Backward-compat: first output also responds to legacy "out" handle ID */}
+                  {i === 0 && p.key !== 'out' && (
+                    <Handle
+                      type="source"
+                      position={Position.Right}
+                      id="out"
+                      className="bs-port-handle-hidden"
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
