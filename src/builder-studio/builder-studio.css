@@ -2309,6 +2309,90 @@ button.bs-palette-group-toggle:hover {
   background: rgba(99,102,241,0.1);
 }
 
+/* ─── Skill chip popover ─── */
+.bs-skill-chip-wrap { position: relative; }
+.bs-node-chip-clickable { cursor: pointer; }
+.bs-node-chip-clickable:hover {
+  color: var(--bs-accent);
+  border-color: rgba(99,102,241,0.45);
+  background: rgba(99,102,241,0.1);
+}
+/* Inline skill list (≤5 skills) — shown directly on the node card */
+.bs-skill-inline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.bs-skill-inline-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border: 1px solid rgba(148,163,184,0.12);
+  background: rgba(148,163,184,0.05);
+  border-radius: 6px;
+  color: var(--text-primary, #e5e7eb);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.bs-skill-inline-item:hover {
+  background: rgba(99,102,241,0.12);
+  border-color: rgba(99,102,241,0.35);
+}
+/* Popover (>5 skills) */
+.bs-skill-popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  max-width: 240px;
+  background: #1e1e2e;
+  border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 4px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bs-skill-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-primary, #e5e7eb);
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms ease;
+}
+.bs-skill-popover-item:hover {
+  background: rgba(99,102,241,0.15);
+}
+.bs-skill-popover-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.bs-skill-popover-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.bs-skill-popover-lang {
+  font-size: 10px;
+  color: var(--text-secondary, #94a3b8);
+  opacity: 0.7;
+}
+
 /* ---------- Settings tab ---------- */
 .bs-settings-section-head {
   display: flex; align-items: center; gap: 8px;

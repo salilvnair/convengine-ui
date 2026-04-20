@@ -45,14 +45,15 @@ export function getAllPortTypes() {
 }
 
 // ─── Type Compatibility (ComfyUI-style strict connections) ──────────────────
-// `any` and `json` accept everything. Primitives only match their own kind
-// or json/any. Array matches array, json, or any.
+// Strict: primitives only match their own kind + `any`.
+// `json` accepts json, array, and any.  `array` accepts array and any.
+// `any` is the universal wildcard — connects to everything.
 const compat = {
-  string:  new Set(['string', 'json', 'any']),
-  number:  new Set(['number', 'json', 'any']),
-  boolean: new Set(['boolean', 'json', 'any']),
-  json:    new Set(['string', 'number', 'boolean', 'json', 'array', 'any']),
-  array:   new Set(['array', 'json', 'any']),
+  string:  new Set(['string', 'any']),
+  number:  new Set(['number', 'any']),
+  boolean: new Set(['boolean', 'any']),
+  json:    new Set(['json', 'array', 'any']),
+  array:   new Set(['array', 'any']),
   any:     new Set(['string', 'number', 'boolean', 'json', 'array', 'any']),
 }
 

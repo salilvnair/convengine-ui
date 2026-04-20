@@ -20,8 +20,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
+import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
 import { getTypeColor, getCardPorts, isTypeCompatible } from '../panel/io-registry'
+import { useTabsStore, skillTabId } from '../stores/tabs-store'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import InspectModal from '../components/InspectModal'
@@ -646,7 +648,7 @@ function renderInlineEditor(sb, value, onChange) {
       const arr = Array.isArray(value)
         ? value
         : (typeof value === 'string' ? safeJsonArray(value) : [])
-      return <SummaryChip text={arr.length ? `${arr.length} attached` : 'none'} />
+      return <SkillChip skillIds={arr} />
     }
 
     default:
@@ -672,6 +674,90 @@ function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
       }}
       {...rest}
     />
+  )
+}
+
+/** Skill chip: ≤5 skills rendered inline on the card, >5 shows a popover on click.
+ *  Each skill item opens the SkillEditor tab. */
+function SkillChip({ skillIds }) {
+  const skills = useWorkspaceStore((s) => s.skills)
+  const openTab = useTabsStore((s) => s.openTab)
+  const [open, setOpen] = useState(false)
+  const chipRef = useRef(null)
+  const popRef = useRef(null)
+
+  const resolved = useMemo(() => {
+    if (!skillIds.length) return []
+    return skillIds
+      .map((id) => skills.find((s) => s.id === id))
+      .filter(Boolean)
+  }, [skillIds, skills])
+
+  // Close popover on outside click (only used for >5 mode)
+  useEffect(() => {
+    if (!open) return
+    function handler(e) {
+      if (chipRef.current?.contains(e.target) || popRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [open])
+
+  function openSkill(skill, e) {
+    e.stopPropagation()
+    openTab({ id: skillTabId(skill.id), kind: 'skill', entityId: skill.id, title: skill.name })
+    setOpen(false)
+  }
+
+  if (!resolved.length) {
+    return <span className="bs-node-chip">none</span>
+  }
+
+  // ≤5 skills: render inline skill cards directly on the node
+  if (resolved.length <= 5) {
+    return (
+      <div className="bs-skill-inline-list">
+        {resolved.map((sk) => (
+          <button
+            key={sk.id}
+            className="bs-skill-inline-item"
+            onClick={(e) => openSkill(sk, e)}
+          >
+            <span className="bs-skill-popover-icon">⚡</span>
+            <span className="bs-skill-popover-name">{sk.name}</span>
+            <span className="bs-skill-popover-lang">{sk.language}</span>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  // >5 skills: show count chip with popover on click
+  return (
+    <span className="bs-skill-chip-wrap" ref={chipRef}>
+      <span
+        className="bs-node-chip bs-node-chip-clickable"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+      >
+        {resolved.length} attached
+      </span>
+      {open && (
+        <div className="bs-skill-popover" ref={popRef}>
+          {resolved.map((sk) => (
+            <button
+              key={sk.id}
+              className="bs-skill-popover-item"
+              onClick={(e) => openSkill(sk, e)}
+            >
+              <span className="bs-skill-popover-icon">⚡</span>
+              <span className="bs-skill-popover-name">{sk.name}</span>
+              <span className="bs-skill-popover-lang">{sk.language}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
   )
 }
 

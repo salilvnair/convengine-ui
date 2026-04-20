@@ -22,6 +22,22 @@ import { callTool as callMcpTool } from '../mcp/mcp-client'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useLlmConfigStore } from '../stores/llm-config-store'
+import { resolvePortType, isTypeCompatible } from '../panel/io-registry'
+
+// Validate a runtime value against a declared port type.
+// Returns an error string if mismatch, or null if OK.
+function checkValueType(value, expectedType) {
+  if (!expectedType || expectedType === 'any') return null
+  if (value == null) return null // null/undefined pass through (may be optional)
+  switch (expectedType) {
+    case 'string':  return typeof value !== 'string'  ? `expected string, got ${typeof value}` : null
+    case 'number':  return typeof value !== 'number'  ? `expected number, got ${typeof value}` : null
+    case 'boolean': return typeof value !== 'boolean' ? `expected boolean, got ${typeof value}` : null
+    case 'json':    return (typeof value !== 'object' || Array.isArray(value)) ? `expected json object, got ${Array.isArray(value) ? 'array' : typeof value}` : null
+    case 'array':   return !Array.isArray(value) ? `expected array, got ${typeof value}` : null
+    default:        return null
+  }
+}
 
 export async function executeGraph({ workflow, inputs, onProgress }) {
   const { nodes = [], edges = [], subBlockValues = {} } = workflow
@@ -121,6 +137,30 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         const key = th.startsWith('in_') ? th.slice(3) : th
         inputsByHandle[key] = resolveEdgeOutput(e)
       }
+      // ── Runtime port type validation ──────────────────────────────
+      for (const e of inEdges) {
+        const srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
+        const th = e.targetHandle || 'in'
+        const tgtType = resolvePortType(n.id, th, 'target', subBlockValues, nodes)
+        if (!isTypeCompatible(srcType, tgtType)) {
+          const srcTitle = nodesById[e.source]?.data?.title || e.source
+          const tgtTitle = n.data?.title || n.id
+          throw new Error(
+            `Type mismatch: "${srcTitle}" output (${srcType}) is not compatible with "${tgtTitle}" input (${tgtType})`
+          )
+        }
+        // Also validate actual runtime value matches declared target type
+        const val = resolveEdgeOutput(e)
+        const rtErr = checkValueType(val, tgtType)
+        if (rtErr) {
+          const srcTitle = nodesById[e.source]?.data?.title || e.source
+          const tgtTitle = n.data?.title || n.id
+          throw new Error(
+            `Runtime type error: "${srcTitle}" → "${tgtTitle}": ${rtErr}`
+          )
+        }
+      }
+
       const values = subBlockValues[n.id] || {}
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
       try {
