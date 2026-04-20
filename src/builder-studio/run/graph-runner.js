@@ -137,33 +137,33 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         const key = th.startsWith('in_') ? th.slice(3) : th
         inputsByHandle[key] = resolveEdgeOutput(e)
       }
-      // ── Runtime port type validation ──────────────────────────────
-      for (const e of inEdges) {
-        const srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
-        const th = e.targetHandle || 'in'
-        const tgtType = resolvePortType(n.id, th, 'target', subBlockValues, nodes)
-        if (!isTypeCompatible(srcType, tgtType)) {
-          const srcTitle = nodesById[e.source]?.data?.title || e.source
-          const tgtTitle = n.data?.title || n.id
-          throw new Error(
-            `Type mismatch: "${srcTitle}" output (${srcType}) is not compatible with "${tgtTitle}" input (${tgtType})`
-          )
-        }
-        // Also validate actual runtime value matches declared target type
-        const val = resolveEdgeOutput(e)
-        const rtErr = checkValueType(val, tgtType)
-        if (rtErr) {
-          const srcTitle = nodesById[e.source]?.data?.title || e.source
-          const tgtTitle = n.data?.title || n.id
-          throw new Error(
-            `Runtime type error: "${srcTitle}" → "${tgtTitle}": ${rtErr}`
-          )
-        }
-      }
-
       const values = subBlockValues[n.id] || {}
       onProgress?.({ type: 'start', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title, values })
       try {
+        // ── Runtime port type validation ──────────────────────────────
+        for (const e of inEdges) {
+          const srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
+          const th = e.targetHandle || 'in'
+          const tgtType = resolvePortType(n.id, th, 'target', subBlockValues, nodes)
+          if (!isTypeCompatible(srcType, tgtType)) {
+            const srcTitle = nodesById[e.source]?.data?.title || e.source
+            const tgtTitle = n.data?.title || n.id
+            throw new Error(
+              `Type mismatch: "${srcTitle}" output (${srcType}) is not compatible with "${tgtTitle}" input (${tgtType})`
+            )
+          }
+          // Also validate actual runtime value matches declared target type
+          const val = resolveEdgeOutput(e)
+          const rtErr = checkValueType(val, tgtType)
+          if (rtErr) {
+            const srcTitle = nodesById[e.source]?.data?.title || e.source
+            const tgtTitle = n.data?.title || n.id
+            throw new Error(
+              `Runtime type error: "${srcTitle}" → "${tgtTitle}": ${rtErr}`
+            )
+          }
+        }
+
         const ran = await runNode({ node: n, values, input, outputs, inputsByHandle })
         // runNode may return either a raw value or `{ __meta, value }` so that
         // agent/mcp blocks can attach rich debugging info (systemPrompt,

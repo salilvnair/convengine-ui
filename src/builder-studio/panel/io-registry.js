@@ -95,6 +95,14 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
         if (port) return port.type
       }
     }
+    // For single-input "in" handle, check if the card has exactly one input
+    if (handleId === 'in') {
+      const block = _getBlockSafe(blockType)
+      if (block) {
+        const card = getCardPorts(blockType, block.inputs, block.outputs)
+        if (card.inputs.length === 1) return card.inputs[0].type
+      }
+    }
     return 'any'
   } else {
     // Output handle: id is the raw key ("data", "status") or "out"
@@ -109,6 +117,14 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
         const card = getCardPorts(blockType, block.inputs, block.outputs)
         const port = card.outputs.find((p) => p.key === key)
         if (port) return port.type
+      }
+    }
+    // For single-output "out" handle, check if the card has exactly one output
+    if (handleId === 'out') {
+      const block = _getBlockSafe(blockType)
+      if (block) {
+        const card = getCardPorts(blockType, block.inputs, block.outputs)
+        if (card.outputs.length === 1) return card.outputs[0].type
       }
     }
     return 'any'

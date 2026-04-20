@@ -22,7 +22,7 @@ import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { getBlock } from '../blocks/registry'
-import { getTypeColor, getCardPorts, isTypeCompatible } from '../panel/io-registry'
+import { getTypeColor, getCardPorts, getAllPortTypes, isTypeCompatible } from '../panel/io-registry'
 import { useTabsStore, skillTabId } from '../stores/tabs-store'
 import ContextMenu from '../sidenav/ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
@@ -396,12 +396,7 @@ function WorkflowNode({ id, data, selected }) {
                   />
                   <span className="bs-port-dot" style={{ background: p.color.solid }} />
                   <span className="bs-port-name">{p.key}</span>
-                  <span
-                    className="bs-port-type-badge"
-                    style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
-                  >
-                    {p.type}
-                  </span>
+                  <PortTypeBadge type={p.type} color={p.color} portId={`in_${p.key}`} nodeId={id} />
                 </div>
               )
             })}
@@ -464,12 +459,7 @@ function WorkflowNode({ id, data, selected }) {
                 ? isTypeCompatible(p.type, connectDrag.portType) : null
               return (
                 <div key={p.key} className={`bs-port-row bs-port-row-out ${compat === false ? 'bs-port-incompatible' : ''} ${compat === true ? 'bs-port-compatible' : ''}`}>
-                  <span
-                    className="bs-port-type-badge"
-                    style={{ background: p.color.bg, borderColor: p.color.border, color: p.color.text }}
-                  >
-                    {p.type}
-                  </span>
+                  <PortTypeBadge type={p.type} color={p.color} portId={`out_${p.key}`} nodeId={id} />
                   <span className="bs-port-name">{p.key}</span>
                   <span className="bs-port-dot" style={{ background: p.color.solid }} />
                   <Handle
@@ -755,6 +745,71 @@ function SkillChip({ skillIds }) {
               <span className="bs-skill-popover-lang">{sk.language}</span>
             </button>
           ))}
+        </div>
+      )}
+    </span>
+  )
+}
+
+/** Clickable type badge on card ports — opens a dropdown to change the port type. */
+function PortTypeBadge({ type, color, portId, nodeId }) {
+  const setSubBlockValue = useWorkflowStore((s) => s.setSubBlockValue)
+  const portTypes = useWorkflowStore((s) => s.subBlockValues[nodeId]?._portTypes || {})
+  const [open, setOpen] = useState(false)
+  const [dropUp, setDropUp] = useState(false)
+  const wrapRef = useRef(null)
+  const menuRef = useRef(null)
+  const allTypes = useMemo(() => getAllPortTypes(), [])
+
+  // Measure and flip if near bottom
+  useEffect(() => {
+    if (!open || !wrapRef.current) return
+    const rect = wrapRef.current.getBoundingClientRect()
+    setDropUp(rect.bottom + 150 > window.innerHeight)
+  }, [open])
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    function handler(e) {
+      if (wrapRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [open])
+
+  function pick(t, e) {
+    e.stopPropagation()
+    const next = { ...portTypes, [portId]: t }
+    setSubBlockValue(nodeId, '_portTypes', next)
+    setOpen(false)
+  }
+
+  return (
+    <span className="bs-port-badge-wrap" ref={wrapRef}>
+      <span
+        className="bs-port-type-badge bs-port-type-badge-clickable"
+        style={{ background: color.bg, borderColor: color.border, color: color.text }}
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+      >
+        {type}
+      </span>
+      {open && (
+        <div className={`bs-port-badge-menu ${dropUp ? 'bs-port-badge-menu-up' : ''}`} ref={menuRef}>
+          {allTypes.map((t) => {
+            const c = getTypeColor(t)
+            return (
+              <button
+                key={t}
+                className={`bs-type-chip-option ${t === type ? 'is-active' : ''}`}
+                onClick={(e) => pick(t, e)}
+              >
+                <span className="bs-type-chip-dot" style={{ background: c.solid }} />
+                {t}
+              </button>
+            )
+          })}
         </div>
       )}
     </span>
