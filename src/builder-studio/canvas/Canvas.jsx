@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, updateEdge } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
-import { DeployIcon } from '../components/icons'
+import { DeployIcon, PlayIcon } from '../components/icons'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useTabsStore } from '../stores/tabs-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
@@ -235,13 +235,7 @@ function CanvasInner() {
       </svg>
     )
   }
-  function RunIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="5 3 19 12 5 21 5 3" fill="#22c55e" opacity="0.15" />
-      </svg>
-    )
-  }
+  const RunIcon = PlayIcon
   function SaveIcon({ className }) {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -352,7 +346,7 @@ function CanvasInner() {
           id: 'actions-row',
           items: [
             {
-              id: 'action-run', label: 'Run', icon: RunIcon, iconColor: '#22c55e',
+              id: 'action-run', label: 'Run', icon: RunIcon, iconColor: '#22c55e', disabled: nodes.length < 2 || !activeWorkflow,
               onSelect: () => window.dispatchEvent(new CustomEvent('bs:action', { detail: 'run' })),
             },
             {
