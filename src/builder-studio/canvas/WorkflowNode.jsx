@@ -16,7 +16,7 @@
  * each subBlock as a label→value row. Handles are centered on the sides
  * (left = target, right = source).
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
@@ -83,7 +83,6 @@ function conditionPasses(condition, vals) {
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
   const removeNode = useWorkflowStore((s) => s.removeNode)
-  const removeNodes = useWorkflowStore((s) => s.removeNodes)
   const duplicateNode = useWorkflowStore((s) => s.duplicateNode)
   const duplicateNodes = useWorkflowStore((s) => s.duplicateNodes)
   const disconnectNode = useWorkflowStore((s) => s.disconnectNode)
@@ -125,17 +124,31 @@ function WorkflowNode({ id, data, selected }) {
   // Height is ALWAYS auto (fit-content) unless the user explicitly resized
   // via the resize handles. We track this with data.userResized so a plain
   // page refresh never locks in a stale saved height.
-  const [nodeW, setNodeW] = useState(data.width || DEFAULT_W)
-  const [nodeH, setNodeH] = useState(data.userResized ? (data.height || undefined) : undefined)
+  //
+  // nodeW/nodeH are local overrides that the resize handler writes. We seed
+  // them from data on mount, then the resize handler owns them until the node
+  // is externally updated (undo / load). We detect that via a ref-based
+  // comparison so we never call setState inside an effect.
+  const [nodeW, setNodeW] = useState(() => data.width || DEFAULT_W)
+  const [nodeH, setNodeH] = useState(() => data.userResized ? (data.height || undefined) : undefined)
   const [resizing, setResizing] = useState(false)
   const [resizeMode, setResizeMode] = useState(false) // right-click → Resize toggles this
 
-  // Sync width if changed externally (undo, load). Only sync height if user resized.
-  useEffect(() => {
+  // Sync dimensions when the node's data changes externally (undo / load).
+  // Using refs to track previous values avoids setState-in-effect.
+  const prevDataW = useRef(data.width)
+  const prevDataH = useRef(data.height)
+  const prevUserResized = useRef(data.userResized)
+  if (prevDataW.current !== data.width) {
+    prevDataW.current = data.width
     if (data.width) setNodeW(data.width)
+  }
+  if (prevUserResized.current !== data.userResized || prevDataH.current !== data.height) {
+    prevUserResized.current = data.userResized
+    prevDataH.current = data.height
     if (data.userResized && data.height) setNodeH(data.height)
-    if (!data.userResized) setNodeH(undefined)
-  }, [data.width, data.height, data.userResized])
+    else if (!data.userResized) setNodeH(undefined)
+  }
 
   /**
    * Generic resize handler. `edges` indicates which edges are being dragged:
@@ -238,12 +251,12 @@ function WorkflowNode({ id, data, selected }) {
   const requestDelete = () => setConfirmDelete(true)
 
   // Keyboard-driven rename (F2/Enter on the canvas) flips us into edit mode.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (renamingNodeId === id) setEditing(true)
   }, [renamingNodeId, id])
 
   // Exit resize mode when node is deselected
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!selected) setResizeMode(false)
   }, [selected])
 
@@ -258,7 +271,7 @@ function WorkflowNode({ id, data, selected }) {
 
   // When visible rows change and the node has a stored height, clear it so it auto-fits
   const prevRowCount = useRef(visibleSubBlockCount)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (prevRowCount.current !== visibleSubBlockCount && nodeH != null) {
       setNodeH(undefined)
       resizeNodeStore(id, nodeW, undefined)
@@ -523,7 +536,7 @@ function WorkflowNode({ id, data, selected }) {
         {/* ── Output port strip (ComfyUI-style) — single-output blocks ── */}
         {outputPorts.length > 0 && (
           <div className="bs-port-strip bs-port-strip-out">
-            {outputPorts.map((p, i) => {
+            {outputPorts.map((p) => {
               const compat = connectDrag && connectDrag.handleType === 'target'
                 ? isTypeCompatible(p.type, connectDrag.portType) : null
               return (
@@ -921,7 +934,7 @@ function PortTypeBadge({ type, color, portId, nodeId }) {
   const allTypes = useMemo(() => getAllPortTypes(), [])
 
   // Measure and flip if near bottom
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !wrapRef.current) return
     const rect = wrapRef.current.getBoundingClientRect()
     setDropUp(rect.bottom + 150 > window.innerHeight)

@@ -11,7 +11,7 @@
  * (Both are suppressed while typing inside inputs/textareas/contentEditable.)
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow, updateEdge } from 'reactflow'
+import ReactFlow, { Background, Controls, MiniMap, ReactFlowProvider, useReactFlow } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { DeployIcon, PlayIcon } from '../components/icons'
@@ -38,6 +38,81 @@ function isEditableTarget(t) {
   // vanilla-jsoneditor / CodeMirror roots
   if (t.closest?.('.cm-editor, .bs-jsoneditor, [contenteditable="true"]')) return true
   return false
+}
+
+/* ── Canvas icon components — defined outside CanvasInner so they are stable
+   across renders and don't trigger "component created during render" warnings. ── */
+function AddBlockIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" stroke="#22d3ee" /><path d="M12 8v8m-4-4h8" stroke="#5eead4" />
+    </svg>
+  )
+}
+function HandIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 11V6a2 2 0 0 0-4 0v5"/>
+      <path d="M14 10V4a2 2 0 0 0-4 0v6"/>
+      <path d="M10 10.5V6a2 2 0 0 0-4 0v8"/>
+      <path d="M18 11a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-2c-1.1 0-2-.9-2-2v-4"/>
+      <path d="M6 14a2 2 0 0 1 2-2h.5"/>
+    </svg>
+  )
+}
+function SelectCursorIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+      <path d="m13 13 6 6"/>
+    </svg>
+  )
+}
+function ActionsIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#818cf8"/><path d="M2 17l10 5 10-5" stroke="#c084fc"/><path d="M2 12l10 5 10-5" stroke="#a78bfa"/>
+    </svg>
+  )
+}
+function SaveIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="#818cf8" fill="#818cf8" fillOpacity="0.1"/>
+      <polyline points="17 21 17 13 7 13 7 21" stroke="#818cf8"/><polyline points="7 3 7 8 15 8" stroke="#a5b4fc"/>
+    </svg>
+  )
+}
+function ExportIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#f59e0b"/>
+      <polyline points="7 10 12 15 17 10" stroke="#fbbf24"/><line x1="12" y1="15" x2="12" y2="3" stroke="#fbbf24"/>
+    </svg>
+  )
+}
+function DisconnectAllIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18" stroke="#f87171"/><path d="m6 6 12 12" stroke="#f87171"/>
+    </svg>
+  )
+}
+function FitViewIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" stroke="currentColor"/><path d="M21 8V5a2 2 0 0 0-2-2h-3" stroke="currentColor"/>
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor"/><path d="M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor"/>
+    </svg>
+  )
+}
+function ZoomResetIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" stroke="currentColor"/><path d="m21 21-4.3-4.3" stroke="currentColor"/>
+      <path d="M8 11h6" stroke="currentColor"/><path d="M11 8v6" stroke="currentColor"/>
+    </svg>
+  )
 }
 
 function CanvasInner() {
@@ -100,7 +175,7 @@ function CanvasInner() {
   }, [nodesById])
 
   // ─── Strict type-compatible connections (ComfyUI-style) ────────────────
-  const [connectingFrom, setConnectingFrom] = useState(null) // { nodeId, handleId, handleType }
+  const [, setConnectingFrom] = useState(null) // { nodeId, handleId, handleType } — set for side-effect only
 
   const isValidConnection = useCallback((connection) => {
     const { source, sourceHandle, target, targetHandle } = connection
@@ -195,86 +270,8 @@ function CanvasInner() {
     []
   )
 
-  // ── Pane right-click: "Add Block" menu with groups ──
-
-  /* Add-block icon (plus in circle) — teal */
-  function AddBlockIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" stroke="#22d3ee" /><path d="M12 8v8m-4-4h8" stroke="#5eead4" />
-      </svg>
-    )
-  }
-
-  /* Pan / Select mode icons */
-  function HandIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 11V6a2 2 0 0 0-4 0v5"/>
-        <path d="M14 10V4a2 2 0 0 0-4 0v6"/>
-        <path d="M10 10.5V6a2 2 0 0 0-4 0v8"/>
-        <path d="M18 11a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-2c-1.1 0-2-.9-2-2v-4"/>
-        <path d="M6 14a2 2 0 0 1 2-2h.5"/>
-      </svg>
-    )
-  }
-  function SelectCursorIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-        <path d="m13 13 6 6"/>
-      </svg>
-    )
-  }
-
-  /* Action icons for context menu — indigo layers */
-  function ActionsIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#818cf8"/><path d="M2 17l10 5 10-5" stroke="#c084fc"/><path d="M2 12l10 5 10-5" stroke="#a78bfa"/>
-      </svg>
-    )
-  }
   const RunIcon = PlayIcon
-  function SaveIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="#818cf8" fill="#818cf8" fillOpacity="0.1"/>
-        <polyline points="17 21 17 13 7 13 7 21" stroke="#818cf8"/><polyline points="7 3 7 8 15 8" stroke="#a5b4fc"/>
-      </svg>
-    )
-  }
-  function ExportIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#f59e0b"/>
-        <polyline points="7 10 12 15 17 10" stroke="#fbbf24"/><line x1="12" y1="15" x2="12" y2="3" stroke="#fbbf24"/>
-      </svg>
-    )
-  }
-  function DisconnectAllIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 6 6 18" stroke="#f87171"/><path d="m6 6 12 12" stroke="#f87171"/>
-      </svg>
-    )
-  }
-  function FitViewIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 3H5a2 2 0 0 0-2 2v3" stroke="currentColor"/><path d="M21 8V5a2 2 0 0 0-2-2h-3" stroke="currentColor"/>
-        <path d="M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor"/><path d="M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor"/>
-      </svg>
-    )
-  }
-  function ZoomResetIcon({ className }) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" stroke="currentColor"/><path d="m21 21-4.3-4.3" stroke="currentColor"/>
-        <path d="M8 11h6" stroke="currentColor"/><path d="M11 8v6" stroke="currentColor"/>
-      </svg>
-    )
-  }
+
   const existingTypes = useMemo(() => new Set(nodes.map((n) => n.data?.blockType)), [nodes])
 
   const buildBlockMenuItems = useCallback((clientX, clientY) => {
@@ -365,7 +362,9 @@ function CanvasInner() {
                 if (!activeWorkflow) return
                 // Strip ReactFlow runtime props from nodes/edges before export
                 // so the file matches demo-workflow.json shape exactly.
+                // eslint-disable-next-line no-unused-vars
                 const cleanNodes = nodes.map(({ width, height, dragging, selected, positionAbsolute, ...n }) => n)
+                // eslint-disable-next-line no-unused-vars
                 const cleanEdges = edges.map(({ selected, ...e }) => e)
                 const exportData = {
                   _comment: `Exported from ConvEngine Agent Builder Studio — ${new Date().toISOString()}`,
@@ -413,7 +412,7 @@ function CanvasInner() {
         },
       ],
     }
-  }, [addNode, screenToFlowPosition, existingTypes, activeWorkflow, nodes, edges, subBlockValues, canvasMode, setCanvasMode])
+  }, [addNode, screenToFlowPosition, existingTypes, activeWorkflow, nodes, edges, subBlockValues, canvasMode, setCanvasMode, fitView, zoomTo])
 
   // Capture-phase contextmenu listener on document.
   // ReactFlow + selectionOnDrag swallows contextmenu in its Pane component

@@ -14,7 +14,6 @@ import SubBlockRenderer from './SubBlockRenderer'
 import ConfirmModal from '../components/ConfirmModal'
 import WorkflowInspector from './WorkflowInspector'
 import BlockDocViewer from '../docs/BlockDocViewer'
-import { hasBlockDocs } from '../docs/block-docs-registry'
 import '../docs/block-docs-entries' // register all block docs
 
 const EMPTY = Object.freeze({})
@@ -49,6 +48,7 @@ export default function Inspector() {
 
   const node = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null
   const cfg = node ? getBlock(node.data.blockType) : null
+  const cfgKey = node ? node.data.blockType : null
 
   const availableModes = useMemo(() => {
     if (!cfg) return []
@@ -57,7 +57,8 @@ export default function Inspector() {
       if (sb.mode === 'advanced' || sb.mode === 'trigger-advanced') set.add('advanced')
     }
     return ['basic', 'advanced'].filter((m) => set.has(m))
-  }, [cfg])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfgKey])
 
   const visibleSubBlocks = useMemo(() => {
     if (!cfg) return []
