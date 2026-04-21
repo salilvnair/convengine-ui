@@ -33,18 +33,18 @@ export const AgentBlock = {
   icon: AgentIcon,
   subBlocks: [
     {
-      id: 'messages',
-      title: 'Messages',
-      type: 'messages-input',
-      placeholder: 'Enter messages...',
-      wandConfig: {
-        enabled: true,
-        maintainHistory: true,
-        prompt:
-          'Generate a JSON array of {role, content} messages for an LLM agent based on user intent. Return ONLY the JSON array.',
-        placeholder: 'Describe what you want to create or change...',
-        generationType: 'json-object',
-      },
+      id: 'systemPrompt',
+      title: 'System Prompt',
+      type: 'long-input',
+      placeholder: 'You are a helpful assistant…',
+      rows: 4,
+    },
+    {
+      id: 'userPrompt',
+      title: 'User Prompt',
+      type: 'long-input',
+      placeholder: 'User message or template with {{variables}}…',
+      rows: 3,
     },
     {
       id: 'model',

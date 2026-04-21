@@ -3345,14 +3345,51 @@ button.bs-palette-group-toggle:hover {
   width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
 }
 
+[data-theme='light'] .bs-port-badge-menu {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+[data-theme='light'] .bs-type-chip-option { color: #1e293b; }
+[data-theme='light'] .bs-type-chip-option:hover { background: rgba(0,0,0,0.07) !important; }
+[data-theme='light'] .bs-type-chip-option.is-active { background: rgba(0,0,0,0.10) !important; }
+
+/* Per-type tinted hover + active in light mode */
+[data-theme='light'] .bs-type-chip-option[data-iotype='string']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='string'].is-active  { background: rgba(34,197,94,0.15)  !important; color: #15803d !important; }
+[data-theme='light'] .bs-type-chip-option[data-iotype='number']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='number'].is-active  { background: rgba(245,158,11,0.15) !important; color: #b45309 !important; }
+[data-theme='light'] .bs-type-chip-option[data-iotype='boolean']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='boolean'].is-active { background: rgba(244,114,182,0.15) !important; color: #be185d !important; }
+[data-theme='light'] .bs-type-chip-option[data-iotype='json']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='json'].is-active    { background: rgba(99,102,241,0.15)  !important; color: #4338ca !important; }
+[data-theme='light'] .bs-type-chip-option[data-iotype='array']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='array'].is-active   { background: rgba(14,165,233,0.15)  !important; color: #0369a1 !important; }
+[data-theme='light'] .bs-type-chip-option[data-iotype='any']:hover,
+[data-theme='light'] .bs-type-chip-option[data-iotype='any'].is-active     { background: rgba(148,163,184,0.18) !important; color: #475569 !important; }
+
+/* Same tinted hover + active in dark mode */
+.bs-type-chip-option[data-iotype='string']:hover,
+.bs-type-chip-option[data-iotype='string'].is-active  { background: rgba(34,197,94,0.15)  !important; }
+.bs-type-chip-option[data-iotype='number']:hover,
+.bs-type-chip-option[data-iotype='number'].is-active  { background: rgba(245,158,11,0.15) !important; }
+.bs-type-chip-option[data-iotype='boolean']:hover,
+.bs-type-chip-option[data-iotype='boolean'].is-active { background: rgba(244,114,182,0.15) !important; }
+.bs-type-chip-option[data-iotype='json']:hover,
+.bs-type-chip-option[data-iotype='json'].is-active    { background: rgba(99,102,241,0.15)  !important; }
+.bs-type-chip-option[data-iotype='array']:hover,
+.bs-type-chip-option[data-iotype='array'].is-active   { background: rgba(14,165,233,0.15)  !important; }
+.bs-type-chip-option[data-iotype='any']:hover,
+.bs-type-chip-option[data-iotype='any'].is-active     { background: rgba(148,163,184,0.12) !important; }
+
 /* ── Type chip / port badge — saturated dark text + stronger bg in light mode ── */
-/* Uses !important to override inline style={{ color / background / borderColor: ... }} */
-[data-theme='light'] [data-iotype='string']  { color: #15803d !important; background: rgba(34,197,94,0.10) !important; border-color: rgba(21,128,61,0.35) !important; }
-[data-theme='light'] [data-iotype='number']  { color: #b45309 !important; background: rgba(245,158,11,0.10) !important; border-color: rgba(180,83,9,0.35) !important; }
-[data-theme='light'] [data-iotype='boolean'] { color: #be185d !important; background: rgba(244,114,182,0.10) !important; border-color: rgba(190,24,93,0.30) !important; }
-[data-theme='light'] [data-iotype='json']    { color: #4338ca !important; background: rgba(99,102,241,0.10) !important; border-color: rgba(67,56,202,0.35) !important; }
-[data-theme='light'] [data-iotype='array']   { color: #0369a1 !important; background: rgba(14,165,233,0.10) !important; border-color: rgba(3,105,161,0.30) !important; }
-[data-theme='light'] [data-iotype='any']     { color: #475569 !important; background: rgba(148,163,184,0.12) !important; border-color: rgba(71,85,105,0.25) !important; }
+/* Scoped to .bs-port-type-badge so the dropdown option buttons don't get a permanent tint */
+[data-theme='light'] .bs-port-type-badge[data-iotype='string']  { color: #15803d !important; background: rgba(34,197,94,0.10) !important; border-color: rgba(21,128,61,0.35) !important; }
+[data-theme='light'] .bs-port-type-badge[data-iotype='number']  { color: #b45309 !important; background: rgba(245,158,11,0.10) !important; border-color: rgba(180,83,9,0.35) !important; }
+[data-theme='light'] .bs-port-type-badge[data-iotype='boolean'] { color: #be185d !important; background: rgba(244,114,182,0.10) !important; border-color: rgba(190,24,93,0.30) !important; }
+[data-theme='light'] .bs-port-type-badge[data-iotype='json']    { color: #4338ca !important; background: rgba(99,102,241,0.10) !important; border-color: rgba(67,56,202,0.35) !important; }
+[data-theme='light'] .bs-port-type-badge[data-iotype='array']   { color: #0369a1 !important; background: rgba(14,165,233,0.10) !important; border-color: rgba(3,105,161,0.30) !important; }
+[data-theme='light'] .bs-port-type-badge[data-iotype='any']     { color: #475569 !important; background: rgba(148,163,184,0.12) !important; border-color: rgba(71,85,105,0.25) !important; }
 /* Port visibility toggle (mini switch) */
 .bs-io-toggle {
   margin-left: auto; flex-shrink: 0;
@@ -3623,6 +3660,12 @@ button.bs-palette-group-toggle:hover {
 }
 
 /* ---------- Inspector single-skill picker chip ---------- */
+/* Multi-skill picker */
+.bs-multi-skill-picker { display: flex; flex-direction: column; gap: 6px; width: 100%; position: relative; }
+.bs-multi-skill-chips  { display: flex; flex-wrap: wrap; gap: 6px; }
+.bs-multi-skill-chips .bs-skill-chip-badge { flex: unset; }
+
+/* Single-skill picker chip */
 .bs-skill-picker-chip { position: relative; width: 100%; }
 .bs-skill-chip-row { display: flex; align-items: center; gap: 6px; }
 .bs-skill-chip-badge {
@@ -4003,9 +4046,8 @@ button.bs-palette-group-toggle:hover {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--bs-disabled-overlay, rgba(60,20,160,0.60));
-  backdrop-filter: blur(var(--bs-disabled-blur, 2px));
-  -webkit-backdrop-filter: blur(var(--bs-disabled-blur, 2px));
+  backdrop-filter: blur(var(--bs-disabled-blur, 1px));
+  -webkit-backdrop-filter: blur(var(--bs-disabled-blur, 1px));
   z-index: 8;
   pointer-events: none;
   display: flex;
@@ -4490,7 +4532,8 @@ button.bs-palette-group-toggle:hover {
 }
 .bs-problem-icon.is-error { color: #f87171; }
 .bs-problem-icon.is-warning { color: #fbbf24; }
-.bs-problem-icon.is-info { color: #60a5fa; }
+.bs-problem-icon.is-info    { color: #60a5fa; }
+.bs-problem-icon.is-disabled { color: #a855f6; display: flex; align-items: center; }
 .bs-problem-node {
   color: var(--text-secondary, #94a3b8);
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -6270,3 +6313,161 @@ button.bs-palette-group-toggle:hover {
 [data-theme="light"] .bs-inspect-kv-head { border-color: #e2e8f0; }
 [data-theme="light"] .bs-inspect-kv-row { border-color: rgba(148,163,184,0.1); }
 [data-theme="light"] .bs-inspect-kv-key { color: #6d28d9; }
+
+/* ============================================================
+ * JSON Import — drag-drop overlay, drop target, error toast,
+ * import modal icon, rail import button, error toast in SideNav
+ * ============================================================ */
+
+/* Canvas drop overlay (shown while dragging a JSON file over canvas) */
+@keyframes bs-drop-ring-spin {
+  to { stroke-dashoffset: -28; }
+}
+@keyframes bs-drop-target-pulse {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%       { transform: scale(1.06); opacity: 0.85; }
+}
+@keyframes bs-drop-bg-flicker {
+  0%, 100% { opacity: 0.88; }
+  50%       { opacity: 0.96; }
+}
+@keyframes bs-drop-icon-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+.bs-json-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.10);
+  backdrop-filter: blur(3px);
+  border: 2.5px dashed #818cf8;
+  border-radius: 12px;
+  animation: bs-drop-bg-flicker 1.6s ease-in-out infinite;
+}
+
+.bs-json-drop-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: bs-drop-target-pulse 1.6s ease-in-out infinite;
+}
+
+.bs-json-drop-icon {
+  width: 80px;
+  height: 80px;
+  color: #818cf8;
+  animation: bs-drop-icon-float 1.8s ease-in-out infinite;
+}
+.bs-json-drop-icon svg { width: 100%; height: 100%; }
+
+.bs-json-drop-ring {
+  animation: bs-drop-ring-spin 2.4s linear infinite;
+}
+
+.bs-json-drop-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #c7d2fe;
+  letter-spacing: 0.01em;
+}
+.bs-json-drop-sub {
+  font-size: 0.78rem;
+  color: #818cf8;
+  opacity: 0.8;
+}
+
+/* Flash border on the canvas wrapper when JSON file enters */
+.bs-canvas-json-drag {
+  outline: 2.5px dashed #818cf8 !important;
+  outline-offset: -2px;
+}
+
+/* Error toast (canvas) */
+@keyframes bs-toast-in {
+  from { transform: translateX(-50%) translateY(12px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+.bs-json-drop-error {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  background: #1e293b;
+  border: 1px solid #f87171;
+  color: #fca5a5;
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  animation: bs-toast-in 0.25s ease;
+  white-space: nowrap;
+}
+
+/* Error toast in SideNav */
+.bs-import-error-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 68px;
+  z-index: 10000;
+  background: #1e293b;
+  border: 1px solid #f87171;
+  color: #fca5a5;
+  font-size: 0.82rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: bs-toast-in 0.25s ease;
+  max-width: 320px;
+}
+.bs-import-error-close {
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+.bs-import-error-close:hover { opacity: 1; }
+
+/* Import modal header icon */
+.bs-import-modal .bs-import-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  margin-bottom: 2px;
+}
+.bs-import-modal .bs-import-modal-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Light theme overrides for overlay/toasts */
+[data-theme='light'] .bs-json-drop-overlay {
+  background: rgba(99, 102, 241, 0.07);
+  border-color: #6366f1;
+}
+[data-theme='light'] .bs-json-drop-label { color: #4338ca; }
+[data-theme='light'] .bs-json-drop-sub   { color: #6366f1; }
+[data-theme='light'] .bs-json-drop-icon  { color: #6366f1; }
+[data-theme='light'] .bs-json-drop-error,
+[data-theme='light'] .bs-import-error-toast {
+  background: #fff;
+  border-color: #f87171;
+  color: #dc2626;
+}

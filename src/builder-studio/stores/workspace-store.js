@@ -12,6 +12,18 @@ import { devtools, persist } from 'zustand/middleware'
 import { v4 as uuid } from 'uuid'
 import { syncWorkspaceToServer, loadWorkspaceFromServer } from '../api/workspace-client'
 import { useLlmConfigStore } from './llm-config-store'
+import _demo from './demo-workflow.json'
+
+const SEED_WORKSPACE_ID = _demo.seedWorkspaceId
+const SEED_TEAM_ID      = _demo.seedTeamId
+const SEED_POOL_ID      = _demo.seedPoolId
+const SEED_AGENT1_ID    = _demo.seedAgent1Id
+const SEED_AGENT2_ID    = _demo.seedAgent2Id
+const SEED_WORKFLOW_ID  = _demo.seedWorkflowId
+const demoSkill         = _demo.skill
+const demoAgent1        = _demo.agent1
+const demoAgent2        = _demo.agent2
+const demoWorkflow      = _demo.workflow
 
 /**
  * @typedef {{id: string, name: string, language: 'javascript'|'python', source: string, inputSchema?: object, outputSchema?: object}} Skill
@@ -23,190 +35,21 @@ import { useLlmConfigStore } from './llm-config-store'
  * @typedef {{id: string, name: string, teamId?: string, nodes: object[], edges: object[], createdAt: string}} Workflow
  */
 
-const seedWorkspaceId = 'ws_default'
-const seedTeamId = 't_fullstack'
-const seedPoolId = 'pool_default'
-const seedSkillId = 'sk_url_extract'
-const seedAgent1Id = 'ag_url_fetcher'
-const seedAgent2Id = 'ag_summarizer'
-const seedWorkflowId = 'wf_demo_url_summary'
-
-const demoSkillSource = `// url_extract: fetches a URL and extracts plain-text content.
-// params: { url: string }
-// returns: { url, title, text, status }
-async function run(params) {
-  const res = await fetch(params.url, { redirect: 'follow' })
-  const html = await res.text()
-  const title = (html.match(/<title[^>]*>([^<]*)<\\/title>/i) || [, ''])[1].trim()
-  const text = html
-    .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')
-    .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\\s+/g, ' ')
-    .trim()
-  return { url: params.url, title, text: text.slice(0, 12000), status: res.status }
-}
-return run(params)`
-
-const demoSkill = {
-  id: seedSkillId,
-  name: 'url_extract',
-  language: 'javascript',
-  source: demoSkillSource,
-  inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
-  outputSchema: {
-    type: 'object',
-    properties: {
-      url: { type: 'string' },
-      title: { type: 'string' },
-      text: { type: 'string' },
-      status: { type: 'number' },
-    },
-    required: ['url', 'text'],
-  },
-}
-
-const demoAgent1 = {
-  id: seedAgent1Id,
-  name: 'URL Data Extractor',
-  poolId: seedPoolId,
-  model: 'claude-sonnet-4-6',
-  systemPrompt:
-    'You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.',
-  userPrompt: 'Extract the page at: {{url}}',
-  inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
-  outputSchema: {
-    type: 'object',
-    properties: { url: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' } },
-    required: ['text'],
-  },
-  strictInput: true,
-  strictOutput: true,
-  attachedSkillIds: [seedSkillId],
-}
-
-const demoAgent2 = {
-  id: seedAgent2Id,
-  name: 'Summarizer',
-  poolId: seedPoolId,
-  model: 'claude-sonnet-4-6',
-  systemPrompt:
-    'You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.',
-  userPrompt: 'Title: {{title}}\n\nContent:\n{{text}}',
-  inputSchema: {
-    type: 'object',
-    properties: { title: { type: 'string' }, text: { type: 'string' } },
-    required: ['text'],
-  },
-  outputSchema: {
-    type: 'object',
-    properties: { summary: { type: 'string' }, bullets: { type: 'array', items: { type: 'string' } } },
-    required: ['summary'],
-  },
-  strictInput: true,
-  strictOutput: true,
-  attachedSkillIds: [],
-}
-
-// Demo workflow: starter → userInput(url) → agent1 (url_extract) → agent2 (summarize) → response
-const demoNodes = [
-  {
-    id: 'n_starter',
-    type: 'builderBlock',
-    position: { x: 40, y: 160 },
-    data: { blockType: 'starter', title: 'Start', bgColor: '#2FB67C' },
-  },
-  {
-    id: 'n_input',
-    type: 'builderBlock',
-    position: { x: 300, y: 160 },
-    data: { blockType: 'user_input', title: 'URL', bgColor: '#FBBF24' },
-  },
-  {
-    id: 'n_agent1',
-    type: 'builderBlock',
-    position: { x: 580, y: 160 },
-    data: { blockType: 'agent', title: 'URL Data Extractor', bgColor: '#6F3DFA' },
-  },
-  {
-    id: 'n_agent2',
-    type: 'builderBlock',
-    position: { x: 880, y: 160 },
-    data: { blockType: 'agent', title: 'Summarizer', bgColor: '#6F3DFA' },
-  },
-  {
-    id: 'n_response',
-    type: 'builderBlock',
-    position: { x: 1180, y: 160 },
-    data: { blockType: 'response', title: 'Response', bgColor: '#2F55D4' },
-  },
-  {
-    id: 'n_preview',
-    type: 'builderBlock',
-    position: { x: 1480, y: 160 },
-    data: { blockType: 'show_preview', title: 'Final Preview', bgColor: '#14B8A6' },
-  },
-]
-
-const demoEdges = [
-  { id: 'e_s_in', source: 'n_starter', target: 'n_input', animated: true },
-  { id: 'e_in_a1', source: 'n_input', target: 'n_agent1', animated: true },
-  { id: 'e_a1_a2', source: 'n_agent1', target: 'n_agent2', animated: true },
-  { id: 'e_a2_r', source: 'n_agent2', target: 'n_response', animated: true },
-  { id: 'e_r_prev', source: 'n_response', target: 'n_preview', animated: true },
-]
-
-const demoSubBlockValues = {
-  n_starter: { startWorkflow: 'manual' },
-  n_input: {
-    label: 'URL',
-    kind: 'url',
-    placeholder: 'https://example.com',
-    // Typed-in default so the demo auto-runs without a popup. Users can
-    // edit this inline on the card.
-    defaultValue: 'https://www.salilvnair.com/docs/v2/architecture',
-    required: true,
-  },
-  n_agent1: {
-    systemPrompt: demoAgent1.systemPrompt,
-    userPrompt: demoAgent1.userPrompt,
-    model: demoAgent1.model,
-    temperature: 0.2,
-    // Single unified Skills/Tools field (was split into tools+skills).
-    skills: JSON.stringify([seedSkillId], null, 2),
-    responseFormat: JSON.stringify(demoAgent1.outputSchema, null, 2),
-  },
-  n_agent2: {
-    systemPrompt: demoAgent2.systemPrompt,
-    userPrompt: demoAgent2.userPrompt,
-    model: demoAgent2.model,
-    temperature: 0.3,
-    responseFormat: JSON.stringify(demoAgent2.outputSchema, null, 2),
-  },
-  n_response: { data: '<n_agent2.output>' },
-  n_preview: { label: 'Final output' },
-}
-
-const demoWorkflow = {
-  id: seedWorkflowId,
-  name: 'Demo · URL → Summary',
-  teamId: seedTeamId,
-  nodes: demoNodes,
-  edges: demoEdges,
-  subBlockValues: demoSubBlockValues,
-  createdAt: new Date().toISOString(),
-}
+const seedWorkspaceId = SEED_WORKSPACE_ID
+const seedTeamId      = SEED_TEAM_ID
+const seedPoolId      = SEED_POOL_ID
+const seedWorkflowId  = SEED_WORKFLOW_ID
 
 const initialState = {
   activeWorkspaceId: seedWorkspaceId,
-  activeWorkflowId: seedWorkflowId,
+  activeWorkflowId:  seedWorkflowId,
   workspaces: [{ id: seedWorkspaceId, name: 'Default' }],
   teams: [
     { id: seedTeamId, name: 'fullstack builders', workspaceId: seedWorkspaceId, agentPoolIds: [seedPoolId] },
   ],
-  agentPools: [{ id: seedPoolId, name: 'Default Pool', teamId: seedTeamId, agentIds: [seedAgent1Id, seedAgent2Id] }],
-  agents: [demoAgent1, demoAgent2],
-  skills: [demoSkill],
+  agentPools: [{ id: seedPoolId, name: 'Default Pool', teamId: seedTeamId, agentIds: [SEED_AGENT1_ID, SEED_AGENT2_ID] }],
+  agents:    [demoAgent1, demoAgent2],
+  skills:    [demoSkill],
   workflows: [demoWorkflow],
 }
 
@@ -338,6 +181,34 @@ export const useWorkspaceStore = create()(
               failFast: partial.failFast ?? true,
               logLevel: partial.logLevel || 'info',
               tags: partial.tags || [],
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+          set((s) => ({ workflows: [...s.workflows, wf], activeWorkflowId: wf.id }))
+          return wf
+        },
+
+        /**
+         * Import a workflow from a parsed JSON object (from file picker or drag-drop).
+         * Always assigns a fresh id to avoid collisions.
+         * Returns the created workflow.
+         */
+        importWorkflow(name, teamId, { nodes, edges, subBlockValues }) {
+          const wf = {
+            id: `wf_${uuid()}`,
+            name,
+            teamId,
+            description: '',
+            nodes: nodes || [],
+            edges: edges || [],
+            subBlockValues: subBlockValues || {},
+            metadata: {
+              defaultTimeoutMs: 30000,
+              maxRetries: 0,
+              failFast: true,
+              logLevel: 'info',
+              tags: [],
             },
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

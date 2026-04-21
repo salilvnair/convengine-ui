@@ -1,0 +1,135 @@
+{
+  "_comment": "Demo seed data — edit this file or replace it with an exported workflow JSON to change what new users see on first load.",
+
+  "seedWorkspaceId": "ws_default",
+  "seedTeamId":      "t_fullstack",
+  "seedPoolId":      "pool_default",
+  "seedAgent1Id":    "ag_url_fetcher",
+  "seedAgent2Id":    "ag_summarizer",
+  "seedWorkflowId":  "wf_demo_url_summary",
+
+  "skill": {
+    "id":       "sk_url_extract",
+    "name":     "url_extract",
+    "language": "javascript",
+    "source":   "// url_extract: fetches a URL and extracts plain-text content.\n// params: { url: string }\n// returns: { url, title, text, status }\nasync function run(params) {\n  const res = await fetch(params.url, { redirect: 'follow' })\n  const html = await res.text()\n  const title = (html.match(/<title[^>]*>([^<]*)<\\/title>/i) || [, ''])[1].trim()\n  const text = html\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n  return { url: params.url, title, text: text.slice(0, 12000), status: res.status }\n}\nreturn run(params)",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "url": { "type": "string" } },
+      "required": ["url"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "url":    { "type": "string" },
+        "title":  { "type": "string" },
+        "text":   { "type": "string" },
+        "status": { "type": "number" }
+      },
+      "required": ["url", "text"]
+    }
+  },
+
+  "agent1": {
+    "id":           "ag_url_fetcher",
+    "name":         "URL Data Extractor",
+    "poolId":       "pool_default",
+    "model":        "claude-sonnet-4-6",
+    "systemPrompt": "You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.",
+    "userPrompt":   "Extract the page at: {{url}}",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "url": { "type": "string" } },
+      "required": ["url"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "url":   { "type": "string" },
+        "title": { "type": "string" },
+        "text":  { "type": "string" }
+      },
+      "required": ["text"]
+    },
+    "strictInput":       true,
+    "strictOutput":      true,
+    "attachedSkillIds":  ["sk_url_extract"]
+  },
+
+  "agent2": {
+    "id":           "ag_summarizer",
+    "name":         "Summarizer",
+    "poolId":       "pool_default",
+    "model":        "claude-sonnet-4-6",
+    "systemPrompt": "You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.",
+    "userPrompt":   "Title: {{title}}\n\nContent:\n{{text}}",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "text":  { "type": "string" }
+      },
+      "required": ["text"]
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "summary": { "type": "string" },
+        "bullets": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["summary"]
+    },
+    "strictInput":      true,
+    "strictOutput":     true,
+    "attachedSkillIds": []
+  },
+
+  "workflow": {
+    "id":     "wf_demo_url_summary",
+    "name":   "Demo · URL → Summary",
+    "teamId": "t_fullstack",
+    "nodes": [
+      { "id": "n_starter",  "type": "builderBlock", "position": { "x": 40,   "y": 160 }, "data": { "blockType": "starter",      "title": "Start",              "bgColor": "#2FB67C" } },
+      { "id": "n_input",    "type": "builderBlock", "position": { "x": 300,  "y": 160 }, "data": { "blockType": "user_input",   "title": "URL",                "bgColor": "#FBBF24" } },
+      { "id": "n_agent1",   "type": "builderBlock", "position": { "x": 580,  "y": 160 }, "data": { "blockType": "agent",        "title": "URL Data Extractor", "bgColor": "#6F3DFA" } },
+      { "id": "n_agent2",   "type": "builderBlock", "position": { "x": 880,  "y": 160 }, "data": { "blockType": "agent",        "title": "Summarizer",         "bgColor": "#6F3DFA" } },
+      { "id": "n_response", "type": "builderBlock", "position": { "x": 1180, "y": 160 }, "data": { "blockType": "response",     "title": "Response",           "bgColor": "#2F55D4" } },
+      { "id": "n_preview",  "type": "builderBlock", "position": { "x": 1480, "y": 160 }, "data": { "blockType": "show_preview", "title": "Final Preview",      "bgColor": "#14B8A6" } }
+    ],
+    "edges": [
+      { "id": "e_s_in",   "source": "n_starter",  "target": "n_input",    "animated": true },
+      { "id": "e_in_a1",  "source": "n_input",    "target": "n_agent1",   "animated": true },
+      { "id": "e_a1_a2",  "source": "n_agent1",   "target": "n_agent2",   "animated": true },
+      { "id": "e_a2_r",   "source": "n_agent2",   "target": "n_response", "animated": true },
+      { "id": "e_r_prev", "source": "n_response", "target": "n_preview",  "animated": true }
+    ],
+    "subBlockValues": {
+      "n_starter": { "startWorkflow": "manual" },
+      "n_input": {
+        "label":        "URL",
+        "kind":         "url",
+        "placeholder":  "https://example.com",
+        "defaultValue": "https://www.salilvnair.com/docs/v2/architecture",
+        "required":     true
+      },
+      "n_agent1": {
+        "systemPrompt":   "You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.",
+        "userPrompt":     "Extract the page at: {{url}}",
+        "model":          "gpt-4.1",
+        "temperature":    0.2,
+        "skills":         "[\"sk_url_extract\"]",
+        "responseFormat": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"url\": { \"type\": \"string\" },\n    \"title\": { \"type\": \"string\" },\n    \"text\": { \"type\": \"string\" }\n  },\n  \"required\": [\"text\"]\n}"
+      },
+      "n_agent2": {
+        "systemPrompt":   "You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.",
+        "userPrompt":     "Title: {{title}}\n\nContent:\n{{text}}",
+        "model":          "gpt-4.1",
+        "temperature":    0.3,
+        "responseFormat": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"summary\": { \"type\": \"string\" },\n    \"bullets\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }\n  },\n  \"required\": [\"summary\"]\n}"
+      },
+      "n_response": { "data": "<n_agent2.output>" },
+      "n_preview":  { "label": "Final output" }
+    },
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
+}

@@ -17,6 +17,8 @@ import BlockPalette from './BlockPalette'
 import ContextMenu from './ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import CreateWorkflowModal from '../components/CreateWorkflowModal'
+import ImportWorkflowModal from '../components/ImportWorkflowModal'
+import { pickAndParseWorkflowJSON } from '../utils/import-workflow'
 import {
   WorkflowsIcon,
   TeamsIcon,
@@ -32,6 +34,16 @@ import {
   SettingsIcon,
 } from '../components/icons'
 import { BookIcon } from '../tabs/WikiGuide'
+
+function ImportIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor"/>
+      <polyline points="17 8 12 3 7 8" stroke="currentColor"/>
+      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor"/>
+    </svg>
+  )
+}
 
 const TABS = [
   { id: 'workflows', label: 'Workflows', Icon: WorkflowsIcon },
@@ -51,11 +63,37 @@ export default function SideNav() {
   const [width, setWidth] = useState(DEFAULT_W)
   const [dragging, setDragging] = useState(false)
   const [showTip, setShowTip] = useState(false)
+  const [importPending, setImportPending] = useState(null) // parsed workflow waiting for team pick
+  const [importError, setImportError]   = useState(null)
   const dragRef = useRef({ active: false, startX: 0, startW: DEFAULT_W, moved: false })
 
   const panel = useMemo(() => TABS.find((t) => t.id === activeTab), [activeTab])
   const openWiki = useTabsStore((s) => s.openWiki)
   const openSettings = useTabsStore((s) => s.openSettings)
+  const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
+  const teams = useWorkspaceStore((s) => s.teams)
+  const importWorkflow = useWorkspaceStore((s) => s.importWorkflow)
+
+  async function handleImportClick() {
+    setImportError(null)
+    try {
+      const wf = await pickAndParseWorkflowJSON()
+      setImportPending(wf)
+    } catch (err) {
+      if (err.message !== 'cancelled') setImportError(err.message)
+    }
+  }
+
+  function handleImportConfirm(name, teamId) {
+    if (!importPending) return
+    const wf = importWorkflow(name, teamId, {
+      nodes: importPending.nodes,
+      edges: importPending.edges,
+      subBlockValues: importPending.subBlockValues,
+    })
+    openWorkflowTab(wf.id, wf.name)
+    setImportPending(null)
+  }
 
   function onRailClick(id) {
     if (!open) { setOpen(true); setActiveTab(id); return }
@@ -126,6 +164,14 @@ export default function SideNav() {
         <div className="bs-rail-spacer" />
         <button
           className="bs-rail-btn"
+          onClick={handleImportClick}
+          title="Import workflow JSON"
+        >
+          <ImportIcon className="bs-rail-ico" />
+          <span className="bs-rail-label">Import</span>
+        </button>
+        <button
+          className="bs-rail-btn"
           onClick={() => openWiki()}
           title="Wiki — Agent Builder Studio Guide"
         >
@@ -179,6 +225,25 @@ export default function SideNav() {
           </div>
         )}
       </div>
+
+      {/* ── Import error toast ── */}
+      {importError && (
+        <div className="bs-import-error-toast" onClick={() => setImportError(null)}>
+          <span>⚠ {importError}</span>
+          <button className="bs-import-error-close">×</button>
+        </div>
+      )}
+
+      {/* ── Import workflow modal ── */}
+      {importPending && (
+        <ImportWorkflowModal
+          teams={teams}
+          defaultName={importPending.name}
+          defaultTeamId={teams[0]?.id}
+          onCancel={() => setImportPending(null)}
+          onImport={handleImportConfirm}
+        />
+      )}
     </aside>
   )
 }

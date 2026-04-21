@@ -81,12 +81,13 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
   const blockType = nodeData.blockType
   const vals = subBlockValues[nodeId] || {}
   const portTypes = vals._portTypes || {}
+  const hid = handleId || ''  // guard against undefined handles
 
   if (side === 'target') {
     // Input handle: id is "in_<key>" or fallback "in"
-    if (portTypes[handleId]) return portTypes[handleId]
+    if (portTypes[hid]) return portTypes[hid]
     // Look up default from card ports
-    const key = handleId.startsWith('in_') ? handleId.slice(3) : null
+    const key = hid.startsWith('in_') ? hid.slice(3) : null
     if (key) {
       const block = _getBlockSafe(blockType)
       if (block) {
@@ -100,10 +101,10 @@ export function resolvePortType(nodeId, handleId, side, subBlockValues, nodes) {
   } else {
     // Output handle: id is the raw key ("data", "status") or "out"
     // _portTypes stores as "out_<key>"
-    const ptKey = handleId === 'out' ? 'out_out' : (handleId.startsWith('out_') ? handleId : `out_${handleId}`)
+    const ptKey = hid === 'out' ? 'out_out' : (hid.startsWith('out_') ? hid : `out_${hid}`)
     if (portTypes[ptKey]) return portTypes[ptKey]
     // Look up default from card ports
-    const key = handleId === 'out' ? null : (handleId.startsWith('out_') ? handleId.slice(4) : handleId)
+    const key = hid === 'out' ? null : (hid.startsWith('out_') ? hid.slice(4) : hid)
     if (key) {
       const block = _getBlockSafe(blockType)
       if (block) {

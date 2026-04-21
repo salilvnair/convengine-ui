@@ -16,14 +16,19 @@ import 'reactflow/dist/style.css'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { DeployIcon } from '../components/icons'
 import { useWorkspaceStore } from '../stores/workspace-store'
+import { useTabsStore } from '../stores/tabs-store'
 import { getBlock, getAllBlocks, CATEGORY_LABELS, CATEGORY_ORDER, groupBlocksByCategory } from '../blocks/registry'
 import { isTypeCompatible, resolvePortType, setBlockResolver, getTypeColor } from '../panel/io-registry'
 import WorkflowNode from './WorkflowNode'
+import GradientEdge from './GradientEdge'
 import ConfirmModal from '../components/ConfirmModal'
 import ContextMenu from '../sidenav/ContextMenu'
+import ImportWorkflowModal from '../components/ImportWorkflowModal'
+import { parseImportedWorkflowJSON } from '../utils/import-workflow'
 import { EDGE as EDGE_CONFIG } from './canvas-visual.config'
 
 const nodeTypes = { builderBlock: WorkflowNode }
+const edgeTypes = { gradient: GradientEdge }
 
 function isEditableTarget(t) {
   if (!t) return false
@@ -70,6 +75,15 @@ function CanvasInner() {
   const showMinimap = useWorkflowStore((s) => s.showMinimap)
   const canvasConfig = useWorkflowStore((s) => s.canvasConfig)
   const edgeUpdateSuccessful = useRef(true)
+
+  // ── JSON drag-drop import state ──────────────────────────────────────────
+  const teams = useWorkspaceStore((s) => s.teams)
+  const importWorkflow = useWorkspaceStore((s) => s.importWorkflow)
+  const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
+  const [jsonDropActive, setJsonDropActive] = useState(false) // overlay shown while dragging a JSON file
+  const [jsonDropPending, setJsonDropPending] = useState(null) // parsed workflow waiting for team pick
+  const [jsonDropError, setJsonDropError] = useState(null)
+  const jsonDropDepth = useRef(0) // track nested dragenter/leave for overlay visibility
 
   // Wire up block resolver for io-registry (avoids circular imports)
   useEffect(() => { setBlockResolver(getBlock) }, [])
@@ -446,14 +460,27 @@ function CanvasInner() {
       let edgeStyle = e.style || {}
       if (!hasBranchClass && !isActive && !isDone) {
         const srcType = resolvePortType(e.source, e.sourceHandle, 'source', subBlockValues, nodes)
-        const color = EDGE_CONFIG.colorByPortType
+        const tgtType = resolvePortType(e.target, e.targetHandle, 'target', subBlockValues, nodes)
+        const srcColor = EDGE_CONFIG.colorByPortType
           ? (getTypeColor(srcType)?.solid || EDGE_CONFIG.defaultColor)
           : EDGE_CONFIG.defaultColor
+        const tgtColor = EDGE_CONFIG.colorByPortType
+          ? (getTypeColor(tgtType)?.solid || EDGE_CONFIG.defaultColor)
+          : EDGE_CONFIG.defaultColor
+        const useGradient = srcColor !== tgtColor
         edgeStyle = {
           ...edgeStyle,
-          stroke: color,
+          ...(useGradient ? {} : { stroke: srcColor }),
           strokeWidth: EDGE_CONFIG.strokeWidth,
           opacity: EDGE_CONFIG.opacity,
+        }
+        return {
+          ...e,
+          type: useGradient ? 'gradient' : (e.type === 'gradient' ? undefined : e.type),
+          data: useGradient ? { ...e.data, srcColor, tgtColor } : e.data,
+          className,
+          animated: false,
+          style: edgeStyle,
         }
       } else if (isActive) {
         edgeStyle = { ...edgeStyle, strokeWidth: EDGE_CONFIG.strokeWidthActive, opacity: EDGE_CONFIG.opacityActive }
@@ -467,14 +494,61 @@ function CanvasInner() {
     })
   }, [edges, activeEdgeIds, completedNodeIds, subBlockValues, nodes])
 
+  // ── Detect whether the drag contains a JSON file (not a block palette item) ──
+  function isJsonFileDrag(e) {
+    const items = e.dataTransfer?.items
+    if (!items) return false
+    for (const item of items) {
+      if (item.kind === 'file' && (item.type === 'application/json' || item.type === '')) return true
+    }
+    return false
+  }
+
+  const onDragEnter = useCallback((e) => {
+    if (!isJsonFileDrag(e)) return
+    e.preventDefault()
+    jsonDropDepth.current += 1
+    if (jsonDropDepth.current === 1) setJsonDropActive(true)
+  }, [])
+
+  const onDragLeave = useCallback((e) => {
+    if (!jsonDropActive) return
+    e.preventDefault()
+    jsonDropDepth.current -= 1
+    if (jsonDropDepth.current <= 0) { jsonDropDepth.current = 0; setJsonDropActive(false) }
+  }, [jsonDropActive])
+
   const onDragOver = useCallback((e) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = isJsonFileDrag(e) ? 'copy' : 'move'
   }, [])
 
   const onDrop = useCallback(
     (e) => {
       e.preventDefault()
+      jsonDropDepth.current = 0
+      setJsonDropActive(false)
+
+      // ── JSON file drop ──────────────────────────────────────────────────
+      const jsonFile = Array.from(e.dataTransfer?.files || []).find(
+        (f) => f.name.endsWith('.json') || f.type === 'application/json'
+      )
+      if (jsonFile) {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          const result = parseImportedWorkflowJSON(ev.target.result)
+          if (result.ok) {
+            setJsonDropPending(result.workflow)
+          } else {
+            setJsonDropError(result.error)
+            setTimeout(() => setJsonDropError(null), 4000)
+          }
+        }
+        reader.readAsText(jsonFile)
+        return
+      }
+
+      // ── Block palette drop ──────────────────────────────────────────────
       const blockType = e.dataTransfer.getData('application/builder-studio-block')
       if (!blockType) return
       const cfg = getBlock(blockType)
@@ -484,6 +558,17 @@ function CanvasInner() {
     },
     [addNode, screenToFlowPosition]
   )
+
+  function handleJsonDropConfirm(name, teamId) {
+    if (!jsonDropPending) return
+    const wf = importWorkflow(name, teamId, {
+      nodes: jsonDropPending.nodes,
+      edges: jsonDropPending.edges,
+      subBlockValues: jsonDropPending.subBlockValues,
+    })
+    openWorkflowTab(wf.id, wf.name)
+    setJsonDropPending(null)
+  }
 
   // Delete selected edges via ReactFlow's onEdgesDelete handler (fired when
   // an edge is selected + user hits Delete). We also intercept keydown for
@@ -618,8 +703,52 @@ function CanvasInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedNodeId, selectedNodeIds, pendingDelete, removeNode, duplicateNode, duplicateNodes, beginRename, moveNodeBy, moveNodesBy, selectNode, fitView, zoomTo])
 
+  // Fit view after zustand persist rehydrates nodes (async on refresh).
+  // `fitView` as a static prop fires before rehydration completes, so we
+  // watch the node count and call it imperatively once nodes are present.
+  const hasFitOnLoad = useRef(false)
+  useEffect(() => {
+    if (hasFitOnLoad.current) return
+    if (nodes.length === 0) return
+    // Small delay lets ReactFlow measure node dimensions first
+    const t = setTimeout(() => {
+      fitView({ padding: 0.15, duration: 250 })
+      hasFitOnLoad.current = true
+    }, 80)
+    return () => clearTimeout(t)
+  }, [nodes.length, fitView])
+
   return (
-    <div ref={wrapperRef} className="bs-canvas" onDragOver={onDragOver} onDrop={onDrop}>
+    <div
+      ref={wrapperRef}
+      className={`bs-canvas${jsonDropActive ? ' bs-canvas-json-drag' : ''}`}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      {/* ── JSON drop overlay ── */}
+      {jsonDropActive && (
+        <div className="bs-json-drop-overlay">
+          <div className="bs-json-drop-target">
+            <div className="bs-json-drop-icon">
+              <svg viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="30" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" className="bs-json-drop-ring"/>
+                <path d="M32 20v18M24 30l8 10 8-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M22 44h20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div className="bs-json-drop-label">Drop workflow JSON</div>
+            <div className="bs-json-drop-sub">ConvEngine builder studio export</div>
+          </div>
+        </div>
+      )}
+      {/* ── JSON parse error toast ── */}
+      {jsonDropError && (
+        <div className="bs-json-drop-error" onClick={() => setJsonDropError(null)}>
+          ⚠ {jsonDropError}
+        </div>
+      )}
       {/* ── Pan / Select mode toggle (top-left) ── */}
       <div
         className="bs-canvas-mode-toggle"
@@ -661,13 +790,13 @@ function CanvasInner() {
         onNodeClick={(_, node) => selectNode(node.id)}
         onSelectionChange={onSelectionChange}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         multiSelectionKeyCode={['Meta', 'Control']}
         selectionMode="partial"
         deleteKeyCode={null}
         panOnDrag={canvasMode === 'pan' ? true : [1, 2]}
         selectionOnDrag={canvasMode === 'select'}
         edgesUpdatable
-        fitView
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={18} size={1.2} color="var(--ce-border)" />
@@ -769,6 +898,17 @@ function CanvasInner() {
             ✕ Deselect
           </button>
         </div>
+      )}
+
+      {/* ── Import workflow modal (triggered by JSON file drop) ── */}
+      {jsonDropPending && (
+        <ImportWorkflowModal
+          teams={teams}
+          defaultName={jsonDropPending.name}
+          defaultTeamId={teams[0]?.id}
+          onCancel={() => setJsonDropPending(null)}
+          onImport={handleJsonDropConfirm}
+        />
       )}
     </div>
   )

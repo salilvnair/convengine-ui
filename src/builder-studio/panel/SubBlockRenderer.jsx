@@ -238,11 +238,16 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
       return <SkillPickerChip skills={skills} value={defaultValue} onChange={set} placeholder={sub.placeholder} />
     }
 
+    case 'skill-input': {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const skills = useWorkspaceStore((s) => s.skills || [])
+      return <MultiSkillPickerChip skills={skills} value={defaultValue} onChange={set} />
+    }
+
     case 'tool-input':
-    case 'skill-input':
       return (
         <div className="bs-hint">
-          {sub.type === 'skill-input' ? 'Attach skills' : 'Attach tools'} via JSON (list of IDs).
+          Attach tools via JSON (list of IDs).
           <textarea
             className="bs-code"
             rows={4}
@@ -313,6 +318,97 @@ function safeCall(fn) {
   } catch {
     return []
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Multi-skill picker — for agent blocks that store an array of skill IDs    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function MultiSkillPickerChip({ skills, value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  // Parse current value into an array of IDs
+  const selectedIds = (() => {
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string' && value.trim()) {
+      try { return JSON.parse(value) } catch { return [] }
+    }
+    return []
+  })()
+
+  const emit = (ids) => onChange(JSON.stringify(ids))
+
+  const remove = (id) => emit(selectedIds.filter((x) => x !== id))
+  const add = (id) => { if (!selectedIds.includes(id)) emit([...selectedIds, id]) }
+
+  useEffect(() => {
+    if (!open) return
+    function onOut(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [open])
+
+  const available = skills.filter((s) => !selectedIds.includes(s.id))
+
+  return (
+    <div ref={ref} className="bs-multi-skill-picker">
+      {selectedIds.length > 0 && (
+        <div className="bs-multi-skill-chips">
+          {selectedIds.map((id) => {
+            const sk = skills.find((s) => s.id === id)
+            return (
+              <span key={id} className="bs-skill-chip-badge">
+                <span className="bs-skill-chip-icon">⚡</span>
+                <span className="bs-skill-chip-name">{sk ? sk.name : id}</span>
+                {sk?.language && <span className="bs-skill-chip-lang">{sk.language}</span>}
+                <button
+                  className="bs-skill-chip-remove"
+                  onClick={() => remove(id)}
+                  title="Remove"
+                >
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      )}
+      <button
+        className="bs-skill-chip-empty"
+        onClick={() => setOpen((o) => !o)}
+        disabled={available.length === 0 && selectedIds.length > 0 && skills.length > 0 && available.length === 0}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        {selectedIds.length === 0 ? 'Select skill' : 'Add skill'}
+      </button>
+      {open && (
+        <div className="bs-skill-chip-popover">
+          {skills.length === 0 ? (
+            <div className="bs-skill-chip-empty-msg">No skills defined yet</div>
+          ) : available.length === 0 ? (
+            <div className="bs-skill-chip-empty-msg">All skills added</div>
+          ) : (
+            available.map((sk) => (
+              <button
+                key={sk.id}
+                className="bs-skill-chip-option"
+                onClick={() => { add(sk.id); setOpen(false) }}
+              >
+                <span className="bs-skill-chip-icon">⚡</span>
+                <span className="bs-skill-chip-option-name">{sk.name}</span>
+                {sk.language && <span className="bs-skill-chip-lang">{sk.language}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

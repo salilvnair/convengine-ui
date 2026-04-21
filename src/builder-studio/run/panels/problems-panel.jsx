@@ -54,7 +54,11 @@ function ProblemRow({ problem: p }) {
       >
         <span className="bs-problem-caret">{hasDetail ? (open ? '▼' : '▶') : ' '}</span>
         <span className={`bs-problem-icon is-${p.severity}`}>
-          {p.severity === 'error' ? '✕' : p.severity === 'warning' ? '⚠' : 'ℹ'}
+          {p.severity === 'error' ? '✕'
+            : p.severity === 'warning' ? '⚠'
+            : p.severity === 'disabled'
+              ? (<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>)
+              : 'ℹ'}
         </span>
         <span className="bs-problem-node">{p.node || '—'}</span>
         <span className="bs-problem-msg">{p.message}</span>
@@ -107,15 +111,30 @@ function collectProblems(ctx) {
   }
 
   // ── Static validation ─────────────────────────────────────────────────
-  // Check for nodes with no connections
-  const connectedIds = new Set()
-  edges.forEach((e) => { connectedIds.add(e.source); connectedIds.add(e.target) })
+  const SEED_TYPES = new Set(['starter', 'user_input', 'webhook_request', 'schedule'])
+
+  // 1. Explicitly disabled nodes (⌘B toggled) — always shown regardless of edges
   nodes.forEach((n) => {
-    if (!connectedIds.has(n.id) && nodes.length > 1) {
+    if (n.data?.disabled) {
+      problems.push({
+        severity: 'disabled',
+        node: n.data?.title || n.id,
+        message: 'Disabled in workflow.',
+      })
+    }
+  })
+
+  // 2. Non-seed, non-disabled nodes that have NO incoming edge
+  const targetIds = new Set()
+  edges.forEach((e) => targetIds.add(e.target))
+  nodes.forEach((n) => {
+    if (SEED_TYPES.has(n.data?.blockType)) return
+    if (n.data?.disabled) return
+    if (!targetIds.has(n.id) && nodes.length > 1) {
       problems.push({
         severity: 'warning',
         node: n.data?.title || n.id,
-        message: `Node has no incoming connection — disabled in workflow.`,
+        message: 'No incoming connection.',
       })
     }
   })

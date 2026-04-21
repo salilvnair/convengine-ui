@@ -240,7 +240,6 @@
   /* ── Canvas Node Overlay (disabled state) ──
    *  Edit these to change the ⌘B disabled appearance.
    *  Mirrored by canvas-visual.config.js for edge settings. */
-  --bs-disabled-overlay:        rgba(15,23,42,0.76);
   --bs-disabled-blur:           5px;
   --bs-disabled-border:         #334155;
   --bs-disabled-glow:           rgba(51,65,85,0.50);
@@ -425,7 +424,6 @@
   --bs-dropdown-check-color:    #4f46e5;
 
   /* ── Canvas Node Overlay (disabled state — light mode) ── */
-  --bs-disabled-overlay:        rgba(148,163,184,0.52);
   --bs-disabled-blur:           3px;
   --bs-disabled-border:         #94a3b8;
   --bs-disabled-glow:           rgba(148,163,184,0.30);

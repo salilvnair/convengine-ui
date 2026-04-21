@@ -264,7 +264,18 @@ export const useWorkflowStore = create()(
         set((s) => ({
           nodes: s.nodes.map((n) =>
             n.id === id
-              ? { ...n, data: { ...n.data, width, height } }
+              ? { ...n, data: { ...n.data, width, height, userResized: true } }
+              : n
+          ),
+        }))
+      },
+
+      /** Reset a node back to auto/fit-content height. */
+      fitNode(id) {
+        set((s) => ({
+          nodes: s.nodes.map((n) =>
+            n.id === id
+              ? { ...n, data: { ...n.data, height: undefined, userResized: false } }
               : n
           ),
         }))

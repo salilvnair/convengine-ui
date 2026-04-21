@@ -101,6 +101,7 @@ function WorkflowNode({ id, data, selected }) {
   const errorShakeKey = useWorkflowStore((s) => s.errorShakeKey)
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
+  const fitNodeStore = useWorkflowStore((s) => s.fitNode)
   // Check if this non-seed, non-disabled node has no incoming edges
   const SEED_TYPES = new Set(['starter', 'user_input'])
   const hasNoIncoming = useWorkflowStore((s) => {
@@ -117,21 +118,24 @@ function WorkflowNode({ id, data, selected }) {
 
   // --- Dimensions: per-node persisted > block default > CSS default ---
   const DEFAULT_W = cfg?.defaultWidth || 280
-  const DEFAULT_H = cfg?.defaultHeight || undefined // auto if not set
   const MIN_W = 200
   const MIN_H = 80
   const nodeRef = useRef(null)
 
+  // Height is ALWAYS auto (fit-content) unless the user explicitly resized
+  // via the resize handles. We track this with data.userResized so a plain
+  // page refresh never locks in a stale saved height.
   const [nodeW, setNodeW] = useState(data.width || DEFAULT_W)
-  const [nodeH, setNodeH] = useState(data.height || DEFAULT_H)
+  const [nodeH, setNodeH] = useState(data.userResized ? (data.height || undefined) : undefined)
   const [resizing, setResizing] = useState(false)
   const [resizeMode, setResizeMode] = useState(false) // right-click → Resize toggles this
 
-  // Sync if data changes externally (e.g. undo, load)
+  // Sync width if changed externally (undo, load). Only sync height if user resized.
   useEffect(() => {
     if (data.width) setNodeW(data.width)
-    if (data.height) setNodeH(data.height)
-  }, [data.width, data.height])
+    if (data.userResized && data.height) setNodeH(data.height)
+    if (!data.userResized) setNodeH(undefined)
+  }, [data.width, data.height, data.userResized])
 
   /**
    * Generic resize handler. `edges` indicates which edges are being dragged:
@@ -349,9 +353,12 @@ function WorkflowNode({ id, data, selected }) {
         ].filter(Boolean).join(' ')}
         style={{
           width: nodeW || undefined,
-          ...(hasJsonPreview
-            ? { minHeight: nodeH || undefined, height: 'auto' }
-            : { height: nodeH || undefined }),
+          // Height: auto (fit-content) unless the user explicitly resized
+          ...(nodeH
+            ? (hasJsonPreview
+                ? { minHeight: nodeH, height: 'auto' }
+                : { height: nodeH, minHeight: 'fit-content' })
+            : { height: 'auto', minHeight: 'fit-content' }),
         }}
         onContextMenu={openMenu}
         onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
@@ -581,7 +588,7 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'dup', label: 'Duplicate', icon: CtxDuplicateIcon, iconColor: '#22d3ee', shortcut: '⌘D', onSelect: () => duplicateNode(id) },
             { id: 'inspect', label: 'Inspect', icon: CtxInspectIcon, iconColor: '#22d3ee', shortcut: '⌘I', disabled: !traceEntry, onSelect: () => setInspectOpen(true) },
             { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
-            { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); resizeNodeStore(id, nodeW, undefined) } },
+            { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); fitNodeStore(id) } },
             { separator: true },
             { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', shortcut: '⌘B', onSelect: () => toggleDisabled(id) },
             { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
