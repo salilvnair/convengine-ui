@@ -48,7 +48,7 @@
         "id": "ag_url_fetcher",
         "name": "URL Data Extractor",
         "poolId": "pool_default",
-        "model": "claude-sonnet-4-6",
+        "model": "gpt-4.1",
         "systemPrompt": "You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.",
         "userPrompt": "Extract the page at: {{url}}",
         "inputSchema": {
@@ -89,7 +89,7 @@
         "id": "ag_summarizer",
         "name": "Summarizer",
         "poolId": "pool_default",
-        "model": "claude-sonnet-4-6",
+        "model": "gpt-4.1",
         "systemPrompt": "You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.",
         "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
         "inputSchema": {

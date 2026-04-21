@@ -12,6 +12,7 @@
  */
 import { useMemo, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspace-store'
+import StyledSelect from '../components/StyledSelect'
 
 export default function WorkflowInspector({ workflowId }) {
   const workflows = useWorkspaceStore((s) => s.workflows)
@@ -41,7 +42,11 @@ export default function WorkflowInspector({ workflowId }) {
             <div className="bs-inspector-sub">Edit metadata and runtime defaults</div>
           </div>
         </div>
-        <div className="bs-inspector-modes">
+        <div
+          className="bs-inspector-modes"
+          style={{ '--active-idx': ['basic', 'advanced'].indexOf(mode), '--mode-count': 2 }}
+        >
+          <div className="bs-inspector-pill" />
           {['basic', 'advanced'].map((m) => (
             <button
               key={m}
@@ -80,16 +85,15 @@ export default function WorkflowInspector({ workflowId }) {
 
             <div className="bs-field">
               <label className="bs-label">Team</label>
-              <select
-                className="bs-input"
+              <StyledSelect
                 value={wf.teamId || ''}
-                onChange={(e) => updateWorkflow(wf.id, { teamId: e.target.value })}
-              >
-                <option value="">— Unassigned —</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+                options={[
+                  { id: '', label: '— Unassigned —' },
+                  ...teams.map((t) => ({ id: t.id, label: t.name }))
+                ]}
+                onChange={(id) => updateWorkflow(wf.id, { teamId: id || undefined })}
+                placeholder="— Unassigned —"
+              />
               <div className="bs-hint">Controls which team owns this workflow in the sidebar.</div>
             </div>
 

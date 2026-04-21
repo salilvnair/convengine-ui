@@ -822,6 +822,7 @@ function CanvasInner() {
         panOnDrag={canvasMode === 'pan' ? true : [1, 2]}
         selectionOnDrag={canvasMode === 'select'}
         edgesUpdatable
+        noWheelClassName="nowheel"
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={18} size={1.2} color="var(--ce-border)" />

@@ -161,6 +161,61 @@ function collectProblems(ctx) {
     })
   })
 
+  // ── user_input: defaultValue type-compatibility check ────────────────
+  nodes.forEach((n) => {
+    if (n.data?.blockType !== 'user_input') return
+    const vals = sbv[n.id] || {}
+    const kind = vals.kind || 'short-text'
+    const defaultVal = vals.defaultValue
+    if (!defaultVal || defaultVal === '') return // no default → nothing to check
+
+    const nodeLabel = n.data?.title || 'User input'
+    let msg = null
+
+    switch (kind) {
+      case 'number': {
+        if (isNaN(Number(defaultVal))) msg = `Default value "${defaultVal}" is not a valid number (kind: number).`
+        break
+      }
+      case 'email': {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(defaultVal)) msg = `Default value "${defaultVal}" is not a valid email address (kind: email).`
+        break
+      }
+      case 'url': {
+        try { new URL(defaultVal) } catch { msg = `Default value "${defaultVal}" is not a valid URL (kind: url).` }
+        break
+      }
+      case 'tel': {
+        const clean = defaultVal.replace(/[\s\-().+]/g, '')
+        if (!/^\d{7,15}$/.test(clean)) msg = `Default value "${defaultVal}" is not a valid phone number (kind: phone).`
+        break
+      }
+      case 'date': {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(defaultVal)) msg = `Default value "${defaultVal}" is not a valid date — expected YYYY-MM-DD (kind: date).`
+        break
+      }
+      case 'datetime': {
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(defaultVal)) msg = `Default value "${defaultVal}" is not a valid datetime — expected YYYY-MM-DDTHH:MM (kind: datetime).`
+        break
+      }
+      case 'color': {
+        if (!/^#[0-9a-fA-F]{3,6}$/.test(defaultVal)) msg = `Default value "${defaultVal}" is not a valid hex color (kind: color).`
+        break
+      }
+      default:
+        break
+    }
+
+    if (msg) {
+      problems.push({
+        severity: 'warning',
+        node: nodeLabel,
+        message: msg,
+        detail: { hint: 'Update the Default Value in the block inspector to match the selected Kind, or clear it.' },
+      })
+    }
+  })
+
   return problems
 }
 

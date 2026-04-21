@@ -159,14 +159,18 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'user_input', title: n.data?.title, output: outputs[n.id] })
     } else if (n.data?.blockType === 'starter') {
-      outputs[n.id] = null
+      // In chat mode, inputs.__chat__ carries { message, history }.
+      // Seed the starter with that payload so downstream blocks receive it.
+      const chatPayload = inputs?.__chat__ ?? null
+      outputs[n.id] = chatPayload
       trace.push({
         nodeId: n.id, blockType: 'starter', title: n.data?.title,
-        input: null, output: null, ms: 0, meta: { source: 'graph root' },
+        input: null, output: chatPayload, ms: 0,
+        meta: { source: chatPayload ? 'chat message' : 'graph root' },
       })
       started.add(n.id)
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter', title: n.data?.title })
-      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', title: n.data?.title, output: null })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', title: n.data?.title, output: chatPayload })
     }
   }
 

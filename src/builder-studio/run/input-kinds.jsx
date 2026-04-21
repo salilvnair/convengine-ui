@@ -15,6 +15,47 @@
  *   `config` is the full InputNode object (id, kind, min, max, step, accept, …)
  */
 import { registerRunInputKind } from './input-registry'
+import { useState } from 'react'
+import MiniCalendar from '../components/MiniCalendar'
+import StyledSelect from '../components/StyledSelect'
+
+// ─── Password input with eye toggle ─────────────────────────────────
+function PasswordInput({ value, onChange, placeholder, disabled }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="bs-password-wrap">
+      <input
+        className="bs-input"
+        type={show ? 'text' : 'password'}
+        value={value}
+        placeholder={placeholder || '••••••••'}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="new-password"
+      />
+      <button
+        type="button"
+        className="bs-password-eye"
+        onClick={() => setShow((v) => !v)}
+        tabIndex={-1}
+        aria-label={show ? 'Hide password' : 'Show password'}
+      >
+        {show ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        )}
+      </button>
+    </div>
+  )
+}
 
 // ─── Text inputs ────────────────────────────────────────────────────
 
@@ -35,7 +76,7 @@ registerRunInputKind('long-text', {
 registerRunInputKind('password', {
   defaultValue: '',
   render: ({ value, onChange, placeholder, disabled }) => (
-    <input className="bs-input" type="password" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+    <PasswordInput value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} />
   ),
 })
 
@@ -62,8 +103,25 @@ registerRunInputKind('email', {
 
 registerRunInputKind('tel', {
   defaultValue: '',
+  validate: (v) => {
+    if (!v) return null
+    const clean = v.replace(/[\s\-().+]/g, '')
+    return /^\d{7,15}$/.test(clean) ? null : 'Must be a valid phone number'
+  },
   render: ({ value, onChange, placeholder, disabled }) => (
-    <input className="bs-input" type="tel" value={value} placeholder={placeholder || '+1 (555) 000-0000'} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+    <input
+      className="bs-input"
+      type="tel"
+      inputMode="tel"
+      value={value}
+      placeholder={placeholder || '+1 (555) 000-0000'}
+      disabled={disabled}
+      onChange={(e) => {
+        // Allow only digits, spaces, dashes, parens, plus sign
+        const filtered = e.target.value.replace(/[^\d\s\-().+]/g, '')
+        onChange(filtered)
+      }}
+    />
   ),
 })
 
@@ -75,8 +133,9 @@ registerRunInputKind('number', {
   validate: (v) => (v !== '' && isNaN(Number(v))) ? 'Must be a number' : null,
   coerce: (v) => (v === '' ? '' : Number(v)),
   render: ({ value, onChange, placeholder, disabled, config }) => (
-    <input className="bs-input" type="number" value={value} placeholder={placeholder} disabled={disabled}
-      min={config?.min} max={config?.max} step={config?.step}
+    <input className="bs-input" type="number" inputMode="numeric" value={value} placeholder={placeholder}
+      disabled={disabled} min={config?.min} max={config?.max} step={config?.step ?? 'any'}
+      onKeyDown={(e) => { if (['-','e','E','+'].includes(e.key) && !config?.allowSigned) e.preventDefault() }}
       onChange={(e) => onChange(e.target.value)} />
   ),
 })
@@ -104,16 +163,20 @@ registerRunInputKind('range', {
 
 registerRunInputKind('dropdown', {
   defaultValue: '',
-  render: ({ value, onChange, placeholder, disabled, options }) => (
-    <select className="bs-input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder || 'Select\u2026'}</option>
-      {(options || []).map((opt) => {
-        const label = typeof opt === 'object' ? opt.label : opt
-        const val = typeof opt === 'object' ? (opt.value ?? opt.id ?? opt.label) : opt
-        return <option key={val} value={val}>{label}</option>
-      })}
-    </select>
-  ),
+  render: ({ value, onChange, placeholder, disabled, options }) => {
+    const opts = [{ id: '', label: placeholder || 'Select…' }, ...(options || []).map((opt) => ({
+      id: typeof opt === 'object' ? String(opt.value ?? opt.id ?? opt.label) : String(opt),
+      label: typeof opt === 'object' ? opt.label : opt,
+    }))]
+    return (
+      <StyledSelect
+        value={String(value ?? '')}
+        options={opts}
+        onChange={(id) => onChange(id === '' ? '' : id)}
+        placeholder={placeholder || 'Select…'}
+      />
+    )
+  },
 })
 
 registerRunInputKind('radio', {
@@ -193,8 +256,14 @@ registerRunInputKind('toggle', {
 
 registerRunInputKind('date', {
   defaultValue: '',
-  render: ({ value, onChange, placeholder, disabled }) => (
-    <input className="bs-input" type="date" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+  render: ({ value, onChange, disabled, config }) => (
+    <MiniCalendar
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      dateFormat={config?.dateFormat || 'YYYY-MM-DD'}
+      showTime={false}
+    />
   ),
 })
 
@@ -207,8 +276,14 @@ registerRunInputKind('time', {
 
 registerRunInputKind('datetime', {
   defaultValue: '',
-  render: ({ value, onChange, placeholder, disabled }) => (
-    <input className="bs-input" type="datetime-local" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+  render: ({ value, onChange, disabled, config }) => (
+    <MiniCalendar
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      dateFormat={config?.dateFormat || 'YYYY-MM-DD'}
+      showTime={true}
+    />
   ),
 })
 

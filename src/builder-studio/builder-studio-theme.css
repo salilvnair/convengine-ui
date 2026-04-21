@@ -200,9 +200,9 @@
   --bs-wiki-subgroup-title:     #a5b4fc;
 
   /* ── Canvas Toolbar (mode-toggle + zoom controls) ── */
-  --bs-toolbar-bg:              #0f172a;
-  --bs-toolbar-border:          #1f2937;
-  --bs-toolbar-shadow:          0 2px 8px rgba(0,0,0,0.35);
+  --bs-toolbar-bg:              #212121;
+  --bs-toolbar-border:          #383838;
+  --bs-toolbar-shadow:          0 2px 8px rgba(0,0,0,0.25);
   --bs-toolbar-btn-color:       #94a3b8;
   --bs-toolbar-btn-hover-bg:    rgba(99,102,241, 0.14);
   --bs-toolbar-btn-hover-color: #6366f1;
@@ -211,8 +211,8 @@
   --bs-toolbar-btn-active-ring: rgba(99,102,241, 0.40);
 
   /* ── Node preview panel (Final Preview block on canvas) ── */
-  --bs-node-preview-bg:         rgba(6,10,22, 0.75);
-  --bs-node-preview-head-bg:    rgba(0,0,0, 0.20);
+  --bs-node-preview-bg:         rgba(33,33,33, 0.88);
+  --bs-node-preview-head-bg:    rgba(0,0,0, 0.18);
   --bs-node-preview-head-color: #64748b;
   --bs-node-preview-border:     rgba(148,163,184, 0.12);
   --bs-node-preview-text:       #94a3b8;
@@ -223,15 +223,15 @@
   --bs-io-slot-bg-hover:        rgba(255,255,255, 0.04);
   --bs-io-slot-name:            #e2e8f0;
   --bs-io-panel-divider:        rgba(255,255,255, 0.06);
-  --bs-io-type-menu-bg:         #1e1e2e;
-  --bs-io-type-menu-border:     rgba(255,255,255, 0.08);
+  --bs-io-type-menu-bg:         #2b2b2b;
+  --bs-io-type-menu-border:     rgba(255,255,255, 0.09);
   --bs-io-type-option-hover:    rgba(255,255,255, 0.06);
   --bs-io-type-option-active:   rgba(255,255,255, 0.10);
 
   /* ── Custom dropdown (inspector StyledSelect + card NodeDropdown) ── */
-  --bs-dropdown-menu-bg:        #0f172a;
-  --bs-dropdown-menu-border:    rgba(148,163,184, 0.15);
-  --bs-dropdown-menu-shadow:    0 8px 24px rgba(0,0,0,0.45);
+  --bs-dropdown-menu-bg:        #2b2b2b;
+  --bs-dropdown-menu-border:    rgba(148,163,184, 0.12);
+  --bs-dropdown-menu-shadow:    0 8px 24px rgba(0,0,0,0.32);
   --bs-dropdown-option-color:   #e5e7eb;
   --bs-dropdown-option-hover:   rgba(99,102,241, 0.10);
   --bs-dropdown-option-active:  rgba(99,102,241, 0.16);

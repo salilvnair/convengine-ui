@@ -9,26 +9,58 @@
  *   placeholder — shown when nothing is selected
  *   className  — extra class on the wrapper
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function StyledSelect({ value, options = [], onChange, placeholder, className = '' }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [menuStyle, setMenuStyle] = useState({})
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
 
   // If the stored value isn't in the list, show it verbatim so it's never lost.
   const selected = options.find((o) => o.id === value) || (value ? { id: value, label: value } : null)
 
+  // Position the portal menu relative to the trigger button
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return
+    const r = triggerRef.current.getBoundingClientRect()
+    const viewportH = window.innerHeight
+    const menuH = Math.min(240, options.length * 36 + 8)
+    const spaceBelow = viewportH - r.bottom
+    const goUp = spaceBelow < menuH + 8 && r.top > menuH + 8
+    setMenuStyle({
+      position: 'fixed',
+      top: goUp ? r.top - menuH - 4 : r.bottom + 4,
+      left: r.left,
+      width: r.width,
+      zIndex: 99999,
+    })
+  }, [open, options.length])
+
+  // Close on outside click
   useEffect(() => {
     if (!open) return
     function onOut(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        menuRef.current && !menuRef.current.contains(e.target)
+      ) setOpen(false)
     }
     document.addEventListener('mousedown', onOut)
     return () => document.removeEventListener('mousedown', onOut)
   }, [open])
 
+  // Close on scroll (so menu doesn't float away)
+  useEffect(() => {
+    if (!open) return
+    const onScroll = () => setOpen(false)
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [open])
+
   return (
-    <div ref={ref} className={`bs-styled-select ${className}`}>
+    <div ref={triggerRef} className={`bs-styled-select nowheel ${className}`}>
       <button
         type="button"
         className={`bs-styled-select-trigger ${open ? 'is-open' : ''}`}
@@ -55,8 +87,8 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
         </svg>
       </button>
 
-      {open && (
-        <div className="bs-styled-select-menu">
+      {open && createPortal(
+        <div ref={menuRef} className="bs-styled-select-menu nowheel" style={menuStyle}>
           {options.length === 0 ? (
             <div className="bs-styled-select-empty">No options</div>
           ) : (
@@ -86,7 +118,8 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
               </button>
             ))
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

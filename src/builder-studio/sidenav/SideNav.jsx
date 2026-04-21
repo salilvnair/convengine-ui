@@ -18,6 +18,7 @@ import ContextMenu from './ContextMenu'
 import ConfirmModal from '../components/ConfirmModal'
 import CreateWorkflowModal from '../components/CreateWorkflowModal'
 import ImportWorkflowModal from '../components/ImportWorkflowModal'
+import StyledSelect from '../components/StyledSelect'
 import { pickAndParseWorkflowJSON } from '../utils/import-workflow'
 import {
   WorkflowsIcon,
@@ -468,12 +469,35 @@ function AgentsPanel() {
   return (
     <div className="bs-sec">
       <Collapsible title="Create pool" defaultOpen>
-        <div className="bs-inline-form">
-          <input className="bs-input" placeholder="Pool name" value={poolName} onChange={(e) => setPoolName(e.target.value)} />
-          <select className="bs-input bs-input-sm" value={poolTeam} onChange={(e) => setPoolTeam(e.target.value)}>
-            {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <button className="bs-icon-btn" onClick={() => { if (poolName.trim()) { createAgentPool(poolTeam, poolName.trim()); setPoolName('') } }}><PlusIcon className="bs-ico-sm" /></button>
+        <div className="bs-create-pool-form">
+          <input
+            className="bs-input"
+            placeholder="Pool name"
+            value={poolName}
+            onChange={(e) => setPoolName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && poolName.trim()) {
+                createAgentPool(poolTeam, poolName.trim())
+                setPoolName('')
+              }
+            }}
+          />
+          <div className="bs-create-pool-row">
+            <StyledSelect
+              value={poolTeam}
+              options={teams.map((t) => ({ id: t.id, label: t.name }))}
+              onChange={(id) => setPoolTeam(id)}
+              placeholder="Select team"
+              className="bs-create-pool-team"
+            />
+            <button
+              className="bs-icon-btn"
+              onClick={() => { if (poolName.trim()) { createAgentPool(poolTeam, poolName.trim()); setPoolName('') } }}
+              title="Create pool"
+            >
+              <PlusIcon className="bs-ico-sm" />
+            </button>
+          </div>
         </div>
       </Collapsible>
 

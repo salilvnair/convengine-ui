@@ -24,6 +24,7 @@ import DebugPanel from './panels/debug-panel'
 import TracePanel from './panels/trace-panel'
 import ProblemsPanel from './panels/problems-panel'
 import TodoPanel from './panels/todo-panel'
+import ChatRunPanel from './panels/chat-panel'
 
 // Register the core panels once. Keeps the registry populated even if no
 // extension files exist.
@@ -32,6 +33,7 @@ registerRunPanel(DebugPanel)
 registerRunPanel(TracePanel)
 registerRunPanel(ProblemsPanel)
 registerRunPanel(TodoPanel)
+registerRunPanel(ChatRunPanel)
 
 const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activeTab: activeTabProp, onTabChange, visible = true, showToast }, ref) {
   const inputNodes = useMemo(() => collectInputNodes(workflow), [workflow])
@@ -39,13 +41,32 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     Object.fromEntries(inputNodes.map((n) => [n.id, n.defaultValue]))
   )
 
-  // Re-sync values whenever inputNodes changes (user edits default values, adds/removes inputs)
+  // Detect chat mode: starter block's startWorkflow subBlock === 'chat'
+  const isChatMode = useMemo(() => {
+    const starterNode = workflow?.nodes?.find((n) => n.data?.blockType === 'starter')
+    if (!starterNode) return false
+    const sbv = workflow?.subBlockValues?.[starterNode.id] || {}
+    return sbv.startWorkflow === 'chat'
+  }, [workflow])
+
+  // Track each node's kind so we can wipe the typed value when it changes.
+  const prevKindsRef = useRef({})
+
+  // Re-sync values whenever inputNodes changes (user edits default values, adds/removes inputs).
+  // If the KIND of an input changed, reset that field's value — stale typed values
+  // for the old kind (e.g. a URL left over when kind was "Phone") should not persist.
   useEffect(() => {
     setValues((prev) => {
       const next = {}
       for (const n of inputNodes) {
-        // Keep user-typed value if present; otherwise use kind-aware default.
-        next[n.id] = Object.prototype.hasOwnProperty.call(prev, n.id) ? prev[n.id] : n.defaultValue
+        const prevKind = prevKindsRef.current[n.id]
+        const kindChanged = prevKind !== undefined && prevKind !== n.kind
+        if (!Object.prototype.hasOwnProperty.call(prev, n.id) || kindChanged) {
+          next[n.id] = n.defaultValue ?? ''
+        } else {
+          next[n.id] = prev[n.id]
+        }
+        prevKindsRef.current[n.id] = n.kind
       }
       return next
     })
@@ -67,6 +88,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const markNodeError = useWorkflowStore((s) => s.markNodeError)
   const endRun = useWorkflowStore((s) => s.endRun)
   const extraProblems = useWorkflowStore((s) => s.extraProblems)
+  const setInvalidInputNodeIds = useWorkflowStore((s) => s.setInvalidInputNodeIds)
 
   const invalidInputs = useMemo(() => {
     const out = {}
@@ -79,6 +101,21 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const missing = useMemo(() => inputNodes.filter((n) => invalidInputs[n.id]), [inputNodes, invalidInputs])
   const runBtnRef = useRef(null)
   const prevMissingRef = useRef(missing.length)
+
+  // Push invalid node IDs into the canvas store so cards can show red squiggle.
+  // Only flag nodes where the user has typed something (don't flag empty required
+  // fields before the user interacts — that would mark everything red at load).
+  useEffect(() => {
+    const ids = new Set(
+      Object.keys(invalidInputs).filter((nodeId) => {
+        const n = inputNodes.find((x) => x.id === nodeId)
+        const v = values[nodeId]
+        // Only highlight if the field has content (don't punish empty fields)
+        return n && v != null && v !== '' && invalidInputs[nodeId]
+      })
+    )
+    setInvalidInputNodeIds(ids)
+  }, [invalidInputs, inputNodes, values, setInvalidInputNodeIds])
 
   // Auto-focus the Run button when user fills all required inputs (first time)
   useEffect(() => {
@@ -248,13 +285,60 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     return { done, err, ms, total: result.trace.length }
   }, [result])
 
+  // ── Chat mode: run the graph with the user's message as the starter output ──
+  async function onChatSend({ message, history }) {
+    setBusy(true); setError(null)
+    startRun()
+    try {
+      const res = await executeGraph({
+        workflow,
+        inputs: {
+          __chat__: { message, history },
+          // Also thread any user_input default values
+          ...Object.fromEntries(inputNodes.map((n) => [n.id, coerceInput(n, values[n.id])])),
+        },
+        onProgress: (p) => {
+          const entry = { ...p, at: Date.now() }
+          progressRef.current = [...progressRef.current, entry]
+          setProgress((prev) => [...prev, entry])
+          if (p.type === 'start') markNodeRunning(p.nodeId)
+          else if (p.type === 'done') markNodeDone(p.nodeId)
+          else if (p.type === 'error') markNodeError(p.nodeId)
+        },
+      })
+      setResult(res)
+      endRun()
+      return res
+    } catch (err) {
+      setError(err.message || String(err))
+      endRun()
+      throw err
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const ctx = {
     workflow, values, setValues, inputNodes, missing,
     invalidInputs, busy, error, result, progress, expanded, setExpanded,
     onRun: doRun,
     extraProblems,
+    isChatMode,
+    onChatSend,
   }
   const activePanel = panels.find((p) => p.id === activeTab) || panels[0]
+  // Panels that should be visible given the current ctx (chat mode, etc.)
+  const visiblePanels = useMemo(
+    () => panels.filter((p) => typeof p.isVisible === 'function' ? p.isVisible(ctx) : true),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [panels, isChatMode]
+  )
+  // When chat mode changes, auto-switch to the 'chat' tab (or 'run' tab)
+  useEffect(() => {
+    if (isChatMode) setActiveTab('chat')
+    else setActiveTab('run')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatMode])
 
   return (
     <div className="bs-run-dock" style={{ height, display: visible ? undefined : 'none' }}>
@@ -262,7 +346,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
 
       <header className="bs-run-dock-head">
         <div className="bs-run-dock-tabs" role="tablist">
-          {panels.map((p) => {
+          {visiblePanels.map((p) => {
             const badge = typeof p.badge === 'function' ? p.badge(ctx) : null
             return (
               <button
@@ -290,7 +374,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
         </div>
 
         <div className="bs-run-dock-actions">
-          {inputNodes.some((n) => n.required) && (
+          {!isChatMode && inputNodes.some((n) => n.required) && (
             <button ref={runBtnRef} className="bs-btn-run-green bs-btn-sm" onClick={doRun} disabled={busy || missing.length > 0} title={missing.length > 0 ? 'Fill all required inputs first' : 'Run workflow'}>
               <PlayIcon className="bs-ico-xs" /> {busy ? 'Running…' : 'Run'}
             </button>

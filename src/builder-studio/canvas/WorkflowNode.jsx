@@ -98,6 +98,8 @@ function WorkflowNode({ id, data, selected }) {
   const selectedNodeIds = useWorkflowStore((s) => s.selectedNodeIds)
   const isInMultiSelect = selectedNodeIds.length > 1 && selectedNodeIds.includes(id)
   const errorShakeKey = useWorkflowStore((s) => s.errorShakeKey)
+  const invalidInputNodeIds = useWorkflowStore((s) => s.invalidInputNodeIds)
+  const invalidInputShakeKey = useWorkflowStore((s) => s.invalidInputShakeKey)
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
   const fitNodeStore = useWorkflowStore((s) => s.fitNode)
@@ -110,6 +112,7 @@ function WorkflowNode({ id, data, selected }) {
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
   const isError = errorNodeIds?.has?.(id) ?? false
+  const isInvalidInput = invalidInputNodeIds?.has?.(id) ?? false
   const isUnconnected = hasNoIncoming
   const isDisabled = !!data.disabled
   const cfg = getBlock(data.blockType)
@@ -233,6 +236,16 @@ function WorkflowNode({ id, data, selected }) {
     el.offsetWidth // trigger reflow
     el.style.animation = ''
   }, [isError, errorShakeKey])
+
+  // Replay the squiggle animation when invalid-input state changes.
+  useEffect(() => {
+    if (!isInvalidInput || !nodeRef.current) return
+    const el = nodeRef.current
+    el.style.animation = 'none'
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth // trigger reflow
+    el.style.animation = ''
+  }, [isInvalidInput, invalidInputShakeKey])
 
   // ─── Connection-drag type compatibility (ComfyUI-style glow/dim) ──────
   const [connectDrag, setConnectDrag] = useState(null) // { handleType, portType } | null
@@ -358,6 +371,7 @@ function WorkflowNode({ id, data, selected }) {
           isActive ? 'bs-node-running' : '',
           isDone ? 'bs-node-done' : '',
           isError ? 'bs-node-error' : '',
+          isInvalidInput && !isError ? 'bs-node-invalid-input' : '',
           isDisabled ? 'bs-node-disabled' : '',
           isUnconnected ? 'bs-node-unconnected' : '',
           outputHandles.length > 1 ? 'bs-node-multi-out' : '',
@@ -522,7 +536,14 @@ function WorkflowNode({ id, data, selected }) {
                       className="bs-node-row-edit"
                       {...(interactive ? stopPointer : {})}
                     >
-                      {renderInlineEditor(row.sb, row.value, (v) => setSubBlockValue(id, row.id, v))}
+                      {renderInlineEditor(row.sb, row.value, (v) => {
+                        setSubBlockValue(id, row.id, v)
+                        // When kind changes on a user_input block, clear the
+                        // defaultValue so stale incompatible values don't linger.
+                        if (data.blockType === 'user_input' && row.id === 'kind') {
+                          setSubBlockValue(id, 'defaultValue', '')
+                        }
+                      })}
                     </span>
                   ) : (
                     <span className="bs-node-row-value">{formatPreview(row.value)}</span>
@@ -750,7 +771,7 @@ function NodeDropdown({ value, options = [], onChange, placeholder }) {
   }, [open])
 
   return (
-    <div ref={ref} className="bs-node-dropdown">
+    <div ref={ref} className="bs-node-dropdown nowheel">
       <button
         type="button"
         className={`bs-node-dropdown-trigger ${open ? 'is-open' : ''}`}
@@ -764,7 +785,7 @@ function NodeDropdown({ value, options = [], onChange, placeholder }) {
         </svg>
       </button>
       {open && (
-        <div className="bs-node-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+        <div className="bs-node-dropdown-menu nowheel" onClick={(e) => e.stopPropagation()}>
           {options.map((o) => (
             <button
               key={o.id}
@@ -969,7 +990,7 @@ function PortTypeBadge({ type, color, portId, nodeId }) {
         {type}
       </span>
       {open && (
-        <div className={`bs-port-badge-menu ${dropUp ? 'bs-port-badge-menu-up' : ''}`} ref={menuRef}>
+        <div className={`bs-port-badge-menu nowheel ${dropUp ? 'bs-port-badge-menu-up' : ''}`} ref={menuRef}>
           {allTypes.map((t) => {
             const c = getTypeColor(t)
             return (

@@ -34,6 +34,7 @@ const BUILTIN_MODELS = [
   { label: 'Claude Haiku 3.5', id: 'claude-haiku-3-5', group: 'Anthropic' },
   { label: 'GPT-4o', id: 'gpt-4o', group: 'OpenAI' },
   { label: 'GPT-4o mini', id: 'gpt-4o-mini', group: 'OpenAI' },
+  { label: 'GPT-4.1', id: 'gpt-4.1', group: 'OpenAI' },
   { label: 'GPT-5', id: 'gpt-5', group: 'OpenAI' },
   { label: 'o3', id: 'o3', group: 'OpenAI' },
   { label: 'Gemini 2.5 Pro', id: 'gemini-2.5-pro', group: 'Google' },
@@ -43,7 +44,7 @@ const BUILTIN_MODELS = [
   { label: 'DeepSeek Reasoner', id: 'deepseek-reasoner', group: 'DeepSeek' },
 ]
 
-const BUILTIN_DEFAULT_MODEL = 'claude-sonnet-4-6'
+const BUILTIN_DEFAULT_MODEL = 'gpt-4.1'
 
 /* ── Well-known provider group names ─────────────────────────────────── */
 const PROVIDER_GROUP_MAP = {

@@ -101,6 +101,19 @@ export const UserInputBlock = {
       condition: { field: 'kind', value: ['number', 'range'] },
     },
     {
+      id: 'dateFormat',
+      title: 'Date Format',
+      type: 'dropdown',
+      description: 'Display format. The stored value is always ISO (YYYY-MM-DD).',
+      options: [
+        { label: 'YYYY-MM-DD (ISO)', id: 'YYYY-MM-DD' },
+        { label: 'MM/DD/YYYY', id: 'MM/DD/YYYY' },
+        { label: 'DD/MM/YYYY', id: 'DD/MM/YYYY' },
+      ],
+      value: () => 'YYYY-MM-DD',
+      condition: { field: 'kind', value: ['date', 'datetime'] },
+    },
+    {
       id: 'accept',
       title: 'Accept (file types)',
       type: 'short-input',
@@ -134,6 +147,18 @@ export const UserInputBlock = {
       description:
         'Pre-filled value. If set, the workflow auto-runs with this value without opening an input dialog.',
       value: () => '',
+      condition: { field: 'kind', value: ['password'], not: true },
+    },
+    {
+      // Password default value — masked with eye toggle
+      id: 'defaultValue',
+      title: 'Default Value',
+      type: 'short-input',
+      password: true,
+      description:
+        'Pre-filled password. If set, the workflow auto-runs with this value without opening an input dialog.',
+      value: () => '',
+      condition: { field: 'kind', value: ['password'] },
     },
     {
       id: 'required',

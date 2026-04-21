@@ -62,6 +62,12 @@ const initialState = {
   activeEdgeIds: [],
   errorNodeIds: new Set(),
   errorShakeKey: 0,
+  /** Node IDs whose run-panel inputs are currently invalid (wrong format/type).
+   *  Drives the red squiggle card highlight in the canvas. Cleared when the
+   *  user fixes the value. Does NOT clear on run start — the card stays red
+   *  until the value is corrected. */
+  invalidInputNodeIds: new Set(),
+  invalidInputShakeKey: 0,
   /** Per-node last output from the most recent run. Drives the Save-to-Files
    *  preview body and can be consumed by any block that wants to show what
    *  it last produced. Keyed by node id. Cleared by `clearRunHighlights`. */
@@ -467,6 +473,23 @@ export const useWorkflowStore = create()(
       },
       markNodeError(nodeId) {
         set((s) => ({ errorNodeIds: new Set([...s.errorNodeIds, nodeId]), errorShakeKey: s.errorShakeKey + 1, activeNodeId: null, activeEdgeIds: [] }))
+      },
+      /** Called by the Run dock whenever invalidInputs changes.
+       *  ids = Set<string> of node IDs that currently have bad values.
+       *  Only bumps the shake key when the set of invalid IDs actually changes
+       *  so that the squiggle animation isn't reset on every keystroke. */
+      setInvalidInputNodeIds(ids) {
+        set((s) => {
+          const prev = s.invalidInputNodeIds
+          const changed =
+            ids.size !== prev.size ||
+            [...ids].some((id) => !prev.has(id)) ||
+            [...prev].some((id) => !ids.has(id))
+          return {
+            invalidInputNodeIds: ids,
+            invalidInputShakeKey: changed ? s.invalidInputShakeKey + 1 : s.invalidInputShakeKey,
+          }
+        })
       },
       endRun() {
         // Keep completed highlights for a beat then clear via RunModal.

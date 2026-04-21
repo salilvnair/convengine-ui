@@ -108,7 +108,11 @@ export default function Inspector() {
           </button>
         </div>
         {availableModes.length > 1 && (
-          <div className="bs-inspector-modes">
+          <div
+            className="bs-inspector-modes"
+            style={{ '--active-idx': availableModes.indexOf(mode), '--mode-count': availableModes.length }}
+          >
+            <div className="bs-inspector-pill" />
             {availableModes.map((m) => (
               <button
                 key={m}
@@ -144,7 +148,14 @@ export default function Inspector() {
               value={values[sb.id]}
               blockValues={values}
               nodeId={node.id}
-              onChange={(id, v) => setSubBlockValue(node.id, id, v)}
+              onChange={(id, v) => {
+                setSubBlockValue(node.id, id, v)
+                // When user_input kind changes, reset defaultValue so stale
+                // incompatible values don't cause validation warnings.
+                if (cfgKey === 'user_input' && id === 'kind') {
+                  setSubBlockValue(node.id, 'defaultValue', '')
+                }
+              }}
             />
             {sb.description && <div className="bs-hint">{sb.description}</div>}
           </div>

@@ -231,7 +231,7 @@ export default function WikiGuide() {
         "required": true
       },
       "node_2": {
-        "model": "claude-sonnet-4-20250514",
+        "model": "gpt-4.1",
         "temperature": 0.3,
         "messages": [
           {
@@ -617,8 +617,8 @@ export default function WikiGuide() {
           <div className="wiki-steps">
             <Step num={1} title="Start">Starter block with <code>manual</code> mode.</Step>
             <Step num={2} title="URL input">User input block — kind: <code>url</code>, default: <code>https://www.salilvnair.com/docs/v2/architecture</code>.</Step>
-            <Step num={3} title="URL Extractor agent">Agent with <code>sk_url_extract</code> skill. Model: <code>claude-sonnet-4-6</code>. Response format: <code>{'{ url, title, text }'}</code>.</Step>
-            <Step num={4} title="Summarizer agent">Second agent, model: <code>claude-sonnet-4-6</code>. Response format: <code>{'{ summary, bullets[] }'}</code>.</Step>
+            <Step num={3} title="URL Extractor agent">Agent with <code>sk_url_extract</code> skill. Model: <code>gpt-4.1</code>. Response format: <code>{'{ url, title, text }'}</code>.</Step>
+            <Step num={4} title="Summarizer agent">Second agent, model: <code>gpt-4.1</code>. Response format: <code>{'{ summary, bullets[] }'}</code>.</Step>
             <Step num={5} title="Response">Response block: <code>{'data: "<n_agent2.output>"'}</code>.</Step>
             <Step num={6} title="Preview">Show Preview block renders the final JSON on the canvas.</Step>
           </div>

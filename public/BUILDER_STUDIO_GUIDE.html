@@ -588,7 +588,7 @@ model combination supports strict mode.</div>
 
 <h4>Example subBlockValues</h4>
 <pre>{
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a concise summarisation agent. Produce 3-5 bullets.",
   "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
   "temperature": 0.3,
@@ -1615,7 +1615,7 @@ classify, extract entities, etc.).</p>
 }</pre>
 <pre>// n_agent1 — URL Data Extractor
 {
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a data extraction agent. The user will give you a URL. Call the `url_extract` skill with that URL and return the extracted text verbatim plus a short JSON envelope { url, title, text }.",
   "userPrompt": "Extract the page at: {{url}}",
   "temperature": 0.2,
@@ -1624,7 +1624,7 @@ classify, extract entities, etc.).</p>
 }</pre>
 <pre>// n_agent2 — Summarizer
 {
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a concise summarization agent. Given an extracted page (title + text), produce a crisp summary in 3-5 bullet points, each under 140 characters. Stay faithful to the source.",
   "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
   "temperature": 0.3,
@@ -1887,21 +1887,21 @@ three rejoin in a single <code>response</code>.</p>
 }</pre>
 <pre>// n_billing
 {
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a billing specialist. Answer questions about invoices, refunds, and payments. Reference &lt;billing docs&gt; when relevant.",
   "userPrompt": "Customer: {{input}}",
   "temperature": 0.3
 }</pre>
 <pre>// n_tech
 {
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a tech-support engineer. Ask for reproduction steps if the description is vague. Offer a workaround when possible.",
   "userPrompt": "Ticket: {{input}}",
   "temperature": 0.3
 }</pre>
 <pre>// n_sales
 {
-  "model": "claude-sonnet-4-6",
+  "model": "gpt-4.1",
   "systemPrompt": "You are a friendly sales consultant. Propose the best plan, but never hard-sell.",
   "userPrompt": "Lead: {{input}}",
   "temperature": 0.5

@@ -37,9 +37,22 @@ function CollapseAllIcon() {
   )
 }
 
+/* Show-all (flat grid) icon — a 2×2 grid of squares */
+function ShowAllIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  )
+}
+
 export default function BlockPalette() {
   const [filter, setFilter] = useState('')
   const [collapsed, setCollapsed] = useState({}) // { [key]: true }  — keys: category ids + "cat-subgroupId"
+  const [showFlat, setShowFlat] = useState(false)
   const nodes = useWorkflowStore((s) => s.nodes)
   const existingTypes = useMemo(() => new Set(nodes.map((n) => n.data?.blockType)), [nodes])
 
@@ -164,7 +177,7 @@ export default function BlockPalette() {
         )}
       </div>
 
-      {/* Expand / Collapse all toolbar */}
+      {/* Expand / Collapse / Show-all toolbar */}
       {!isSearching && (
         <div className="bs-palette-toolbar">
           <button className="bs-palette-toolbar-btn" onClick={expandAll} title="Expand all">
@@ -173,12 +186,35 @@ export default function BlockPalette() {
           <button className="bs-palette-toolbar-btn" onClick={collapseAll} title="Collapse all">
             <CollapseAllIcon />
           </button>
+          <button
+            className={`bs-palette-toolbar-btn ${showFlat ? 'is-active' : ''}`}
+            onClick={() => setShowFlat((v) => !v)}
+            title={showFlat ? 'Show by category' : 'Show all blocks (flat)'}
+          >
+            <ShowAllIcon />
+          </button>
         </div>
       )}
+
+      {/* Flat view — all blocks in a single list, no categories */}
+      {!isSearching && showFlat && (() => {
+        const allItems = CATEGORY_ORDER.flatMap((cat) => grouped[cat] || [])
+        return (
+          <div className="bs-palette-group">
+            <div className="bs-palette-group-title">ALL BLOCKS</div>
+            <div className="bs-palette-list">
+              {allItems.map(renderBlockItem)}
+            </div>
+          </div>
+        )
+      })()}
 
       {CATEGORY_ORDER.map((cat) => {
         const items = grouped[cat] || []
         if (items.length === 0) return null
+
+        // When flat view is active, categories are suppressed (rendered above)
+        if (!isSearching && showFlat) return null
 
         // When searching, render flat list (no sub-groups)
         if (isSearching) {

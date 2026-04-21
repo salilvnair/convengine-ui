@@ -79,7 +79,7 @@ export default function ErrorDetailView({ error, errorDetail: d }) {
         </Disclosure>
       )}
       {d?.stack && (
-        <Disclosure label="Stack trace">
+        <Disclosure label="Stack trace" defaultOpen>
           <StackTrace text={d.stack} />
         </Disclosure>
       )}
