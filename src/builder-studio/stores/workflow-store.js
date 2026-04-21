@@ -70,6 +70,13 @@ const initialState = {
   lastNodeTrace: {},
 
   /**
+   * Extra problems injected outside the run flow (deploy errors, import
+   * parse errors, etc.) — surfaced in the Problems panel alongside run errors.
+   * Each entry: { severity, node, message, detail? }
+   */
+  extraProblems: [],
+
+  /**
    * Canvas-level configuration — persisted with the workflow.
    * Every visual / behavioural preference lives here so it can be toggled
    * from Settings or context menus without touching component state.
@@ -103,6 +110,13 @@ export const useWorkflowStore = create()(
   devtools(
     (set, get) => ({
       ...initialState,
+
+      addExtraProblem(problem) {
+        set((s) => ({ extraProblems: [...s.extraProblems, problem] }))
+      },
+      clearExtraProblems() {
+        set({ extraProblems: [] })
+      },
 
       loadWorkflow({ nodes, edges, subBlockValues }) {
         // ── Migrate legacy edge handles ──────────────────────────────────

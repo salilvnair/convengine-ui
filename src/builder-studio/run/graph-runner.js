@@ -229,7 +229,18 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         // ── Runtime port type validation (skip for disabled pass-through) ──
         if (!disabledIds.has(n.id)) {
         for (const e of inEdges) {
-          const srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
+          // If the upstream node is disabled it is a pass-through — trace
+          // back to its actual predecessor and use that node's output type,
+          // so the real type flowing through is validated correctly.
+          let srcType
+          if (disabledIds.has(e.source)) {
+            const prevEdge = (incoming[e.source] || [])[0]
+            srcType = prevEdge
+              ? resolvePortType(prevEdge.source, prevEdge.sourceHandle || 'out', 'source', subBlockValues, nodes)
+              : 'any'
+          } else {
+            srcType = resolvePortType(e.source, e.sourceHandle || 'out', 'source', subBlockValues, nodes)
+          }
           const th = e.targetHandle || 'in'
           const tgtType = resolvePortType(n.id, th, 'target', subBlockValues, nodes)
           if (!isTypeCompatible(srcType, tgtType)) {

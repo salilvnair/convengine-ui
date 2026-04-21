@@ -79,11 +79,18 @@ function ProblemRow({ problem: p }) {
 }
 
 function collectProblems(ctx) {
-  const { workflow, result, error } = ctx
+  const { workflow, result, error, extraProblems } = ctx
   if (!workflow) return []
   const problems = []
   const nodes = workflow.nodes || []
   const edges = workflow.edges || []
+
+  // ── Extra injected problems (deploy errors, import errors, etc.) ──────
+  if (extraProblems && extraProblems.length > 0) {
+    for (const p of extraProblems) {
+      problems.push(p)
+    }
+  }
 
   // ── Runtime errors from the last run ──────────────────────────────────
   if (error) {

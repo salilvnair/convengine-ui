@@ -6,7 +6,10 @@
  *  - POST /builder-studio/undeploy → stop deployment
  *  - GET  /builder-studio/deployments → list active deployments
  */
-const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || 'http://localhost:8080/api/v1').replace(/\/$/, '')
+// ce-builder-studio runs on its own port (3001 by default), separate from
+// the convengine-demo Spring Boot backend (8080). Deploy requests must go
+// directly to ce-builder-studio — not through the /api/v1 proxy.
+const BASE = (import.meta.env?.VITE_CE_STUDIO_BASE || 'http://localhost:3001').replace(/\/$/, '')
 
 /**
  * Deploy a workflow. Registers cron schedule or webhook trigger on the server.

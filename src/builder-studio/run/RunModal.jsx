@@ -66,6 +66,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const markNodeDone = useWorkflowStore((s) => s.markNodeDone)
   const markNodeError = useWorkflowStore((s) => s.markNodeError)
   const endRun = useWorkflowStore((s) => s.endRun)
+  const extraProblems = useWorkflowStore((s) => s.extraProblems)
 
   const invalidInputs = useMemo(() => {
     const out = {}
@@ -251,6 +252,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     workflow, values, setValues, inputNodes, missing,
     invalidInputs, busy, error, result, progress, expanded, setExpanded,
     onRun: doRun,
+    extraProblems,
   }
   const activePanel = panels.find((p) => p.id === activeTab) || panels[0]
 

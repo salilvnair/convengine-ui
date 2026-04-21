@@ -155,6 +155,8 @@ export default function AgentBuilderPage() {
     } else if (webhookNode) {
       trigger = { type: 'webhook' }
     }
+    // Clear stale deploy problems before each attempt
+    useWorkflowStore.getState().clearExtraProblems()
     try {
       const result = await deployWorkflow({
         workflowId: active.id,
@@ -167,6 +169,22 @@ export default function AgentBuilderPage() {
       showToast(msg, 'success')
     } catch (err) {
       showToast(`Deploy failed: ${err.message}`, 'error')
+      useWorkflowStore.getState().addExtraProblem({
+        severity: 'error',
+        node: 'Deploy',
+        message: err.message,
+        detail: {
+          message: err.message,
+          blockType: 'deploy',
+          nodeTitle: 'Deploy',
+          cause: 'The workflow could not be deployed to ce-builder-studio. Check that the server is running and reachable.',
+          hint: 'Verify VITE_CE_STUDIO_BASE points to the running ce-builder-studio instance (default: http://localhost:3001).',
+          stack: err.stack,
+          timestamp: new Date().toISOString(),
+        },
+      })
+      setDockTab('problems')
+      setRunOpen(true)
     }
   }, [active, animateBtn, canDeploy, edges, nodes, saveWorkflow, showToast, subBlockValues, syncToServer])
 
@@ -208,6 +226,9 @@ export default function AgentBuilderPage() {
         handleRun()
       } else if (action === 'deploy') {
         handleDeploy()
+      } else if (action === 'open-problems') {
+        setDockTab('problems')
+        setRunOpen(true)
       }
     }
     window.addEventListener('bs:action', handler)

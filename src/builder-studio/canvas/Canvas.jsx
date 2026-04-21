@@ -551,6 +551,22 @@ function CanvasInner() {
           } else {
             setJsonDropError(result.error)
             setTimeout(() => setJsonDropError(null), 4000)
+            // Also surface in Problems tab with full detail
+            useWorkflowStore.getState().clearExtraProblems()
+            useWorkflowStore.getState().addExtraProblem({
+              severity: 'error',
+              node: 'Import',
+              message: result.error,
+              detail: {
+                message: result.error,
+                blockType: 'import',
+                nodeTitle: 'Import',
+                cause: `The file "${jsonFile.name}" could not be parsed as a valid ConvEngine workflow JSON.`,
+                hint: 'Make sure the JSON was exported from this builder. Expected format: { workflow: { nodes, edges, subBlockValues } }',
+                timestamp: new Date().toISOString(),
+              },
+            })
+            window.dispatchEvent(new CustomEvent('bs:action', { detail: 'open-problems' }))
           }
         }
         reader.readAsText(jsonFile)
