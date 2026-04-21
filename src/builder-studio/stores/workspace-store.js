@@ -14,16 +14,27 @@ import { syncWorkspaceToServer, loadWorkspaceFromServer } from '../api/workspace
 import { useLlmConfigStore } from './llm-config-store'
 import _demo from './demo-workflow.json'
 
-const SEED_WORKSPACE_ID = _demo.seedWorkspaceId
-const SEED_TEAM_ID      = _demo.seedTeamId
-const SEED_POOL_ID      = _demo.seedPoolId
-const SEED_AGENT1_ID    = _demo.seedAgent1Id
-const SEED_AGENT2_ID    = _demo.seedAgent2Id
-const SEED_WORKFLOW_ID  = _demo.seedWorkflowId
-const demoSkill         = _demo.skill
-const demoAgent1        = _demo.agent1
-const demoAgent2        = _demo.agent2
-const demoWorkflow      = _demo.workflow
+// demo-workflow.json canonical format:
+//   { seedWorkspaceId, seedTeamId, …, skill, agent1, agent2, workflow: { id, name, teamId, nodes, edges, subBlockValues, createdAt } }
+// All exported workflows use the same nested shape — no dual-format handling needed.
+const _w = _demo.workflow || {}
+
+const SEED_WORKSPACE_ID = _demo.seedWorkspaceId || 'ws_default'
+const SEED_TEAM_ID      = _demo.seedTeamId      || 't_fullstack'
+const SEED_POOL_ID      = _demo.seedPoolId      || 'pool_default'
+const SEED_WORKFLOW_ID  = _demo.seedWorkflowId  || _w.id || 'wf_demo'
+const demoSkill         = _demo.skill  || null
+const demoAgent1        = _demo.agent1 || null
+const demoAgent2        = _demo.agent2 || null
+const demoWorkflow      = {
+  id:             _w.id             || SEED_WORKFLOW_ID,
+  name:           _w.name           || 'Demo Workflow',
+  teamId:         _w.teamId         || SEED_TEAM_ID,
+  nodes:          _w.nodes          || [],
+  edges:          _w.edges          || [],
+  subBlockValues: _w.subBlockValues || {},
+  createdAt:      _w.createdAt      || new Date().toISOString(),
+}
 
 /**
  * @typedef {{id: string, name: string, language: 'javascript'|'python', source: string, inputSchema?: object, outputSchema?: object}} Skill
@@ -40,6 +51,10 @@ const seedTeamId      = SEED_TEAM_ID
 const seedPoolId      = SEED_POOL_ID
 const seedWorkflowId  = SEED_WORKFLOW_ID
 
+// Only include seed agents/skills if the JSON actually defines them
+const seedAgents = [demoAgent1, demoAgent2].filter(Boolean)
+const seedSkills = [demoSkill].filter(Boolean)
+
 const initialState = {
   activeWorkspaceId: seedWorkspaceId,
   activeWorkflowId:  seedWorkflowId,
@@ -47,9 +62,9 @@ const initialState = {
   teams: [
     { id: seedTeamId, name: 'fullstack builders', workspaceId: seedWorkspaceId, agentPoolIds: [seedPoolId] },
   ],
-  agentPools: [{ id: seedPoolId, name: 'Default Pool', teamId: seedTeamId, agentIds: [SEED_AGENT1_ID, SEED_AGENT2_ID] }],
-  agents:    [demoAgent1, demoAgent2],
-  skills:    [demoSkill],
+  agentPools: [{ id: seedPoolId, name: 'Default Pool', teamId: seedTeamId, agentIds: seedAgents.map((a) => a.id) }],
+  agents:    seedAgents,
+  skills:    seedSkills,
   workflows: [demoWorkflow],
 }
 

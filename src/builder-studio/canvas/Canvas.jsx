@@ -369,7 +369,23 @@ function CanvasInner() {
               disabled: nodes.length < 2,
               onSelect: () => {
                 if (!activeWorkflow) return
-                const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+                // Strip ReactFlow runtime props from nodes/edges before export
+                // so the file matches demo-workflow.json shape exactly.
+                const cleanNodes = nodes.map(({ width, height, dragging, selected, positionAbsolute, ...n }) => n)
+                const cleanEdges = edges.map(({ selected, ...e }) => e)
+                const exportData = {
+                  _comment: `Exported from ConvEngine Agent Builder Studio — ${new Date().toISOString()}`,
+                  workflow: {
+                    id:             activeWorkflow.id,
+                    name:           activeWorkflow.name,
+                    teamId:         activeWorkflow.teamId || null,
+                    nodes:          cleanNodes,
+                    edges:          cleanEdges,
+                    subBlockValues,
+                    createdAt:      activeWorkflow.createdAt || new Date().toISOString(),
+                  },
+                }
+                const json = JSON.stringify(exportData, null, 2)
                 const blob = new Blob([json], { type: 'application/json' })
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')

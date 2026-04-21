@@ -114,7 +114,21 @@ export default function AgentBuilderPage() {
   const handleExport = useCallback(() => {
     if (!active || !canExport) return
     animateBtn('.bs-topbar-icon-export')
-    const json = JSON.stringify({ nodes, edges, subBlockValues }, null, 2)
+    const cleanNodes = nodes.map(({ width, height, dragging, selected, positionAbsolute, ...n }) => n)
+    const cleanEdges = edges.map(({ selected, ...e }) => e)
+    const exportData = {
+      _comment: `Exported from ConvEngine Agent Builder Studio — ${new Date().toISOString()}`,
+      workflow: {
+        id:             active.id,
+        name:           active.name,
+        teamId:         active.teamId || null,
+        nodes:          cleanNodes,
+        edges:          cleanEdges,
+        subBlockValues,
+        createdAt:      active.createdAt || new Date().toISOString(),
+      },
+    }
+    const json = JSON.stringify(exportData, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
