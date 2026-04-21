@@ -79,7 +79,7 @@ function ProblemRow({ problem: p }) {
 }
 
 function collectProblems(ctx) {
-  const { workflow, result, error, extraProblems } = ctx
+  const { workflow, result, error, extraProblems, invalidInputs, inputNodes } = ctx
   if (!workflow) return []
   const problems = []
   const nodes = workflow.nodes || []
@@ -89,6 +89,29 @@ function collectProblems(ctx) {
   if (extraProblems && extraProblems.length > 0) {
     for (const p of extraProblems) {
       problems.push(p)
+    }
+  }
+
+  // ── Run-panel field validation errors ─────────────────────────────────
+  // Shown as errors (not warnings) with the real JS stack trace from validation.
+  if (invalidInputs && inputNodes?.length > 0) {
+    for (const n of inputNodes) {
+      const entry = invalidInputs[n.id]
+      if (!entry) continue
+      const msg = entry.message ?? entry
+      const stack = entry.stack ?? null
+      problems.push({
+        severity: 'error',
+        node: n.label || n.id,
+        message: msg,
+        detail: stack
+          ? {
+              message: msg,
+              stack,
+              hint: `Field "${n.label}" failed validation. Fix the value in the Run tab.`,
+            }
+          : null,
+      })
     }
   }
 

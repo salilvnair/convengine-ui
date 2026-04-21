@@ -72,6 +72,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     })
   }, [inputNodes])
   const [busy, setBusy] = useState(false)
+  const [runAttempted, setRunAttempted] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [progress, setProgress] = useState([])
@@ -79,6 +80,8 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const [expanded, setExpanded] = useState({})
   const [height, setHeight] = useState(340)
   const [panels, setPanels] = useState(() => getRunPanels())
+  const [resizeTip, setResizeTip] = useState(false)
+  const resizeDragging = useRef(false)
   const activeTab = activeTabProp || 'run'
   const setActiveTab = onTabChange || (() => {})
 
@@ -89,12 +92,17 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const endRun = useWorkflowStore((s) => s.endRun)
   const extraProblems = useWorkflowStore((s) => s.extraProblems)
   const setInvalidInputNodeIds = useWorkflowStore((s) => s.setInvalidInputNodeIds)
+  const shakeInvalidInputs = useWorkflowStore((s) => s.shakeInvalidInputs)
 
   const invalidInputs = useMemo(() => {
     const out = {}
     for (const n of inputNodes) {
       const msg = validateInput(n, values[n.id])
-      if (msg) out[n.id] = msg
+      if (msg) {
+        // Capture a real JS stack trace pointing into the validation code
+        const err = new Error(msg)
+        out[n.id] = { message: msg, stack: err.stack }
+      }
     }
     return out
   }, [inputNodes, values])
@@ -102,20 +110,19 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const runBtnRef = useRef(null)
   const prevMissingRef = useRef(missing.length)
 
-  // Push invalid node IDs into the canvas store so cards can show red squiggle.
-  // Only flag nodes where the user has typed something (don't flag empty required
-  // fields before the user interacts — that would mark everything red at load).
+  // Push invalid node IDs into the canvas store so the card on canvas turns orange.
+  // Show squiggle whenever the dock is open and a field has a validation error.
+  // Clear it completely when the dock is closed.
   useEffect(() => {
+    if (!visible) {
+      setInvalidInputNodeIds(new Set())
+      return
+    }
     const ids = new Set(
-      Object.keys(invalidInputs).filter((nodeId) => {
-        const n = inputNodes.find((x) => x.id === nodeId)
-        const v = values[nodeId]
-        // Only highlight if the field has content (don't punish empty fields)
-        return n && v != null && v !== '' && invalidInputs[nodeId]
-      })
+      Object.keys(invalidInputs).filter((nodeId) => !!invalidInputs[nodeId])
     )
     setInvalidInputNodeIds(ids)
-  }, [invalidInputs, inputNodes, values, setInvalidInputNodeIds])
+  }, [invalidInputs, visible, setInvalidInputNodeIds])
 
   // Auto-focus the Run button when user fills all required inputs (first time)
   useEffect(() => {
@@ -149,6 +156,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
 
   const onResizePointerDown = useCallback((e) => {
     e.preventDefault()
+    resizeDragging.current = true
     const startY = e.clientY
     const startH = height
     function onMove(ev) {
@@ -157,6 +165,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
       setHeight(next)
     }
     function onUp() {
+      resizeDragging.current = false
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
@@ -165,19 +174,25 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   }, [height])
 
   async function doRun() {
-    // If workflow has required inputs, auto-minimize the dock on Run
-    if (inputNodes.length > 0 && missing.length === 0) {
-      onClose()
+    // Always mark that the user has attempted a run (enables required-field highlighting)
+    setRunAttempted(true)
+
+    // If any input field is invalid, surface the Problems tab and bail out early.
+    // Also force-replay the shake animation on every Run press so the card jiggles
+    // even if the same fields were already invalid (shake key must always bump).
+    if (missing.length > 0) {
+      shakeInvalidInputs()
+      setActiveTab('problems')
+      onOpen?.()
+      return
     }
+
+    // All inputs valid — close dock and execute
+    if (inputNodes.length > 0) onClose()
     setBusy(true); setError(null); setResult(null); setProgress([]); progressRef.current = []; setExpanded({})
     setActiveTab('run')
     startRun()
     try {
-      for (const n of inputNodes) {
-        const validationError = validateInput(n, values[n.id])
-        if (validationError) throw new Error(validationError)
-      }
-
       const runtimeInputs = {}
       for (const n of inputNodes) {
         runtimeInputs[n.id] = coerceInput(n, values[n.id])
@@ -312,6 +327,9 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     } catch (err) {
       setError(err.message || String(err))
       endRun()
+      showToast?.('Workflow failed', 'error')
+      setActiveTab('problems')
+      onOpen?.()
       throw err
     } finally {
       setBusy(false)
@@ -320,7 +338,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
 
   const ctx = {
     workflow, values, setValues, inputNodes, missing,
-    invalidInputs, busy, error, result, progress, expanded, setExpanded,
+    invalidInputs, runAttempted, busy, error, result, progress, expanded, setExpanded,
     onRun: doRun,
     extraProblems,
     isChatMode,
@@ -342,7 +360,23 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
 
   return (
     <div className="bs-run-dock" style={{ height, display: visible ? undefined : 'none' }}>
-      <div className="bs-run-dock-resize" onPointerDown={onResizePointerDown} title="Drag to resize" />
+      <div
+        className="bs-run-dock-resize"
+        onPointerDown={onResizePointerDown}
+        onMouseEnter={() => setResizeTip(true)}
+        onMouseLeave={() => setResizeTip(false)}
+      >
+        <div
+          className="bs-run-dock-resize-grip"
+          onClick={(e) => { e.stopPropagation(); if (!resizeDragging.current) onClose() }}
+        />
+        {resizeTip && !resizeDragging.current && (
+          <div className="bs-run-dock-resize-tip">
+            <div>Click to collapse <kbd>⌘.</kbd></div>
+            <div>Drag to resize</div>
+          </div>
+        )}
+      </div>
 
       <header className="bs-run-dock-head">
         <div className="bs-run-dock-tabs" role="tablist">

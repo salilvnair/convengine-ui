@@ -26,7 +26,7 @@ const RunPanel = {
             {inputNodes.map((n) => {
               const v = Object.prototype.hasOwnProperty.call(values, n.id) ? values[n.id] : n.defaultValue
               const filled = isFilled(n, v)
-              const fieldError = invalidInputs?.[n.id]
+              const fieldError = invalidInputs?.[n.id]?.message ?? invalidInputs?.[n.id] ?? null
               return (
                 <div key={n.id} className="bs-field bs-field-row">
                   <label className="bs-label">

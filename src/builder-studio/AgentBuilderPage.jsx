@@ -85,7 +85,8 @@ export default function AgentBuilderPage() {
   const showToast = useCallback((message, type = 'info') => {
     clearTimeout(toastTimer.current)
     setToast({ message, type, key: Date.now() })
-    toastTimer.current = setTimeout(() => setToast(null), 2500)
+    const duration = type === 'error' ? 5000 : 2500
+    toastTimer.current = setTimeout(() => setToast(null), duration)
   }, [])
 
   const active = workflows.find((w) => w.id === activeWorkflowId)

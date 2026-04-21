@@ -491,6 +491,11 @@ export const useWorkflowStore = create()(
           }
         })
       },
+      /** Force-replay the invalid-input shake animation without changing the set.
+       *  Call this on every Run attempt when required fields are missing. */
+      shakeInvalidInputs() {
+        set((s) => ({ invalidInputShakeKey: s.invalidInputShakeKey + 1 }))
+      },
       endRun() {
         // Keep completed highlights for a beat then clear via RunModal.
         set({ activeNodeId: null, activeEdgeIds: [] })
@@ -499,6 +504,21 @@ export const useWorkflowStore = create()(
         set({ activeNodeId: null, completedNodeIds: [], activeEdgeIds: [], errorNodeIds: new Set(), lastOutputs: {}, lastNodeTrace: {} })
       },
     }),
-    { name: 'builder-studio-workflow' }
+    {
+      name: 'builder-studio-workflow',
+      // Exclude transient run-time state that is not JSON-serializable (Sets)
+      // or that should always start fresh on page load.
+      partialize: (state) => {
+        // eslint-disable-next-line no-unused-vars
+        const {
+          activeNodeId, completedNodeIds, activeEdgeIds,
+          errorNodeIds, errorShakeKey,
+          invalidInputNodeIds, invalidInputShakeKey,
+          lastOutputs, lastNodeTrace,
+          ...rest
+        } = state
+        return rest
+      },
+    }
   )
 )

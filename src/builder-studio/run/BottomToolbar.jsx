@@ -5,7 +5,7 @@
  * run dock open/closed and switch its active panel. The toolbar also shows
  * a mini status strip (last run state, node count, etc.).
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getRunPanels, onRunPanelsChange } from './panel-registry'
 import { useWorkflowStore } from '../stores/workflow-store'
 
@@ -65,11 +65,25 @@ export default function BottomToolbar({ activeTab, dockOpen, onTabClick }) {
   const [panels, setPanels] = useState(() => getRunPanels())
   const showMinimap = useWorkflowStore((s) => s.showMinimap)
   const toggleMinimap = useWorkflowStore((s) => s.toggleMinimap)
+  // Compute isChatMode from store so Chat tab only shows when starter is in chat mode
+  const nodes = useWorkflowStore((s) => s.nodes)
+  const subBlockValues = useWorkflowStore((s) => s.subBlockValues)
+  const isChatMode = useMemo(() => {
+    const starterNode = nodes?.find((n) => n.data?.blockType === 'starter')
+    if (!starterNode) return false
+    const sbv = subBlockValues?.[starterNode.id] || {}
+    return sbv.startWorkflow === 'chat'
+  }, [nodes, subBlockValues])
 
   useEffect(() => onRunPanelsChange(() => setPanels(getRunPanels())), [])
 
-  const leftPanels = panels.filter((p) => !RIGHT_PANEL_IDS.has(p.id))
-  const rightPanels = panels.filter((p) => RIGHT_PANEL_IDS.has(p.id))
+  // Filter panels: respect isVisible() (e.g. chat tab only in chat mode)
+  const visiblePanels = useMemo(
+    () => panels.filter((p) => typeof p.isVisible === 'function' ? p.isVisible({ isChatMode }) : true),
+    [panels, isChatMode]
+  )
+  const leftPanels = visiblePanels.filter((p) => !RIGHT_PANEL_IDS.has(p.id))
+  const rightPanels = visiblePanels.filter((p) => RIGHT_PANEL_IDS.has(p.id))
 
   return (
     <div className="bs-bottombar" role="toolbar" aria-label="Tool windows">
