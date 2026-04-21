@@ -190,59 +190,122 @@ export default function WikiGuide() {
   }
 
   const WORKFLOW_JSON_EXAMPLE = JSON.stringify({
-    "nodes": [
-      {
-        "id": "node_1",
-        "data": { "blockType": "user_input", "title": "URL Input" },
-        "position": { "x": 100, "y": 200 }
-      },
-      {
-        "id": "node_2",
-        "data": { "blockType": "agent", "title": "Summarizer" },
-        "position": { "x": 400, "y": 200 }
-      },
-      {
-        "id": "node_3",
-        "data": { "blockType": "response", "title": "Output" },
-        "position": { "x": 700, "y": 200 }
-      }
-    ],
-    "edges": [
-      {
-        "id": "e1-2",
-        "source": "node_1",
-        "target": "node_2",
-        "sourceHandle": "output",
-        "targetHandle": "input"
-      },
-      {
-        "id": "e2-3",
-        "source": "node_2",
-        "target": "node_3",
-        "sourceHandle": "output",
-        "targetHandle": "input"
-      }
-    ],
-    "subBlockValues": {
-      "node_1": {
-        "label": "Enter a URL",
-        "kind": "url",
-        "placeholder": "https://example.com",
-        "required": true
-      },
-      "node_2": {
-        "model": "gpt-4.1",
-        "temperature": 0.3,
-        "messages": [
-          {
-            "role": "system",
-            "content": "Summarize the content from the given URL in 3-5 bullet points."
-          }
-        ],
-        "responseFormat": "{ \"summary\": \"string\", \"bullets\": [\"string\"] }"
-      },
-      "node_3": {
-        "data": "<node_2.content>"
+    "_comment": "Exported from ConvEngine Agent Builder Studio — 2026-04-21T00:47:53.210Z",
+    "workflow": {
+      "id": "wf_demo_url_summary",
+      "name": "Demo · URL → Summary",
+      "teamId": "t_fullstack",
+      "createdAt": "2026-04-20T03:12:25.643017Z",
+      "nodes": [
+        {
+          "id": "n_starter",
+          "type": "builderBlock",
+          "data": { "title": "Start", "bgColor": "#2FB67C", "blockType": "starter" },
+          "position": { "x": -609.26, "y": 195.63 }
+        },
+        {
+          "id": "n_input",
+          "type": "builderBlock",
+          "data": { "title": "URL", "bgColor": "#FBBF24", "blockType": "user_input" },
+          "position": { "x": -285.60, "y": 200.27 }
+        },
+        {
+          "id": "n_skill",
+          "type": "builderBlock",
+          "data": { "title": "Skill", "bgColor": "#7c3aed", "blockType": "skill", "category": "tools", "disabled": false },
+          "position": { "x": 33.67, "y": 201.19 }
+        },
+        {
+          "id": "n_agent",
+          "type": "builderBlock",
+          "data": { "title": "Summarizer", "bgColor": "#6F3DFA", "blockType": "agent", "disabled": false, "width": 272, "height": 354 },
+          "position": { "x": 359.99, "y": 202.68 }
+        },
+        {
+          "id": "n_mapper",
+          "type": "builderBlock",
+          "data": { "title": "Mapper", "bgColor": "#14b8a6", "blockType": "mapper", "category": "blocks", "disabled": false },
+          "position": { "x": 684.10, "y": 202.50 }
+        },
+        {
+          "id": "n_preview",
+          "type": "builderBlock",
+          "data": { "title": "Final Preview", "bgColor": "#14B8A6", "blockType": "show_preview", "disabled": false },
+          "position": { "x": 1011.42, "y": 202.78 }
+        }
+      ],
+      "edges": [
+        {
+          "id": "reactflow__edge-n_starterout-n_inputin",
+          "source": "n_starter",
+          "target": "n_input",
+          "animated": true,
+          "sourceHandle": "out",
+          "targetHandle": "in"
+        },
+        {
+          "id": "reactflow__edge-n_inputvalue-n_skillin_input",
+          "source": "n_input",
+          "target": "n_skill",
+          "animated": true,
+          "sourceHandle": "value",
+          "targetHandle": "in_input"
+        },
+        {
+          "id": "reactflow__edge-n_skillresult-n_agentin_input",
+          "source": "n_skill",
+          "target": "n_agent",
+          "animated": true,
+          "sourceHandle": "result",
+          "targetHandle": "in_input"
+        },
+        {
+          "id": "reactflow__edge-n_agentdata-n_mapperin_input",
+          "source": "n_agent",
+          "target": "n_mapper",
+          "animated": true,
+          "sourceHandle": "data",
+          "targetHandle": "in_input"
+        },
+        {
+          "id": "reactflow__edge-n_mapperresult-n_previewin_input",
+          "source": "n_mapper",
+          "target": "n_preview",
+          "animated": true,
+          "sourceHandle": "result",
+          "targetHandle": "in_input"
+        }
+      ],
+      "subBlockValues": {
+        "n_starter": {
+          "startWorkflow": "manual"
+        },
+        "n_input": {
+          "kind": "url",
+          "label": "URL",
+          "required": true,
+          "placeholder": "https://example.com",
+          "defaultValue": "https://www.salilvnair.com/docs/v2/architecture",
+          "_portTypes": { "out_value": "string" }
+        },
+        "n_skill": {
+          "skillId": "sk_url_extract",
+          "_portTypes": { "in_input": "string", "out_result": "json" }
+        },
+        "n_agent": {
+          "model": "gpt-4.1",
+          "temperature": 0.3,
+          "systemPrompt": "You are a concise summarization agent. Produce a crisp summary in 3-5 bullet points, each under 140 characters.",
+          "userPrompt": "Title: {{title}}\n\nContent:\n{{text}}",
+          "responseFormat": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"summary\": { \"type\": \"string\" },\n    \"bullets\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }\n  },\n  \"required\": [\"summary\"]\n}"
+        },
+        "n_mapper": {
+          "mode": "json_parse",
+          "_portTypes": { "in_input": "string", "out_result": "json" }
+        },
+        "n_preview": {
+          "label": "Final output"
+        }
       }
     }
   }, null, 2)
@@ -280,9 +343,12 @@ export default function WikiGuide() {
           <Collapsible title="Workflow JSON Schema" icon="📋">
             <div className="wiki-toc-items">
               <a href="#json-schema" onClick={(e) => { e.preventDefault(); scrollTo('json-schema') }}>Full JSON structure</a>
+              <a href="#json-wrapper" onClick={(e) => { e.preventDefault(); scrollTo('json-wrapper') }}>_comment &amp; workflow — Export wrapper</a>
               <a href="#json-nodes" onClick={(e) => { e.preventDefault(); scrollTo('json-nodes') }}>nodes — Block instances</a>
+              <a href="#json-node-data" onClick={(e) => { e.preventDefault(); scrollTo('json-node-data') }}>data.* — Node metadata fields</a>
               <a href="#json-edges" onClick={(e) => { e.preventDefault(); scrollTo('json-edges') }}>edges — Connections</a>
               <a href="#json-sbv" onClick={(e) => { e.preventDefault(); scrollTo('json-sbv') }}>subBlockValues — Config data</a>
+              <a href="#json-porttypes" onClick={(e) => { e.preventDefault(); scrollTo('json-porttypes') }}>_portTypes — Type overrides</a>
               <a href="#json-blocktype" onClick={(e) => { e.preventDefault(); scrollTo('json-blocktype') }}>data.blockType — Identity</a>
               <a href="#json-position" onClick={(e) => { e.preventDefault(); scrollTo('json-position') }}>position — Layout</a>
               <a href="#json-templates" onClick={(e) => { e.preventDefault(); scrollTo('json-templates') }}>Template expressions</a>
@@ -451,34 +517,86 @@ export default function WikiGuide() {
 
           <h3 style={{ marginTop: 40 }}>Tag reference</h3>
 
+          <JsonTagCard id="json-wrapper" icon="📦" code="_comment / workflow" title="Export wrapper — top-level envelope" variant="nodes">
+            Every exported file wraps the workflow inside a top-level <code>workflow</code> object
+            alongside a human-readable <code>_comment</code> string that records the export
+            timestamp. The <code>workflow</code> object carries five required keys:{' '}
+            <code>id</code> (unique workflow identifier, e.g. <code>wf_demo_url_summary</code>),{' '}
+            <code>name</code> (display name), <code>teamId</code> (owning team, or{' '}
+            <code>null</code> if unassigned), <code>createdAt</code> (ISO-8601 creation
+            timestamp), and the three structural keys <code>nodes</code>, <code>edges</code>,
+            and <code>subBlockValues</code>. When importing via drag-and-drop the runtime reads{' '}
+            <code>file.workflow</code> first, then falls back to the root object for legacy files
+            that lack the wrapper.
+          </JsonTagCard>
+
           <JsonTagCard id="json-nodes" icon="🧩" code="nodes" title="Block instances on the canvas" variant="nodes">
-            Each object represents one block dropped onto the canvas. <code>id</code> is the
-            unique identifier used throughout the workflow to reference this node.{' '}
-            <code>data.blockType</code> determines which handler runs the block — it must
-            match a <code>case</code> in both the frontend <code>graph-runner.js</code> and
-            backend <code>graph-runner.ts</code>. <code>data.title</code> is the user-visible
-            label on the canvas card. <code>position</code> stores x/y coordinates for
-            layout — execution order is determined by edges, not position.
+            Each object represents one block dropped onto the canvas. Every node always has four
+            top-level keys:{' '}
+            <code>id</code> — unique identifier referenced by edges and <code>subBlockValues</code>;{' '}
+            <code>type</code> — always <code>&quot;builderBlock&quot;</code> (the ReactFlow node type
+            that selects the WorkflowNode renderer);{' '}
+            <code>data</code> — metadata object (see below); and{' '}
+            <code>position</code> — canvas x/y coordinates. The <code>id</code> drives execution
+            routing — do not change it after creating edges.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-node-data" icon="🎨" code="data.*" title="Node metadata fields inside data" variant="blocktype">
+            <code>data.blockType</code> — the block identity string (see below).{' '}
+            <code>data.title</code> — user-visible label rendered on the canvas card.{' '}
+            <code>data.bgColor</code> — hex colour of the node header / icon well (e.g.{' '}
+            <code>#6F3DFA</code> for agent, <code>#FBBF24</code> for user_input). Used purely for
+            visual identification; does not affect execution.{' '}
+            <code>data.category</code> — optional hint (<code>&quot;blocks&quot;</code>,{' '}
+            <code>&quot;tools&quot;</code>, <code>&quot;triggers&quot;</code>) that places the block
+            in the correct palette group.{' '}
+            <code>data.disabled</code> — when <code>true</code> the node is muted: it passes its
+            upstream input through unchanged and the runner skips its actual handler.{' '}
+            <code>data.width</code> / <code>data.height</code> — optional persisted dimensions set
+            when the user manually resizes a node via the resize handles. Omit them to let the
+            node size itself to content.
           </JsonTagCard>
 
           <JsonTagCard id="json-edges" icon="🔗" code="edges" title="Connections between blocks" variant="edges">
-            Each edge connects one node{"'"}s output port to another node{"'"}s input port.{' '}
-            <code>source</code> and <code>target</code> are node IDs. <code>sourceHandle</code> and{' '}
-            <code>targetHandle</code> identify which port on a multi-port block (e.g.{' '}
-            <code>true</code>/<code>false</code> handles on an <code>if_else</code>). The graph
-            runner uses edges to determine execution order — a node only runs when all its
-            upstream edges have resolved. For branching blocks, only the edge matching the
-            chosen handle is {"\u201c"}live{"\u201d"}.
+            Each edge connects one node{"'"}s output port to another node{"'"}s input port and
+            carries six fields:{' '}
+            <code>id</code> — auto-generated string, typically{' '}
+            <code>reactflow__edge-&#123;source&#125;&#123;sourceHandle&#125;-&#123;target&#125;&#123;targetHandle&#125;</code>;{' '}
+            <code>source</code> / <code>target</code> — node IDs;{' '}
+            <code>sourceHandle</code> — the named output port on the source node (e.g.{' '}
+            <code>&quot;out&quot;</code>, <code>&quot;value&quot;</code>, <code>&quot;result&quot;</code>,{' '}
+            <code>&quot;data&quot;</code>, or branch labels like <code>&quot;branch_1&quot;</code>);{' '}
+            <code>targetHandle</code> — the named input port on the target node, conventionally
+            prefixed with <code>in_</code> (e.g. <code>&quot;in_input&quot;</code>,{' '}
+            <code>&quot;in_data&quot;</code>); and <code>animated</code> — always{' '}
+            <code>true</code> for the dashed flow animation. The graph runner uses edges to
+            determine BFS execution order and, for branching blocks, only the edge whose{' '}
+            <code>sourceHandle</code> matches the chosen branch handle is live.
           </JsonTagCard>
 
           <JsonTagCard id="json-sbv" icon="⚙️" code="subBlockValues" title="Configuration data per node" variant="values">
             Keyed by node ID. Each value is a flat object whose keys match the{' '}
             <code>subBlocks[].id</code> fields from that block{"'"}s definition in the frontend
             registry. This is the <strong>data contract</strong> between frontend and backend — the
-            graph runner reads <code>values.model</code>, <code>values.temperature</code>, etc.
-            from this bag. When you configure a field in the Inspector panel, the value is stored
-            here. Template expressions like <code>{"<node_2.content>"}</code> reference other
-            nodes{"'"} outputs and are interpolated at runtime.
+            graph runner reads <code>values.model</code>, <code>values.temperature</code>,{' '}
+            <code>values.systemPrompt</code>, <code>values.skillId</code>, etc. from this bag.
+            When you configure a field in the Inspector panel the value is written here.
+            Template expressions like <code>{"{{title}}"}</code> or{' '}
+            <code>{"<n_agent.summary>"}</code> in string values are interpolated at runtime against
+            the upstream node{"'"}s output bag.
+          </JsonTagCard>
+
+          <JsonTagCard id="json-porttypes" icon="🔌" code="_portTypes" title="Port type overrides per node" variant="values">
+            An optional map inside any <code>subBlockValues</code> entry that overrides the
+            statically declared port types for that node instance. Keys follow the convention{' '}
+            <code>out_&lt;portKey&gt;</code> for output ports and <code>in_&lt;portKey&gt;</code> for
+            input ports (e.g. <code>&quot;out_value&quot;: &quot;string&quot;</code>,{' '}
+            <code>&quot;in_input&quot;: &quot;string&quot;</code>,{' '}
+            <code>&quot;out_result&quot;: &quot;json&quot;</code>). The Inspector writes these
+            automatically when the user changes a port type via the type-chip dropdown on the node
+            card. The graph runner uses them during BFS to validate type compatibility between
+            connected ports — a mismatch raises a <code>Type mismatch</code> error before any
+            block executes. Omit the key entirely to rely on the block{"'"}s static declaration.
           </JsonTagCard>
 
           <JsonTagCard id="json-blocktype" icon="🏷️" code="data.blockType" title="The block's identity" variant="blocktype">
@@ -498,13 +616,18 @@ export default function WikiGuide() {
             unless they share the same set of resolved upstream dependencies.
           </JsonTagCard>
 
-          <JsonTagCard id="json-templates" icon="🔀" code="<node_id.field>" title="Template expressions — Runtime interpolation" variant="template">
-            Values like <code>{"<node_2.content>"}</code> or <code>{"{{node_2.output}}"}</code> are
-            template references. At execution time, the graph runner replaces these with the actual
-            output from the referenced node. The <code>node_2</code> part is the node ID, and{' '}
-            <code>content</code> is a field in that node{"'"}s output object. This is how data flows
-            between blocks — the Response block reads the Agent block{"'"}s output by referencing
-            its node ID.
+          <JsonTagCard id="json-templates" icon="🔀" code="{{field}} / <node_id.field>" title="Template expressions — Runtime interpolation" variant="template">
+            Two syntaxes resolve upstream data at runtime:{' '}
+            <code>{"{{field}}"}</code> — Mustache-style, injects a top-level key from the
+            upstream node{"'"}s output object directly into a prompt or value string (e.g.{' '}
+            <code>{"{{title}}"}</code>, <code>{"{{text}}"}</code>).{' '}
+            <code>{"<nodeId.field>"}</code> — angle-bracket reference to a specific node{"'"}s
+            output field (e.g. <code>{"<n_agent.summary>"}</code>). Use this form when you need
+            to reference a node that is not the immediate upstream. At execution time the graph
+            runner resolves both forms from the <code>outputs</code> map and replaces them before
+            calling the block handler. Unresolved references are left as-is and typically cause
+            an LLM refusal — check the Debug panel{"'"}s <code>meta.userPrompt</code> to confirm
+            interpolation succeeded.
           </JsonTagCard>
         </div>
 
