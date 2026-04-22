@@ -16,7 +16,7 @@
  * Base URL is configurable via `VITE_CONVENGINE_BASE`
  * (defaults to `http://localhost:8080/api/v1`).
  */
-const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '/api/v1' : 'http://localhost:8080/api/v1')).replace(/\/$/, '')
+const BASE = (globalThis.__BS_BRIDGE_BASE__ || import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '/api/v1' : 'http://localhost:8080/api/v1')).replace(/\/$/, '')
 
 export async function runAgent({ agent, input, signal }) {
   const url = `${BASE}/builder-studio/agent`

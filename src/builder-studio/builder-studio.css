@@ -5587,6 +5587,103 @@ button.bs-palette-group-toggle:hover {
 }
 .bs-llm-config-hint b { color: #94a3b8; }
 
+.bs-llm-apply-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.bs-btn-apply-all {
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.bs-btn-apply-all:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #c7d2fe;
+}
+.bs-btn-apply-all:disabled { opacity: 0.45; cursor: not-allowed; }
+.bs-llm-apply-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4ade80;
+  animation: bs-fade-in .2s ease;
+}
+@keyframes bs-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-theme='light'] .bs-llm-apply-row,
+.light .bs-llm-apply-row { border-top-color: #e2e8f0; }
+[data-theme='light'] .bs-btn-apply-all,
+.light .bs-btn-apply-all { background: rgba(99,102,241,0.07); color: #6366f1; border-color: rgba(99,102,241,0.25); }
+[data-theme='light'] .bs-btn-apply-all:hover:not(:disabled),
+.light .bs-btn-apply-all:hover:not(:disabled) { background: rgba(99,102,241,0.14); border-color: rgba(99,102,241,0.45); }
+[data-theme='light'] .bs-llm-apply-result,
+.light .bs-llm-apply-result { color: #16a34a; }
+
+/* Reset workspace row */
+.bs-llm-reset-row {
+  margin-top: 10px;
+}
+.bs-btn-reset-workspace {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bs-btn-reset-workspace:hover {
+  background: rgba(248,113,113,0.08);
+  color: #f87171;
+  border-color: rgba(248,113,113,0.3);
+}
+.bs-btn-danger {
+  background: rgba(220,38,38,0.15);
+  color: #f87171;
+  border: 1px solid rgba(220,38,38,0.35);
+  min-width: 88px;
+  justify-content: center;
+}
+.bs-btn-danger:hover { background: rgba(220,38,38,0.28); border-color: rgba(220,38,38,0.6); }
+.bs-reset-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(248,113,113,0.07);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: 7px;
+  animation: bs-fade-in .15s ease;
+}
+.bs-reset-confirm .bs-btn-sm {
+  min-width: 88px;
+  justify-content: center;
+}
+.bs-reset-confirm-text {
+  font-size: 11px;
+  color: #cbd5e1;
+  flex: 1;
+  min-width: 160px;
+}
+.bs-reset-confirm-text strong { color: #f87171; }
+[data-theme='light'] .bs-btn-reset-workspace,
+.light .bs-btn-reset-workspace { color: #64748b; border-color: #e2e8f0; }
+[data-theme='light'] .bs-btn-reset-workspace:hover,
+.light .bs-btn-reset-workspace:hover { background: rgba(220,38,38,0.06); color: #dc2626; border-color: rgba(220,38,38,0.3); }
+[data-theme='light'] .bs-reset-confirm,
+.light .bs-reset-confirm { background: rgba(220,38,38,0.04); border-color: rgba(220,38,38,0.2); }
+[data-theme='light'] .bs-reset-confirm-text,
+.light .bs-reset-confirm-text { color: #475569; }
+
 /* Light theme overrides */
 [data-theme="light"] .bs-llm-config-editor,
 .light .bs-llm-config-editor {
@@ -5604,6 +5701,25 @@ button.bs-palette-group-toggle:hover {
 .light .bs-llm-model-chip { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
 [data-theme="light"] .bs-llm-model-chip-active,
 .light .bs-llm-model-chip-active { background: rgba(16,185,129,0.08); color: #059669; border-color: rgba(16,185,129,0.3); }
+
+/* Selectable chip (clickable) */
+.bs-llm-model-chip-btn { cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; user-select: none; }
+.bs-llm-model-chip-btn:hover:not(.bs-llm-model-chip-active) { background: rgba(99,102,241,0.08); color: #c7d2fe; border-color: rgba(99,102,241,0.3); }
+/* Pending chip — clicked but not yet saved */
+.bs-llm-model-chip-pending { background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.35); }
+[data-theme="light"] .bs-llm-model-chip-pending,
+.light .bs-llm-model-chip-pending { background: rgba(99,102,241,0.08); color: #6366f1; border-color: rgba(99,102,241,0.3); }
+/* Loading state */
+.bs-llm-config-loading { font-size: 12px; color: #64748b; padding: 10px 12px; }
+/* Success button */
+.bs-btn-success {
+  background: rgba(16,185,129,0.08); color: #34d399; border-color: rgba(16,185,129,0.2);
+}
+.bs-btn-success:hover { background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.4); }
+.bs-btn-success:disabled { opacity: 0.4; cursor: not-allowed; }
+[data-theme="light"] .bs-btn-success,
+.light .bs-btn-success { background: rgba(16,185,129,0.06); color: #059669; border-color: rgba(16,185,129,0.25); }
+.bs-llm-config-error code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; }
 
 /* ═══════════════════════════════════════════════════════════════════════
  *  Block Doc Viewer — Docusaurus-inspired rich documentation overlay
@@ -6574,7 +6690,7 @@ button.bs-palette-group-toggle:hover {
   border-color: rgba(0,0,0,0.09);
 }
 [data-theme="light"] .bs-inspector-pill {
-  background: rgba(99,102,241,0.14);
+  background: rgba(71,75,120,0.13);
   box-shadow: 0 1px 3px rgba(0,0,0,0.10);
 }
 [data-theme="light"] .bs-inspector-mode {
@@ -6586,7 +6702,7 @@ button.bs-palette-group-toggle:hover {
   color: #334155;
 }
 [data-theme="light"] .bs-inspector-mode-active {
-  color: #4338ca;
+  color: #3d3f6e;
   background: transparent;
   border: none;
 }
@@ -6982,3 +7098,175 @@ button.bs-palette-group-toggle:hover {
   border-color: #f87171;
   color: #dc2626;
 }
+
+/* ── App Config Panel ─────────────────────────────────────────────────── */
+.bs-appconfig-mode-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  white-space: nowrap;
+}
+
+.bs-appconfig-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.bs-appconfig-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color .15s;
+}
+
+.bs-appconfig-card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.bs-appconfig-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  margin-top: 1px;
+}
+
+.bs-appconfig-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.bs-appconfig-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bs-text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+}
+
+.bs-appconfig-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 7px;
+}
+
+.bs-appconfig-path {
+  flex: 1;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  background: none;
+}
+
+.bs-appconfig-copy-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+
+.bs-appconfig-copy-btn:hover {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.bs-appconfig-copy-btn.is-copied {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.bs-appconfig-card-hint {
+  font-size: 11px;
+  color: var(--bs-text-muted, #64748b);
+  line-height: 1.5;
+}
+
+/* Light theme overrides */
+[data-theme='light'] .bs-appconfig-mode-badge,
+.light .bs-appconfig-mode-badge {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme='light'] .bs-appconfig-card,
+.light .bs-appconfig-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme='light'] .bs-appconfig-card:hover,
+.light .bs-appconfig-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+[data-theme='light'] .bs-appconfig-card-icon,
+.light .bs-appconfig-card-icon {
+  background: rgba(99, 102, 241, 0.08);
+  color: #6366f1;
+}
+
+[data-theme='light'] .bs-appconfig-path-row,
+.light .bs-appconfig-path-row {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+[data-theme='light'] .bs-appconfig-path,
+.light .bs-appconfig-path {
+  color: #1e293b;
+}
+
+[data-theme='light'] .bs-appconfig-copy-btn,
+.light .bs-appconfig-copy-btn {
+  background: #fff;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme='light'] .bs-appconfig-copy-btn:hover,
+.light .bs-appconfig-copy-btn:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+

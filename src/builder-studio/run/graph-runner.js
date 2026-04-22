@@ -575,14 +575,27 @@ async function runAgentNode({ node, values, input }) {
     }
   }
 
-  // Resolve model & provider from the LLM config store. If the stored model
-  // is stale (e.g. from built-in defaults before consumer config was applied),
-  // fall back to the configured default.
+  // Resolve model & provider from the LLM config store.
   const llmState = useLlmConfigStore.getState()
   const availableModelIds = llmState.models.map((m) => m.id)
-  const rawModel = values.model || llmState.getDefaultModel() || 'gpt-4o-mini'
+  const rawModel = values.model || llmState.getDefaultModel() || (availableModelIds[0] ?? null)
   const resolvedModel = availableModelIds.includes(rawModel) ? rawModel : (llmState.getDefaultModel() || rawModel)
   const resolvedProvider = llmState.getProviderForModel(resolvedModel) || llmState.activeProvider || undefined
+
+  if (!resolvedModel) {
+    const nodeTitle = node.data?.title || node.id
+    throw new GraphValidationError(
+      `No model provider configured for "${nodeTitle}"`,
+      {
+        nodeId: node.id,
+        nodeTitle,
+        blockType: 'agent',
+        cause: 'The LLM config store has no models loaded. The /builder-studio/llm/providers endpoint returned no models or did not respond.',
+        hint: 'Open Settings → LLM Provider Configuration, ensure the backend is running and returning models, then select a default model.',
+        severity: 'error',
+      }
+    )
+  }
 
   const agent = {
     id: node.id,
@@ -1052,7 +1065,19 @@ async function runAiClassifierNode({ node, values, input }) {
   const categories = String(values.categories || '').split(',').map((c) => c.trim()).filter(Boolean)
   const text = String(values.text || (typeof input === 'string' ? input : JSON.stringify(input)))
   const instructions = String(values.instructions || '')
-  const model = String(values.model || 'gpt-4o-mini')
+  const model = String(values.model || useLlmConfigStore.getState().getDefaultModel() || useLlmConfigStore.getState().models[0]?.id || '')
+  if (!model) {
+    const nodeTitle = node.data?.title || node.id
+    throw new GraphValidationError(
+      `No model provider configured for "${nodeTitle}"`,
+      {
+        nodeId: node.id, nodeTitle, blockType: 'ai_classifier',
+        cause: 'The LLM config store has no models loaded. Check /builder-studio/llm/providers.',
+        hint: 'Open Settings → LLM Provider Configuration and select a default model.',
+        severity: 'error',
+      }
+    )
+  }
   const systemPrompt =
     'You are a text classifier. Classify the given text into exactly one of these categories: ' +
     categories.join(', ') + '. ' +
@@ -1091,7 +1116,19 @@ function runConditionNode({ values, input }) {
 
 async function runRouterV2Node({ node, values, input }) {
   const context = String(values.context || (typeof input === 'string' ? input : JSON.stringify(input)))
-  const model = String(values.model || 'gpt-4o-mini')
+  const model = String(values.model || useLlmConfigStore.getState().getDefaultModel() || useLlmConfigStore.getState().models[0]?.id || '')
+  if (!model) {
+    const nodeTitle = node.data?.title || node.id
+    throw new GraphValidationError(
+      `No model provider configured for "${nodeTitle}"`,
+      {
+        nodeId: node.id, nodeTitle, blockType: 'router_v2',
+        cause: 'The LLM config store has no models loaded. Check /builder-studio/llm/providers.',
+        hint: 'Open Settings → LLM Provider Configuration and select a default model.',
+        severity: 'error',
+      }
+    )
+  }
   let routes = Array.isArray(values.routes) ? values.routes : []
   if (typeof values.routes === 'string') { try { routes = JSON.parse(values.routes) } catch { routes = [] } }
   if (routes.length === 0) return { branch: 'default', value: input }

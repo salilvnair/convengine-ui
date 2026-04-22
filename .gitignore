@@ -24,3 +24,15 @@ dist-ssr
 *.sw?
 
 .history
+
+# VS Code extension — compiled output & installed dependencies
+extension/vscode/builder-studio/out/
+extension/vscode/builder-studio/node_modules/
+extension/vscode/builder-studio/webview/dist/
+extension/vscode/builder-studio/.vscode/
+
+# Extension packaging artifacts
+*.vsix
+
+# Misc build / tool artifacts
+scripts/

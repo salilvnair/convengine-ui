@@ -132,17 +132,20 @@ export default function SideNav() {
     }
   }, [])
 
-  // Keyboard: Cmd/Ctrl+\ toggles left panel
+  // Keyboard: Cmd/Ctrl+\ (browser) or Alt/Option+\ (extension) toggles left panel
+  const _isExtension = typeof window !== 'undefined' && window.__BS_MODE__ === 'vscode-extension'
   useEffect(() => {
     function onKey(e) {
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+      const mod = _isExtension ? e.altKey : (e.metaKey || e.ctrlKey)
+      // Use e.code for physical key — Alt changes e.key on macOS (produces «)
+      if (mod && e.code === 'Backslash') {
         e.preventDefault()
         setOpen((o) => !o)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [_isExtension])
 
   return (
     <aside
@@ -182,7 +185,7 @@ export default function SideNav() {
         <button
           className="bs-rail-btn"
           onClick={() => openSettings()}
-          title="Settings & shortcuts (⌘,)"
+          title={_isExtension ? 'Settings & shortcuts (⌥,)' : 'Settings & shortcuts (⌘,)'}
         >
           <SettingsIcon className="bs-rail-ico" />
           <span className="bs-rail-label">Settings</span>
@@ -191,7 +194,9 @@ export default function SideNav() {
         <button
           className="bs-rail-btn"
           onClick={() => setOpen((o) => !o)}
-          title={open ? 'Collapse panel (⌘\\)' : 'Expand panel (⌘\\)'}
+          title={open
+            ? (_isExtension ? 'Collapse panel (⌥\\)' : 'Collapse panel (⌘\\)')
+            : (_isExtension ? 'Expand panel (⌥\\)' : 'Expand panel (⌘\\)')}
         >
           <PanelLeftIcon className="bs-rail-ico" />
         </button>
@@ -221,7 +226,7 @@ export default function SideNav() {
         <div className="bs-splitter-grip" />
         {showTip && !dragging && (
           <div className="bs-splitter-tip">
-            <div>Click to {open ? 'collapse' : 'expand'} <kbd>⌘\</kbd></div>
+            <div>Click to {open ? 'collapse' : 'expand'} <kbd>{_isExtension ? '⌥\\' : '⌘\\'}</kbd></div>
             <div>Drag to resize</div>
           </div>
         )}

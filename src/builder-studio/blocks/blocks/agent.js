@@ -178,7 +178,6 @@ export const AgentBlock = {
       description:
         'When on, the backend calls LlmClient.generateJsonStrict (OpenAI json_schema + strict:true). Only applies when a Response Format schema is set.',
       condition: { field: 'responseFormat', value: '', not: true },
-      mode: 'advanced',
       value: () => false,
     },
   ],

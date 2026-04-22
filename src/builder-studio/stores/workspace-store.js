@@ -12,6 +12,7 @@ import { devtools, persist } from 'zustand/middleware'
 import { v4 as uuid } from 'uuid'
 import { syncWorkspaceToServer, loadWorkspaceFromServer } from '../api/workspace-client'
 import { useLlmConfigStore } from './llm-config-store'
+import { getBlock } from '../blocks/registry'
 import _demo from './demo-workflow.json'
 
 // demo-workflow.json canonical format:
@@ -273,6 +274,39 @@ export const useWorkspaceStore = create()(
             ),
           }))
         },
+
+        /**
+         * Patches every workflow: for every node that has a 'model' sub-block value
+         * (agent, ai_classifier, router_v2, etc.) replace that value with `modelId`.
+         * Returns the number of nodes updated.
+         */
+        applyDefaultModelToAll(modelId) {
+          if (!modelId) return 0
+          let count = 0
+          set((s) => ({
+            workflows: s.workflows.map((w) => {
+              const sbv = { ...(w.subBlockValues || {}) }
+              let changed = false
+              // Iterate over actual nodes so we catch blocks with no saved
+              // subBlockValues yet (nodes dragged but never opened in inspector).
+              for (const node of (w.nodes || [])) {
+                const blockType = node.data?.blockType
+                if (!blockType) continue
+                const cfg = getBlock(blockType)
+                if (!cfg) continue
+                const hasModelSub = (cfg.subBlocks || []).some((sb) => sb.id === 'model')
+                if (!hasModelSub) continue
+                const prev = sbv[node.id]
+                sbv[node.id] = { ...(prev || {}), model: modelId }
+                count++
+                changed = true
+              }
+              return changed ? { ...w, subBlockValues: sbv } : w
+            }),
+          }))
+          return count
+        },
+
         deleteWorkflow(id) {
           set((s) => ({
             workflows: s.workflows.filter((w) => w.id !== id),

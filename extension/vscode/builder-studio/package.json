@@ -1,0 +1,112 @@
+{
+  "name": "builder-studio",
+  "displayName": "Builder Studio",
+  "description": "Agentic workflow builder powered by GitHub Copilot — visual canvas, graph runner, cron/webhook scheduler, MCP support.",
+  "version": "0.1.0",
+  "publisher": "convengine",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "agent",
+    "workflow",
+    "copilot",
+    "builder",
+    "mcp"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "builder-studio",
+          "title": "Agent Builder Studio",
+          "icon": "icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "builder-studio": [
+        {
+          "id": "bs.canvasView",
+          "name": "Agent Builder Studio",
+          "type": "tree"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "bs.canvasView",
+        "contents": "[$(zap) Open Builder Studio](command:bs.start)"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "bs",
+        "fullName": "Builder Studio",
+        "name": "bs",
+        "description": "Open the Agentic Builder Studio canvas. Try: @bs start",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "start",
+            "description": "Open the Builder Studio canvas"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "bs.start",
+        "title": "Builder Studio: Open Canvas",
+        "category": "Builder Studio"
+      },
+      {
+        "command": "bs.stopBridge",
+        "title": "Builder Studio: Stop Bridge Server",
+        "category": "Builder Studio"
+      }
+    ],
+    "configuration": {
+      "title": "Builder Studio",
+      "properties": {
+        "builderStudio.copilotFamily": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "Default GitHub Copilot model family to use for agent nodes (e.g. gpt-4o, claude-sonnet, o1)."
+        },
+        "builderStudio.useInProcessCron": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run cron-scheduled workflows in-process inside VS Code. When false, use the external scheduler/start endpoint."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "build:webview": "cd ../../.. && VITE_CONVENGINE_BASE=BRIDGE_BASE_PLACEHOLDER vite build --config vite.extension.config.js",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.0",
+    "@types/vscode": "^1.99.0",
+    "typescript": "^5.6.0"
+  }
+}

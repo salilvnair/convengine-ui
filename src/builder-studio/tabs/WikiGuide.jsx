@@ -760,7 +760,7 @@ export default function WikiGuide() {
           <div className="wiki-steps">
             <Step num={1} title="URL input">User input with default <code>https://example.com</code>.</Step>
             <Step num={2} title="API GET">API block: <code>GET {'{{input}}'}</code> with Accept header.</Step>
-            <Step num={3} title="Summarizer">Agent: <code>gpt-4o-mini</code>, prompt: <code>{'Body:\\n{{body}}'}</code>, strict output.</Step>
+            <Step num={3} title="Summarizer">Agent: <code>gpt-5-mini</code>, prompt: <code>{'Body:\\n{{body}}'}</code>, strict output.</Step>
             <Step num={4} title="Preview">Show Preview renders result.</Step>
           </div>
 
@@ -781,7 +781,7 @@ export default function WikiGuide() {
           <p><strong>Goal:</strong> Customer message → classifier → route to specialist agent → response.</p>
           <div className="wiki-steps">
             <Step num={1} title="Customer message">User input: <code>long-text</code>.</Step>
-            <Step num={2} title="Classifier agent">GPT-4o-mini with <code>{'{ category: enum[billing,tech,sales] }'}</code> strict output.</Step>
+            <Step num={2} title="Classifier agent">gpt-5-mini with <code>{'{ category: enum[billing,tech,sales] }'}</code> strict output.</Step>
             <Step num={3} title="if_elseif_else">3 branches matching <code>billing</code>, <code>tech</code>, <code>sales</code>.</Step>
             <Step num={4} title="Specialist agents">Billing, Tech, and Sales agents with domain-specific system prompts.</Step>
             <Step num={5} title="Response">Merge: <code>{'{ category, reply }'}</code> — only the active branch's agent produces output.</Step>

@@ -752,7 +752,7 @@ node's <code>sourceHandle</code> branch so non-matching edges are pruned.</p>
     { "id": "tech",    "description": "Bugs, errors, outages" },
     { "id": "sales",   "description": "Pricing, plans, new accounts" }
   ],
-  "model": "gpt-4o-mini"
+  "model": "gpt-5-mini"
 }</pre>
 
 <!-- ─────────── API ─────────── -->
@@ -1701,7 +1701,7 @@ summarisation. Useful as a minimal example when skills aren't set up yet.</p>
 }</pre>
 <pre>// n_sum
 {
-  "model": "gpt-4o-mini",
+  "model": "gpt-5-mini",
   "systemPrompt": "Summarise the HTML body in 3–5 bullets. Strip navigation and ads. Stay faithful to the source.",
   "userPrompt": "Body:\n{{body}}",
   "temperature": 0.3,
@@ -1869,7 +1869,7 @@ three rejoin in a single <code>response</code>.</p>
 }</pre>
 <pre>// n_class
 {
-  "model": "gpt-4o-mini",
+  "model": "gpt-5-mini",
   "systemPrompt": "Classify the customer message into exactly one of: billing, tech, sales.",
   "userPrompt": "Message: {{input}}",
   "temperature": 0,

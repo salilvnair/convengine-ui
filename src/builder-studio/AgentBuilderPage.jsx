@@ -24,9 +24,8 @@ import { useWorkspaceStore } from './stores/workspace-store'
 import { useLlmConfigStore } from './stores/llm-config-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
-import { PlayIcon, PanelRightIcon, SettingsIcon, DeployIcon } from './components/icons'
+import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
 import { BookIcon } from './tabs/WikiGuide'
-import { deployWorkflow } from './api/deploy-client'
 import './builder-studio.css'
 
 const R_MIN = 280
@@ -58,6 +57,20 @@ export default function AgentBuilderPage() {
   const [rOpen, setROpen] = useState(true)
   const [rWidth, setRWidth] = useState(R_DEFAULT)
   const [rDragging, setRDragging] = useState(false)
+
+  /* ── Theme toggle (extension-only) ──────────────────────────────── */
+  const isExtension = typeof window !== 'undefined' && window.__BS_MODE__ === 'vscode-extension'
+  const [isDark, setIsDark] = useState(() => {
+    if (!isExtension) return false
+    const stored = typeof localStorage !== 'undefined' && localStorage.getItem('convengine_ui_theme')
+    return stored ? stored === 'dark' : true // default dark in VS Code
+  })
+  useEffect(() => {
+    if (!isExtension) return
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('convengine_ui_theme', isDark ? 'dark' : 'light')
+  }, [isDark, isExtension])
+  const toggleTheme = useCallback(() => setIsDark((d) => !d), [])
   const [rTip, setRTip] = useState(false)
   const dragRef = useRef({ active: false, startX: 0, startW: R_DEFAULT, moved: false })
   const [runOpen, setRunOpen] = useState(false)
@@ -93,7 +106,6 @@ export default function AgentBuilderPage() {
   const canRun = !!active && nodes.length >= 2
   const canSave = !!active
   const canExport = !!active && nodes.length >= 2
-  const canDeploy = !!active && nodes.length >= 2
 
   const handleRun = useCallback(() => {
     if (!canRun) return
@@ -142,52 +154,7 @@ export default function AgentBuilderPage() {
     showToast('Workflow JSON exported', 'save')
   }, [active, animateBtn, canExport, edges, nodes, showToast, subBlockValues])
 
-  const handleDeploy = useCallback(async () => {
-    if (!active || !canDeploy) return
-    animateBtn('.bs-topbar-icon-deploy')
-    saveWorkflow(active.id, { nodes, edges, subBlockValues })
-    syncToServer()
-    const scheduleNode = nodes.find((n) => n.data?.blockType === 'schedule')
-    const webhookNode = nodes.find((n) => n.data?.blockType === 'webhook_request')
-    let trigger = { type: 'manual' }
-    if (scheduleNode) {
-      const sv = subBlockValues[scheduleNode.id] || {}
-      trigger = { type: 'cron', cron: sv.cron || '0 * * * *', timezone: sv.timezone || 'UTC' }
-    } else if (webhookNode) {
-      trigger = { type: 'webhook' }
-    }
-    // Clear stale deploy problems before each attempt
-    useWorkflowStore.getState().clearExtraProblems()
-    try {
-      const result = await deployWorkflow({
-        workflowId: active.id,
-        workflow: { nodes, edges, subBlockValues },
-        trigger,
-      })
-      let msg = 'Workflow deployed'
-      if (result.webhookUrl) msg += ` · Webhook: ${result.webhookUrl}`
-      if (result.cronInterval) msg += ' · Cron active'
-      showToast(msg, 'success')
-    } catch (err) {
-      showToast(`Deploy failed: ${err.message}`, 'error')
-      useWorkflowStore.getState().addExtraProblem({
-        severity: 'error',
-        node: 'Deploy',
-        message: err.message,
-        detail: {
-          message: err.message,
-          blockType: 'deploy',
-          nodeTitle: 'Deploy',
-          cause: 'The workflow could not be deployed to ce-builder-studio. Check that the server is running and reachable.',
-          hint: 'Verify VITE_CE_STUDIO_BASE points to the running ce-builder-studio instance (default: http://localhost:3001).',
-          stack: err.stack,
-          timestamp: new Date().toISOString(),
-        },
-      })
-      setDockTab('problems')
-      setRunOpen(true)
-    }
-  }, [active, animateBtn, canDeploy, edges, nodes, saveWorkflow, showToast, subBlockValues, syncToServer])
+
 
   // Initialize workflow tabs from workspace store on first mount
   useEffect(() => {
@@ -225,8 +192,6 @@ export default function AgentBuilderPage() {
       if (action === 'run') {
         if (!canRun) { showToast('Add at least 2 blocks to run', 'warning'); return }
         handleRun()
-      } else if (action === 'deploy') {
-        handleDeploy()
       } else if (action === 'open-problems') {
         setDockTab('problems')
         setRunOpen(true)
@@ -234,7 +199,7 @@ export default function AgentBuilderPage() {
     }
     window.addEventListener('bs:action', handler)
     return () => window.removeEventListener('bs:action', handler)
-  }, [canRun, handleDeploy, handleRun, showToast])
+}, [canRun, handleRun, showToast])
 
   // ----- Right splitter -----
   const onSplitterPointerDown = useCallback((e) => {
@@ -276,13 +241,18 @@ export default function AgentBuilderPage() {
     }
     function onKey(e) {
       const meta = e.metaKey || e.ctrlKey
+      const alt = e.altKey
+      // In the VS Code extension, panel toggles use Alt/Option to avoid conflicts
+      const panelMod = isExtension ? alt : meta
       const onWorkflowCanvas = activeTabId?.startsWith('workflow:')
-      // ⌘. — toggle bottom panel
-      if (meta && e.key === '.') { e.preventDefault(); setRunOpen((o) => !o); return }
-      // ⌘/ — toggle inspector
-      if (meta && e.key === '/') { e.preventDefault(); setROpen((o) => !o); return }
-      // ⌘, — open Settings tab
-      if (meta && e.key === ',') { e.preventDefault(); openSettings(); return }
+      // ⌥. (ext) / ⌘. (browser) — toggle bottom panel
+      if (panelMod && (isExtension ? e.code === 'Period' : e.key === '.')) { e.preventDefault(); setRunOpen((o) => !o); return }
+      // ⌥/ (ext) / ⌘/ (browser) — toggle inspector
+      if (panelMod && (isExtension ? e.code === 'Slash' : e.key === '/')) { e.preventDefault(); setROpen((o) => !o); return }
+      // ⌘M — toggle light/dark theme (extension only)
+      if (meta && (e.key === 'm' || e.key === 'M') && isExtension) { e.preventDefault(); toggleTheme(); return }
+      // ⌥, (ext) / ⌘, (browser) — open Settings tab
+      if (panelMod && (isExtension ? e.code === 'Comma' : e.key === ',')) { e.preventDefault(); openSettings(); return }
       // ? — open Settings (only when not typing)
       if (e.key === '?' && !isEditable(e.target)) { e.preventDefault(); openSettings() }
       // ⌘S — Save (prevent browser save dialog, works everywhere)
@@ -295,11 +265,10 @@ export default function AgentBuilderPage() {
       if (e.key === '1') { e.preventDefault(); handleRun(); return }
       if (e.key === '2') { e.preventDefault(); handleSave(); return }
       if (e.key === '3') { e.preventDefault(); handleExport(); return }
-      if (e.key === '4') { e.preventDefault(); handleDeploy() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeTabId, handleDeploy, handleExport, handleRun, handleSave, openSettings])
+  }, [activeTabId, handleExport, handleRun, handleSave, openSettings, isExtension, toggleTheme])
 
   const liveWorkflow = active ? { ...active, nodes, edges, subBlockValues } : null
 
@@ -383,22 +352,41 @@ export default function AgentBuilderPage() {
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
-          <button
-            className="bs-topbar-icon-btn bs-topbar-icon-deploy"
-            disabled={!canDeploy}
-            onClick={handleDeploy}
-            data-tooltip="Deploy (⌘/Ctrl+4)"
-          >
-            <DeployIcon className="bs-ico-topbar" />
-          </button>
           <span className="bs-topbar-divider" />
           <button
             className={`bs-btn-ghost bs-topbar-toggle`}
             onClick={() => setROpen((o) => !o)}
-            title={rOpen ? 'Hide inspector (⌘/)' : 'Show inspector (⌘/)'}
+            title={rOpen ? `Hide inspector (${isExtension ? '⌥/' : '⌘/'})` : `Show inspector (${isExtension ? '⌥/' : '⌘/'})`}
           >
             <PanelRightIcon className="bs-ico-sm" />
           </button>
+          {isExtension && (
+            <>
+              <span className="bs-topbar-divider" />
+              <button
+                className="bs-btn-ghost bs-topbar-toggle"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to light mode (⌘M)' : 'Switch to dark mode (⌘M)'}
+                data-tooltip={isDark ? 'Light mode (⌘M)' : 'Dark mode (⌘M)'}
+              >
+                {isDark ? (
+                  /* Sun icon */
+                  <svg className="bs-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                ) : (
+                  /* Moon icon */
+                  <svg className="bs-ico-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -452,7 +440,7 @@ export default function AgentBuilderPage() {
           <div className="bs-splitter-grip" />
           {rTip && !rDragging && (
             <div className="bs-splitter-tip bs-splitter-tip-right">
-              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>⌘/</kbd></div>
+              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>{isExtension ? '⌥/' : '⌘/'}</kbd></div>
               <div>Drag to resize</div>
             </div>
           )}

@@ -94,6 +94,8 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   const setInvalidInputNodeIds = useWorkflowStore((s) => s.setInvalidInputNodeIds)
   const shakeInvalidInputs = useWorkflowStore((s) => s.shakeInvalidInputs)
 
+  const isExtension = typeof window !== 'undefined' && window.__BS_MODE__ === 'vscode-extension'
+
   const invalidInputs = useMemo(() => {
     const out = {}
     for (const n of inputNodes) {
@@ -372,7 +374,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
         />
         {resizeTip && !resizeDragging.current && (
           <div className="bs-run-dock-resize-tip">
-            <div>Click to collapse <kbd>⌘.</kbd></div>
+            <div>Click to collapse <kbd>{isExtension ? '⌥.' : '⌘.'}</kbd></div>
             <div>Drag to resize</div>
           </div>
         )}

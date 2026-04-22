@@ -6,6 +6,7 @@
  * models, and which provider is the default.
  *
  * Example consumer config shape:
+ *   Normal app:
  *   {
  *     provider: 'openai',          // active provider key
  *     temperature: 0.3,
@@ -21,33 +22,24 @@
  *     },
  *   }
  *
- * When configured, getModelOptions() returns only the consumer's models,
- * and the default model is the one from the active provider.
- * When NOT configured, falls back to the built-in model list.
+ *   VS Code extension (same format, apiKey omitted — Copilot handles auth):
+ *   {
+ *     provider: 'copilot',
+ *     copilot: {
+ *       model: 'claude-sonnet-4-6',
+ *       models: [{ id, label, group, family }, ...],
+ *     },
+ *   }
+ *
+ * Models are loaded exclusively from the API (/builder-studio/llm/providers).
+ * If no models are returned, getModelOptions() returns [] and the run panel
+ * surfaces a "No model provider found" error in Problems/Trace.
  */
 import { create } from 'zustand'
 
-/* ── Built-in fallback models (used when no consumer config is set) ──── */
-const BUILTIN_MODELS = [
-  { label: 'Claude Sonnet 4.6', id: 'claude-sonnet-4-6', group: 'Anthropic' },
-  { label: 'Claude Opus 4', id: 'claude-opus-4', group: 'Anthropic' },
-  { label: 'Claude Haiku 3.5', id: 'claude-haiku-3-5', group: 'Anthropic' },
-  { label: 'GPT-4o', id: 'gpt-4o', group: 'OpenAI' },
-  { label: 'GPT-4o mini', id: 'gpt-4o-mini', group: 'OpenAI' },
-  { label: 'GPT-4.1', id: 'gpt-4.1', group: 'OpenAI' },
-  { label: 'GPT-5', id: 'gpt-5', group: 'OpenAI' },
-  { label: 'o3', id: 'o3', group: 'OpenAI' },
-  { label: 'Gemini 2.5 Pro', id: 'gemini-2.5-pro', group: 'Google' },
-  { label: 'Gemini 2.5 Flash', id: 'gemini-2.5-flash', group: 'Google' },
-  { label: 'Grok 4', id: 'grok-4', group: 'xAI' },
-  { label: 'DeepSeek Chat', id: 'deepseek-chat', group: 'DeepSeek' },
-  { label: 'DeepSeek Reasoner', id: 'deepseek-reasoner', group: 'DeepSeek' },
-]
-
-const BUILTIN_DEFAULT_MODEL = 'gpt-4.1'
-
 /* ── Well-known provider group names ─────────────────────────────────── */
 const PROVIDER_GROUP_MAP = {
+  copilot: 'GitHub Copilot',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   google: 'Google',
@@ -71,6 +63,11 @@ function humanizeProvider(key) {
 /**
  * Derive model options from a consumer LLM config object.
  * Each top-level key that is an object with a `model` field is treated as a provider.
+ *
+ * Supports two sub-formats for the provider value:
+ *  1. Simple:  { model: 'gpt-4.1', apiKey: '...', baseUrl: '...' }
+ *  2. Extended: { model: 'claude-sonnet-4-6', models: [{id,label,group,family}, ...] }
+ *              apiKey is optional (e.g. Copilot, LM Studio, Ollama).
  */
 function deriveModelsFromConfig(config) {
   const models = []
@@ -79,34 +76,51 @@ function deriveModelsFromConfig(config) {
   for (const [key, value] of Object.entries(config)) {
     if (reserved.has(key)) continue
     if (value && typeof value === 'object' && value.model) {
-      models.push({
-        label: value.model,
-        id: value.model,
-        group: humanizeProvider(key),
-        provider: key,
-        baseUrl: value.baseUrl || value['base-url'] || undefined,
-        apiKey: value.apiKey || value['api-key'] || undefined,
-      })
-      // If the provider defines additional `models` array, include those too
+      const baseUrl = value.baseUrl || value['base-url'] || undefined
+      const apiKey  = value.apiKey  || value['api-key']  || undefined
+      const group   = humanizeProvider(key)
+
+      // If the provider supplies a full models array of objects, use that list
+      // directly (preserving label/family/group) and skip adding the bare primary entry
+      // to avoid duplicates. The active model is already included in the array.
+      const hasObjectModels = Array.isArray(value.models) &&
+        value.models.some((m) => m && typeof m === 'object' && m.id)
+
+      if (!hasObjectModels) {
+        // Simple format — only a primary model string, no full list provided
+        models.push({
+          label: value.model,
+          id: value.model,
+          family: value.model,
+          group,
+          provider: key,
+          baseUrl,
+          apiKey,
+        })
+      }
+
+      // Additional models from the array (string entries or full objects)
       if (Array.isArray(value.models)) {
         for (const m of value.models) {
           if (typeof m === 'string' && m !== value.model) {
             models.push({
               label: m,
               id: m,
-              group: humanizeProvider(key),
+              family: m,
+              group,
               provider: key,
-              baseUrl: value.baseUrl || value['base-url'] || undefined,
-              apiKey: value.apiKey || value['api-key'] || undefined,
+              baseUrl,
+              apiKey,
             })
           } else if (m && typeof m === 'object' && m.id) {
             models.push({
               label: m.label || m.id,
               id: m.id,
-              group: humanizeProvider(key),
+              family: m.family || m.id,
+              group: m.group || group,
               provider: key,
-              baseUrl: value.baseUrl || value['base-url'] || undefined,
-              apiKey: value.apiKey || value['api-key'] || undefined,
+              baseUrl,
+              apiKey,
             })
           }
         }
@@ -136,11 +150,11 @@ export const useLlmConfigStore = create((set, get) => ({
   /** Raw consumer config object (null = use built-in defaults) */
   consumerConfig: null,
 
-  /** Derived model options */
-  models: BUILTIN_MODELS,
+  /** Derived model options. Empty on init — populated exclusively from API. */
+  models: [],
 
   /** Default model id */
-  defaultModel: BUILTIN_DEFAULT_MODEL,
+  defaultModel: null,
 
   /** Active provider key */
   activeProvider: null,
@@ -154,15 +168,43 @@ export const useLlmConfigStore = create((set, get) => ({
    *
    * @param {object|null} config — consumer config object
    */
+  /**
+   * Directly set a pre-normalised model list from the API response.
+   * Shape expected: { provider, models: [{ id, label, group, family }], active? }
+   * This is what the bridge endpoint (and future Postgres endpoint) returns.
+   * No fallback to built-in models — if the API returns nothing, the list stays empty.
+   */
+  setModels({ models: apiModels, provider, active } = {}) {
+    const models = (apiModels || []).map((m) => ({
+      label: m.label || m.name || m.id,
+      id: m.id,
+      group: m.group || provider || 'API',
+      family: m.family || m.id,
+      provider: m.provider || provider || null,
+    }))
+    const defaultModel = active || (models.length > 0 ? models[0].id : null)
+    set({
+      models,
+      defaultModel,
+      activeProvider: provider || null,
+    })
+  },
+
   setConfig(config) {
     if (!config) {
       set({
         consumerConfig: null,
-        models: BUILTIN_MODELS,
-        defaultModel: BUILTIN_DEFAULT_MODEL,
+        models: [],
+        defaultModel: null,
         activeProvider: null,
         temperature: null,
       })
+      return
+    }
+
+    // If the response is the flat API shape { provider, models: [...] }, delegate to setModels.
+    if (Array.isArray(config.models)) {
+      get().setModels(config)
       return
     }
 
@@ -173,8 +215,8 @@ export const useLlmConfigStore = create((set, get) => ({
 
     set({
       consumerConfig: config,
-      models: models.length > 0 ? models : BUILTIN_MODELS,
-      defaultModel: defaultModel || (models.length > 0 ? models[0].id : BUILTIN_DEFAULT_MODEL),
+      models,
+      defaultModel: defaultModel || (models.length > 0 ? models[0].id : null),
       activeProvider,
       temperature,
     })
@@ -185,7 +227,7 @@ export const useLlmConfigStore = create((set, get) => ({
     return get().models
   },
 
-  /** Get the default model id */
+  /** Get the default model id. Returns null if no models loaded from API yet. */
   getDefaultModel() {
     return get().defaultModel
   },

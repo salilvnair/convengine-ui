@@ -10,7 +10,7 @@
  *  - POST /api/v1/builder-studio/workspace/{id}/sync   → save snapshot
  *  - GET  /api/v1/builder-studio/workspace/{id}         → load snapshot
  */
-const BASE = (import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '/api/v1' : 'http://localhost:8080/api/v1')).replace(/\/$/, '')
+const BASE = (globalThis.__BS_BRIDGE_BASE__ || import.meta.env?.VITE_CONVENGINE_BASE || (import.meta.env?.DEV ? '/api/v1' : 'http://localhost:8080/api/v1')).replace(/\/$/, '')
 
 /**
  * Save (sync) the full workspace snapshot to Postgres.

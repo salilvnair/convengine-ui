@@ -31,7 +31,7 @@ export const AiClassifierBlock = {
       title: 'Model',
       type: 'combobox',
       options: getModelOptions,
-      defaultValue: getDefaultModel(),
+      get defaultValue() { return getDefaultModel() },
       mode: 'advanced',
     },
     {
