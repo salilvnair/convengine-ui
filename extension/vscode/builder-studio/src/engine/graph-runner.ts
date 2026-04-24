@@ -589,6 +589,7 @@ export async function executeGraph({
               output = r.value;
               break;
             }
+            case 'switch':
             case 'switch_case':
             case 'condition': {
               const r = runSwitchNode({ values, input });
@@ -677,10 +678,33 @@ export async function executeGraph({
               output = { data, status, headers };
               break;
             }
-            case 'show_preview':
-            case 'table': {
+            case 'show_preview': {
               output = input;
               break;
+            }
+            case 'table': {
+              throw new Error('Table block: requires a database connection via convengine server-side execution.');
+            }
+            case 'http_response': {
+              const statusCode = Number(values.statusCode ?? 200);
+              const body = (values.body !== undefined && values.body !== '') ? values.body : input;
+              output = { sent: true, statusCode, body };
+              break;
+            }
+            case 'slack': {
+              throw new Error('Slack block requires server-side execution via convengine. Connect to the convengine backend to send Slack messages.');
+            }
+            case 'smtp': {
+              throw new Error('SMTP block requires server-side execution via convengine. Connect to the convengine backend to send emails.');
+            }
+            case 'postgresql': {
+              throw new Error('PostgreSQL block requires server-side execution via convengine. Connect to the convengine backend to query your database.');
+            }
+            case 'redis': {
+              throw new Error('Redis block requires server-side execution via convengine. Connect to the convengine backend to use Redis.');
+            }
+            case 'mongodb': {
+              throw new Error('MongoDB block requires server-side execution via convengine. Connect to the convengine backend to query MongoDB.');
             }
             case 'save_to_files': {
               // In VS Code context, emit output — actual file saving is UI-side

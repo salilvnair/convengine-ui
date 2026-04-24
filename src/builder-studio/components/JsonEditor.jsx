@@ -1,97 +1,122 @@
 /**
- * JSON editor with a proper tree view + text mode toggle.
+ * Slim JSON editor — CodeMirror-based JSON editing with inline linting and a
+ * Format button. Replaces the heavy vanilla-jsoneditor tree editor with a
+ * clean, fast approach that reuses the CodeMirror stack already bundled by
+ * CodeEditor.
  *
- * Backed by `vanilla-jsoneditor` (the modern successor to `jsoneditor` by
- * josdejong, zero-jQuery, ES module). It gives us:
- *
- *   - tree mode: expand/collapse nodes, inline-edit keys/values, add/remove
- *     entries via the hover menu on each node. Ideal for editing a response
- *     schema visually.
- *   - text mode: raw JSON with syntax highlight + parse errors surfaced.
- *   - transform / query are disabled to keep the footprint small.
- *
- * The editor stores values as strings in the subBlockValues map (so the
- * existing serialization is untouched). If the incoming value isn't valid
- * JSON we fall back to the text view automatically.
+ * Features:
+ *  - CodeMirror 6 JSON syntax highlighting + bracket matching
+ *  - Inline parse-error bar (yellow) shown below the editor
+ *  - Format / pretty-print button in the toolbar
+ *  - Fully controlled: accepts string `value`, fires `onChange(string)`
  */
-import { useEffect, useRef, useState } from 'react'
-import { JSONEditor, Mode } from 'vanilla-jsoneditor'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import CodeEditor from './CodeEditor'
 
-/** Returns true when the app is currently in dark mode. */
-function getIsDark() {
-  return document.documentElement.dataset.theme !== 'light'
+function tryParse(text) {
+  if (!text || !text.trim()) return { ok: true, error: null }
+  try { JSON.parse(text); return { ok: true, error: null } }
+  catch (e) { return { ok: false, error: e.message } }
+}
+
+function normalize(v) {
+  if (v == null) return ''
+  if (typeof v === 'string') return v
+  try { return JSON.stringify(v, null, 2) } catch { return '' }
 }
 
 export default function JsonEditor({
   value,
   onChange,
   readOnly = false,
-  defaultMode = 'tree', // 'tree' | 'text'
-  height = '420px',
+  // defaultMode kept for API compat but ignored (always text/code view)
+  // eslint-disable-next-line no-unused-vars
+  defaultMode,
+  height,
   className = '',
+  placeholder = '{}',
 }) {
-  const holderRef = useRef(null)
-  const editorRef = useRef(null)
-  const lastEmittedRef = useRef(null)
-  const [isDark, setIsDark] = useState(getIsDark)
+  const [localValue, setLocalValue] = useState(() => normalize(value))
+  const [parseError, setParseError] = useState(() => tryParse(normalize(value)).error)
+  const lastEmittedRef = useRef(normalize(value))
 
-  // Watch for theme changes (light ↔ dark) and re-apply the jse class.
+  // Sync external value changes in without clobbering active edits
   useEffect(() => {
-    const obs = new MutationObserver(() => setIsDark(getIsDark()))
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => obs.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!holderRef.current) return
-    const initialText = normalizeToText(value)
-    editorRef.current = new JSONEditor({
-      target: holderRef.current,
-      props: {
-        content: { text: initialText },
-        readOnly,
-        mode: defaultMode === 'text' ? Mode.text : Mode.tree,
-        mainMenuBar: true,
-        navigationBar: false,
-        statusBar: true,
-        askToFormat: false,
-        onChange: (content /*, previous, status */) => {
-          const out = 'text' in content ? content.text : JSON.stringify(content.json)
-          lastEmittedRef.current = out
-          onChange?.(out)
-        },
-      },
-    })
-    return () => {
-      editorRef.current?.destroy?.()
-      editorRef.current = null
+    const next = normalize(value)
+    if (next !== lastEmittedRef.current) {
+      setLocalValue(next)
+      setParseError(tryParse(next).error)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Push external value changes in (but don't loop when the change originated here).
-  useEffect(() => {
-    if (!editorRef.current) return
-    const next = normalizeToText(value)
-    if (next === lastEmittedRef.current) return
-    editorRef.current.update({ text: next })
   }, [value])
 
-  return (
-    <div
-      ref={holderRef}
-      className={`bs-jsoneditor ${isDark ? 'jse-theme-dark' : 'bs-jsoneditor-light'} ${className}`}
-      style={{ height }}
-    />
-  )
-}
+  const handleChange = useCallback((text) => {
+    setLocalValue(text)
+    setParseError(tryParse(text).error)
+    lastEmittedRef.current = text
+    onChange?.(text)
+  }, [onChange])
 
-function normalizeToText(v) {
-  if (v == null) return ''
-  if (typeof v === 'string') return v
-  try {
-    return JSON.stringify(v, null, 2)
-  } catch {
-    return String(v)
-  }
+  const handleFormat = useCallback(() => {
+    try {
+      const formatted = JSON.stringify(JSON.parse(localValue), null, 2)
+      setLocalValue(formatted)
+      setParseError(null)
+      lastEmittedRef.current = formatted
+      onChange?.(formatted)
+    } catch { /* already invalid — don't format */ }
+  }, [localValue, onChange])
+
+  return (
+    <div className={`bs-slim-json-editor ${className}`}>
+      <div className="bs-slim-json-header">
+        {!readOnly && (
+          <button
+            type="button"
+            className="bs-slim-json-fmt-btn"
+            onClick={handleFormat}
+            title="Format JSON (pretty-print)"
+            disabled={!!parseError || !localValue.trim()}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 7 4 4 20 4 20 7"/>
+              <line x1="9" y1="20" x2="15" y2="20"/>
+              <line x1="12" y1="4" x2="12" y2="20"/>
+            </svg>
+            Format
+          </button>
+        )}
+        {parseError && (
+          <span className="bs-slim-json-err-badge" title={parseError}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Invalid JSON
+          </span>
+        )}
+      </div>
+      <div className={`bs-slim-json-body ${parseError ? 'has-error' : ''}`}>
+        <CodeEditor
+          language="json"
+          value={localValue}
+          onChange={handleChange}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          minHeight={height || '160px'}
+          maxHeight={height || '400px'}
+        />
+      </div>
+      {parseError && (
+        <div className="bs-slim-json-errmsg">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {parseError}
+        </div>
+      )}
+    </div>
+  )
 }

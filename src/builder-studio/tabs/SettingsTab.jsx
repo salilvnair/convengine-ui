@@ -169,6 +169,7 @@ const SETTINGS_TABS = [
 
 export default function SettingsTab() {
   const [activeSection, setActiveSection] = useState('shortcuts')
+  const [providerRefreshKey, setProviderRefreshKey] = useState(0)
   const isExtension = typeof window !== 'undefined' && window.__BS_MODE__ === 'vscode-extension'
   const visibleTabs = SETTINGS_TABS.filter(t => !t.extensionOnly || isExtension)
 
@@ -199,8 +200,8 @@ export default function SettingsTab() {
         {activeSection === 'tips' && <TipsAndTricksSection />}
         {activeSection === 'llm' && (
           <>
-            <LlmConfigPanel />
-            {isExtension && <CustomProviderPanel />}
+            <LlmConfigPanel refreshKey={providerRefreshKey} />
+            {isExtension && <CustomProviderPanel onChanged={() => setProviderRefreshKey((k) => k + 1)} />}
           </>
         )}
         {activeSection === 'appconfig' && <AppConfigPanel />}
@@ -319,9 +320,58 @@ const LmStudioProviderIcon = ({ size = 22, ...props }) => (
 )
 
 const CopilotProviderIcon = ({ size = 22, ...props }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-    <rect width="24" height="24" rx="5.5" fill="#6366f1" />
-    <path d="M19.245 5.364c1.322 1.36 1.877 3.216 2.11 5.817.622 0 1.2.135 1.592.654l.73.964c.21.278.323.61.323.955v2.62c0 .339-.173.669-.453.868C20.239 19.602 16.157 21.5 12 21.5c-4.6 0-9.205-2.583-11.547-4.258-.28-.2-.452-.53-.453-.868v-2.62c0-.345.113-.679.321-.956l.73-.963c.392-.517.974-.654 1.593-.654l.029-.297c.25-2.446.81-4.213 2.082-5.52 2.461-2.54 5.71-2.851 7.146-2.864h.198c1.436.013 4.685.323 7.146 2.864zm-7.244 4.328c-.284 0-.613.016-.962.05-.123.447-.305.85-.57 1.108-1.05 1.023-2.316 1.18-2.994 1.18-.638 0-1.306-.13-1.851-.464-.516.165-1.012.403-1.044.996a65.882 65.882 0 00-.063 2.884l-.002.48c-.002.563-.005 1.126-.013 1.69.002.326.204.63.51.765 2.482 1.102 4.83 1.657 6.99 1.657 2.156 0 4.504-.555 6.985-1.657a.854.854 0 00.51-.766c.03-1.682.006-3.372-.076-5.053-.031-.596-.528-.83-1.046-.996-.546.333-1.212.464-1.85.464-.677 0-1.942-.157-2.993-1.18-.266-.258-.447-.661-.57-1.108-.32-.032-.64-.049-.96-.05zm-2.525 4.013c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zm5 0c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zM7.635 5.087c-1.05.102-1.935.438-2.385.906-.975 1.037-.765 3.668-.21 4.224.405.394 1.17.657 1.995.657h.09c.649-.013 1.785-.176 2.73-1.11.435-.41.705-1.433.675-2.47-.03-.834-.27-1.52-.63-1.813-.39-.336-1.275-.482-2.265-.394zm6.465.394c-.36.292-.6.98-.63 1.813-.03 1.037.24 2.06.675 2.47.968.957 2.136 1.104 2.776 1.11h.044c.825 0 1.59-.263 1.995-.657.555-.556.765-3.187-.21-4.224-.45-.468-1.335-.804-2.385-.906-.99-.088-1.875.058-2.265.394zM12 7.615c-.24 0-.525.015-.84.044.03.16.045.336.06.526l-.001.159a2.94 2.94 0 01-.014.25c.225-.022.425-.027.612-.028h.366c.187 0 .387.006.612.028-.015-.146-.015-.277-.015-.409.015-.19.03-.365.06-.526a9.29 9.29 0 00-.84-.044z" fill="white" />
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <defs>
+      <radialGradient id="cp-dome" cx="42%" cy="26%" r="70%">
+        <stop offset="0%" stopColor="#80deea"/>
+        <stop offset="45%" stopColor="#00bcd4"/>
+        <stop offset="100%" stopColor="#00796b"/>
+      </radialGradient>
+      <linearGradient id="cp-green" x1="0" y1="0" x2="0.6" y2="1">
+        <stop offset="0%" stopColor="#ccff90"/>
+        <stop offset="100%" stopColor="#00e676"/>
+      </linearGradient>
+      <radialGradient id="cp-eye" cx="33%" cy="28%" r="70%">
+        <stop offset="0%" stopColor="#e3f2fd"/>
+        <stop offset="50%" stopColor="#64b5f6"/>
+        <stop offset="100%" stopColor="#1565c0"/>
+      </radialGradient>
+      <radialGradient id="cp-face" cx="50%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#ffffff"/>
+        <stop offset="100%" stopColor="#e0f7fa"/>
+      </radialGradient>
+    </defs>
+    {/* Left ear */}
+    <rect x="0" y="19" width="9" height="11" rx="4.5" fill="#00bcd4"/>
+    {/* Right ear */}
+    <rect x="39" y="19" width="9" height="11" rx="4.5" fill="#00bcd4"/>
+    {/* Ear glow dots */}
+    <circle cx="4.5" cy="24.5" r="2.5" fill="#40c4ff"/>
+    <circle cx="43.5" cy="24.5" r="2.5" fill="#40c4ff"/>
+    {/* Head dome */}
+    <path d="M8 27 Q8 4 24 4 Q40 4 40 27 L40 31 Q40 35 36 35 L12 35 Q8 35 8 31 Z" fill="url(#cp-dome)"/>
+    {/* Green circuit stripe — left side */}
+    <path d="M8 20 Q9 11 12 8 L13 9.5 L13 35 L12 35 Q8 35 8 31 Z" fill="url(#cp-green)" opacity="0.82"/>
+    {/* Subtle right-side teal accent */}
+    <path d="M40 20 Q39 11 36 8 L35 9.5 L35 35 L36 35 Q40 35 40 31 Z" fill="#4dd0e1" opacity="0.28"/>
+    {/* White lower face */}
+    <rect x="10" y="29" width="28" height="15" rx="5" fill="url(#cp-face)"/>
+    {/* Goggle center bridge */}
+    <rect x="21.5" y="17" width="5" height="2.5" rx="1.2" fill="#90a4ae" opacity="0.7"/>
+    {/* Left goggle outer frame */}
+    <rect x="9" y="13" width="11.5" height="9" rx="2.5" fill="white" opacity="0.92"/>
+    {/* Right goggle outer frame */}
+    <rect x="27.5" y="13" width="11.5" height="9" rx="2.5" fill="white" opacity="0.92"/>
+    {/* Left eye */}
+    <rect x="10" y="14" width="9.5" height="7" rx="2" fill="url(#cp-eye)"/>
+    {/* Right eye */}
+    <rect x="28.5" y="14" width="9.5" height="7" rx="2" fill="url(#cp-eye)"/>
+    {/* Eye glint highlights */}
+    <rect x="11" y="15" width="3.2" height="2" rx="0.8" fill="white" opacity="0.72"/>
+    <rect x="29.5" y="15" width="3.2" height="2" rx="0.8" fill="white" opacity="0.72"/>
+    {/* Nostril slits */}
+    <rect x="19.5" y="33.5" width="3.5" height="6" rx="1.5" fill="#546e7a" opacity="0.65"/>
+    <rect x="25" y="33.5" width="3.5" height="6" rx="1.5" fill="#546e7a" opacity="0.65"/>
   </svg>
 )
 
@@ -352,7 +402,7 @@ const PROVIDER_META = {
 
 /* ── LLM Provider Configuration Panel ────────────────────────────────── */
 
-function LlmConfigPanel() {
+function LlmConfigPanel({ refreshKey = 0 }) {
   const models = useLlmConfigStore((s) => s.models)
   const defaultModel = useLlmConfigStore((s) => s.defaultModel)
   const activeProvider = useLlmConfigStore((s) => s.activeProvider)
@@ -378,7 +428,7 @@ function LlmConfigPanel() {
       const pk = m.provider || 'unknown'
       if (!seen.has(pk)) {
         seen.add(pk)
-        list.push({ key: pk, label: m.group || pk })
+        list.push({ key: pk, label: m.group || pk, providerType: m.providerType })
       }
     }
     return list
@@ -403,11 +453,13 @@ function LlmConfigPanel() {
     }
   }, [setConfig])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { refresh() }, [refresh, refreshKey])
 
   // Build provider options for StyledSelect (icon + label + active badge)
   const providerOptions = useMemo(() => providers.map((p) => {
-    const meta = PROVIDER_META[p.key] || {}
+    // Custom providers have a type (lmstudio, openai, etc.) — look up icon by type first,
+    // then fall back to the key itself for built-in providers (copilot, etc.)
+    const meta = PROVIDER_META[p.providerType || p.key] || PROVIDER_META[p.key] || {}
     const Icon = meta.Icon || null
     return {
       id: p.key,
@@ -662,7 +714,7 @@ const PROVIDER_PLACEHOLDERS = {
 
 const BLANK_FORM = { name: '', type: 'openai', chatUrl: '', modelsUrl: '', apiKey: '', headers: '' }
 
-function CustomProviderPanel() {
+function CustomProviderPanel({ onChanged } = {}) {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -672,6 +724,35 @@ function CustomProviderPanel() {
   const [refreshingKey, setRefreshingKey] = useState(null)
   const [deletingKey, setDeletingKey] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingKey, setEditingKey] = useState(null)
+
+  const openAdd = useCallback(() => {
+    setEditingKey(null)
+    setForm(BLANK_FORM)
+    setFormError('')
+    setShowForm(true)
+  }, [])
+
+  const openEdit = useCallback((p) => {
+    setEditingKey(p.key)
+    setForm({
+      name: p.name,
+      type: p.type || 'openai',
+      chatUrl: p.chatUrl || '',
+      modelsUrl: p.modelsUrl || '',
+      apiKey: '',
+      headers: p.headers && Object.keys(p.headers).length ? JSON.stringify(p.headers, null, 2) : '',
+    })
+    setFormError('')
+    setShowForm(true)
+  }, [])
+
+  const handleCancel = useCallback(() => {
+    setShowForm(false)
+    setEditingKey(null)
+    setForm(BLANK_FORM)
+    setFormError('')
+  }, [])
 
   const loadProviders = useCallback(async () => {
     try {
@@ -702,6 +783,7 @@ function CustomProviderPanel() {
     setSaving(true)
     try {
       await saveCustomProvider({
+        ...(editingKey ? { key: editingKey } : {}),
         name: form.name.trim(),
         type: form.type,
         chatUrl: form.chatUrl.trim(),
@@ -710,8 +792,10 @@ function CustomProviderPanel() {
         headers: parsedHeaders,
       })
       setForm(BLANK_FORM)
+      setEditingKey(null)
       setShowForm(false)
       await loadProviders()
+      onChanged?.()
     } catch (e) {
       setFormError(e.message || 'Failed to save provider')
     } finally {
@@ -724,6 +808,7 @@ function CustomProviderPanel() {
     try {
       await deleteCustomProvider(key)
       setProviders((prev) => prev.filter((p) => p.key !== key))
+      onChanged?.()
     } catch (e) {
       setError(e.message || 'Failed to delete provider')
     } finally {
@@ -736,6 +821,7 @@ function CustomProviderPanel() {
     try {
       const models = await refreshCustomProviderModels(key)
       setProviders((prev) => prev.map((p) => p.key === key ? { ...p, cachedModels: models } : p))
+      onChanged?.()
     } catch (e) {
       setError(e.message || 'Failed to refresh models')
     } finally {
@@ -750,7 +836,7 @@ function CustomProviderPanel() {
         <h3 className="bs-settings-h3">Custom LLM Providers</h3>
         <button
           className="bs-btn-sm bs-btn-secondary bs-custom-provider-add-btn"
-          onClick={() => setShowForm((v) => !v)}
+          onClick={showForm ? handleCancel : openAdd}
         >
           {showForm ? '✕ Cancel' : '+ Add Provider'}
         </button>
@@ -758,9 +844,12 @@ function CustomProviderPanel() {
 
       {error && <div className="bs-llm-config-error">{error}</div>}
 
-      {/* Add form */}
+      {/* Add / Edit form */}
       {showForm && (
         <div className="bs-custom-provider-form">
+          <div className="bs-custom-provider-form-title">
+            {editingKey ? 'Edit Provider' : 'Add New Provider'}
+          </div>
           <div className="bs-custom-provider-form-grid">
             <label className="bs-custom-provider-label">
               Provider Name
@@ -802,7 +891,7 @@ function CustomProviderPanel() {
               <input
                 className="bs-custom-provider-input"
                 type="password"
-                placeholder={PROVIDER_PLACEHOLDERS[form.type]?.apiKey}
+                placeholder={editingKey ? 'Leave blank to keep existing key' : PROVIDER_PLACEHOLDERS[form.type]?.apiKey}
                 value={form.apiKey}
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
                 autoComplete="off"
@@ -822,7 +911,7 @@ function CustomProviderPanel() {
           {formError && <div className="bs-custom-provider-form-error">{formError}</div>}
           <div className="bs-custom-provider-form-actions">
             <button className="bs-btn-sm bs-btn-success" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Provider'}
+              {saving ? (editingKey ? 'Updating…' : 'Saving…') : (editingKey ? 'Update Provider' : 'Save Provider')}
             </button>
           </div>
         </div>
@@ -856,7 +945,15 @@ function CustomProviderPanel() {
                   {refreshingKey === p.key ? 'Refreshing…' : '↻ Refresh Models'}
                 </button>
                 <button
-                  className="bs-btn-sm bs-btn-danger"
+                  className="bs-btn-sm bs-btn-secondary"
+                  onClick={() => openEdit(p)}
+                  disabled={!!refreshingKey || !!deletingKey}
+                  title="Edit provider settings"
+                >
+                  ✎ Edit
+                </button>
+                <button
+                  className="bs-btn-sm bs-btn-secondary bs-btn-secondary--danger"
                   onClick={() => handleDelete(p.key)}
                   disabled={deletingKey === p.key}
                 >

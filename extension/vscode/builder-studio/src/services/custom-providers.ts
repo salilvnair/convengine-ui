@@ -97,12 +97,14 @@ export function buildCustomProviderSection(
   cfg: CustomProviderConfig,
 ): Record<string, unknown> {
   const cachedModels = cfg.cachedModels ?? [];
-  const models = cachedModels.map((m) => ({
-    id: m.id,
-    label: m.label,
-    group: cfg.name,
-    family: m.family,
-  }));
+  // Deduplicate by id before sending to the webview
+  const seen = new Set<string>();
+  const models = cachedModels.reduce<{ id: string; label: string; group: string; family: string }[]>((acc, m) => {
+    if (!m.id || seen.has(m.id)) return acc;
+    seen.add(m.id);
+    acc.push({ id: m.id, label: m.label, group: cfg.name, family: m.family });
+    return acc;
+  }, []);
 
   return {
     name: cfg.name,

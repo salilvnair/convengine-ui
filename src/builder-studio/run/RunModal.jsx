@@ -139,7 +139,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
   // If required inputs are missing → open the dock so user can fill them.
   useImperativeHandle(ref, () => ({
     tryRun() {
-      if (missing.length === 0 && inputNodes.length > 0) {
+      if (missing.length === 0) {
         doRun()
       } else {
         onOpen?.()
@@ -410,7 +410,7 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
         </div>
 
         <div className="bs-run-dock-actions">
-          {!isChatMode && inputNodes.some((n) => n.required) && (
+          {!isChatMode && (
             <button ref={runBtnRef} className="bs-btn-run-green bs-btn-sm" onClick={doRun} disabled={busy || missing.length > 0} title={missing.length > 0 ? 'Fill all required inputs first' : 'Run workflow'}>
               <PlayIcon className="bs-ico-xs" /> {busy ? 'Running…' : 'Run'}
             </button>

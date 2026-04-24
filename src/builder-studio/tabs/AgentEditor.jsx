@@ -106,10 +106,9 @@ export default function AgentEditor({ agentId }) {
           />
         </FullscreenWrapper>
         <div className="bs-hint">
-          Click <strong>Fullscreen</strong> to edit larger schemas comfortably
-          (Esc to collapse). Tree mode lets you expand nodes and edit
-          keys/values visually; switch to Text mode in the editor's top bar
-          for raw JSON.
+          Click <strong>Fullscreen</strong> to edit larger schemas comfortably.
+          Use the <strong>Format</strong> button to pretty-print. Invalid JSON
+          is highlighted with an error bar below the editor.
         </div>
       </section>
 

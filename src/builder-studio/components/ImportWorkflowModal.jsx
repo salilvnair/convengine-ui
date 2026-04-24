@@ -11,6 +11,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import StyledSelect from './StyledSelect'
 
 export default function ImportWorkflowModal({
   teams = [],
@@ -79,15 +80,11 @@ export default function ImportWorkflowModal({
                 No teams yet. Create a team first in the Teams tab.
               </div>
             ) : (
-              <select
-                className="bs-input"
+              <StyledSelect
                 value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-              >
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+                options={teams.map((t) => ({ id: t.id, label: t.name }))}
+                onChange={setTeamId}
+              />
             )}
           </div>
         </div>

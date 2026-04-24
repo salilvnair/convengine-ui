@@ -75,7 +75,7 @@ function deriveModelsFromConfig(config) {
 
   for (const [key, value] of Object.entries(config)) {
     if (reserved.has(key)) continue
-    if (value && typeof value === 'object' && value.model) {
+    if (value && typeof value === 'object' && (value.model || Array.isArray(value.models))) {
       const baseUrl = value.baseUrl || value['base-url'] || undefined
       const apiKey  = value.apiKey  || value['api-key']  || undefined
       const group   = humanizeProvider(key)
@@ -86,7 +86,7 @@ function deriveModelsFromConfig(config) {
       const hasObjectModels = Array.isArray(value.models) &&
         value.models.some((m) => m && typeof m === 'object' && m.id)
 
-      if (!hasObjectModels) {
+      if (!hasObjectModels && value.model) {
         // Simple format — only a primary model string, no full list provided
         models.push({
           label: value.model,
@@ -94,6 +94,7 @@ function deriveModelsFromConfig(config) {
           family: value.model,
           group,
           provider: key,
+          providerType: value.type || undefined,
           baseUrl,
           apiKey,
         })
@@ -101,24 +102,31 @@ function deriveModelsFromConfig(config) {
 
       // Additional models from the array (string entries or full objects)
       if (Array.isArray(value.models)) {
+        const seenInProvider = new Set(hasObjectModels ? [] : [value.model])
         for (const m of value.models) {
           if (typeof m === 'string' && m !== value.model) {
+            if (seenInProvider.has(m)) continue
+            seenInProvider.add(m)
             models.push({
               label: m,
               id: m,
               family: m,
               group,
               provider: key,
+              providerType: value.type || undefined,
               baseUrl,
               apiKey,
             })
           } else if (m && typeof m === 'object' && m.id) {
+            if (seenInProvider.has(m.id)) continue
+            seenInProvider.add(m.id)
             models.push({
               label: m.label || m.id,
               id: m.id,
               family: m.family || m.id,
               group: m.group || group,
               provider: key,
+              providerType: value.type || undefined,
               baseUrl,
               apiKey,
             })

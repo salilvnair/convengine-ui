@@ -109,13 +109,17 @@ export default function AgentBuilderPage() {
   const canExport = !!active && nodes.length >= 2
 
   const handleRun = useCallback(() => {
-    if (!canRun) return
+    if (!active) return
+    if (nodes.length < 2) {
+      showToast('Add at least 2 blocks to run', 'warning')
+      return
+    }
     animateBtn('.bs-topbar-icon-run')
     setDockTab('run')
     showToast('Running workflow…', 'run')
     if (runRef.current) runRef.current.tryRun()
     else setRunOpen(true)
-  }, [animateBtn, canRun, showToast])
+  }, [active, animateBtn, nodes, showToast])
 
   const handleSave = useCallback(() => {
     if (!active) return

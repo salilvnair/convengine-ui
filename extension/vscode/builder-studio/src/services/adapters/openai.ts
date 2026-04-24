@@ -46,12 +46,13 @@ export async function fetchOpenAiModels(cfg: CustomProviderConfig): Promise<Mode
     throw new Error(`[openai-adapter] fetchModels failed ${res.status}: ${await res.text()}`);
   }
   const data = (await res.json()) as { data?: { id: string }[] };
-  return (data.data ?? []).map((m) => ({
-    id: m.id,
-    label: m.id,
-    group: cfg.name,
-    family: m.id,
-  }));
+  const seen = new Set<string>();
+  return (data.data ?? []).reduce<ModelInfo[]>((acc, m) => {
+    if (!m.id || seen.has(m.id)) return acc;
+    seen.add(m.id);
+    acc.push({ id: m.id, label: m.id, group: cfg.name, family: m.id });
+    return acc;
+  }, []);
 }
 
 export function createOpenAiClient(cfg: CustomProviderConfig): CustomLlmClient {

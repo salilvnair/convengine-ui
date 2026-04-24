@@ -21,6 +21,7 @@ import { createPortal } from 'react-dom'
 import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
+import { useMcpStore } from '../mcp/mcp-store'
 import { getBlock } from '../blocks/registry'
 import { getTypeColor, getCardPorts, getAllPortTypes, isTypeCompatible } from '../panel/io-registry'
 import { useTabsStore, skillTabId } from '../stores/tabs-store'
@@ -49,6 +50,7 @@ const INLINE_INTERACTIVE = new Set([
   'switch', 'dropdown', 'combobox',
   'short-input', 'long-input', 'text', 'eval-input',
   'slider',
+  'mcp-server-selector', 'mcp-tool-selector', 'mcp-dynamic-args',
 ])
 /** Types that render as a read-only summary chip. Clicking bubbles up so the
  *  node gets selected and the Inspector surfaces the full editor. */
@@ -543,7 +545,7 @@ function WorkflowNode({ id, data, selected }) {
                         if (data.blockType === 'user_input' && row.id === 'kind') {
                           setSubBlockValue(id, 'defaultValue', '')
                         }
-                      })}
+                      }, { values })}
                     </span>
                   ) : (
                     <span className="bs-node-row-value">{formatPreview(row.value)}</span>
@@ -656,8 +658,66 @@ function WorkflowNode({ id, data, selected }) {
   )
 }
 
-function renderInlineEditor(sb, value, onChange) {
+/** Inline MCP server dropdown — reads live server list from the MCP store. */
+function McpServerNodeSelect({ value, onChange, placeholder }) {
+  const servers = useMcpStore((s) => s.servers)
+  const options = servers.map((s) => ({ id: s.id, label: s.name || s.id }))
+  return (
+    <NodeDropdown
+      value={value ?? ''}
+      options={options}
+      onChange={onChange}
+      placeholder={placeholder || 'Select server…'}
+    />
+  )
+}
+
+/** Inline MCP tool dropdown — filters tools by the currently selected server. */
+function McpToolNodeSelect({ value, onChange, placeholder, serverId }) {
+  const toolsByServer = useMcpStore((s) => s.toolsByServer)
+  const tools = (serverId && toolsByServer[serverId]) || []
+  const options = tools.map((t) => ({ id: t.name, label: t.name }))
+  return (
+    <NodeDropdown
+      value={value ?? ''}
+      options={options}
+      onChange={onChange}
+      placeholder={placeholder || 'Select tool…'}
+    />
+  )
+}
+
+function renderInlineEditor(sb, value, onChange, ctx = {}) {
   switch (sb.type) {
+    case 'mcp-server-selector':
+      return (
+        <McpServerNodeSelect
+          value={value ?? ''}
+          onChange={onChange}
+          placeholder={sb.placeholder}
+        />
+      )
+
+    case 'mcp-tool-selector':
+      return (
+        <McpToolNodeSelect
+          value={value ?? ''}
+          onChange={onChange}
+          placeholder={sb.placeholder}
+          serverId={ctx.values?.server ?? ''}
+        />
+      )
+
+    case 'mcp-dynamic-args':
+      return (
+        <InlineInput
+          type="text"
+          value={typeof value === 'string' ? value : (value ? JSON.stringify(value) : '')}
+          placeholder="{}"
+          onChange={onChange}
+        />
+      )
+
     case 'switch':
       return (
         <label className="bs-switch bs-switch-sm">

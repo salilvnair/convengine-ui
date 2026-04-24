@@ -71,16 +71,17 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   const nodes = allNodes
   const edges = allEdges
 
-  // ── Compute reachable nodes from starter/user_input via edges ────────
+  // ── Compute reachable nodes from starter/user_input/schedule/webhook via edges ──
   const reachable = new Set()
   const outgoingAll = {}
   for (const e of edges) {
     if (!outgoingAll[e.source]) outgoingAll[e.source] = []
     outgoingAll[e.source].push(e)
   }
-  // BFS from seed nodes
+  // BFS from seed nodes (all root trigger types)
+  const SEED_BLOCK_TYPES = new Set(['starter', 'user_input', 'schedule', 'webhook_request'])
   const seedIds = nodes
-    .filter((n) => n.data?.blockType === 'starter' || n.data?.blockType === 'user_input')
+    .filter((n) => SEED_BLOCK_TYPES.has(n.data?.blockType))
     .map((n) => n.id)
   const queue = [...seedIds]
   for (const id of queue) {
@@ -94,7 +95,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   const nodesById = Object.fromEntries(nodes.map((n) => [n.id, n]))
 
   // ── Validate: non-seed nodes must be reachable from Start ────────────
-  const seedTypes = new Set(['starter', 'user_input'])
+  const seedTypes = SEED_BLOCK_TYPES
   for (const n of nodes) {
     if (seedTypes.has(n.data?.blockType)) continue
     if (disabledIds.has(n.id)) continue
@@ -171,6 +172,20 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       started.add(n.id)
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter', title: n.data?.title })
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', title: n.data?.title, output: chatPayload })
+    } else if (n.data?.blockType === 'schedule') {
+      const firedAt = new Date().toISOString()
+      outputs[n.id] = { firedAt }
+      trace.push({ nodeId: n.id, blockType: 'schedule', title: n.data?.title, input: null, output: { firedAt }, ms: 0, meta: { source: 'simulated trigger' } })
+      started.add(n.id)
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'schedule', title: n.data?.title })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'schedule', title: n.data?.title, output: { firedAt } })
+    } else if (n.data?.blockType === 'webhook_request') {
+      const webhookOut = { body: inputs?.webhook ?? null, headers: {}, query: {} }
+      outputs[n.id] = webhookOut
+      trace.push({ nodeId: n.id, blockType: 'webhook_request', title: n.data?.title, input: null, output: webhookOut, ms: 0, meta: { source: 'simulated webhook' } })
+      started.add(n.id)
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'webhook_request', title: n.data?.title })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'webhook_request', title: n.data?.title, output: webhookOut })
     }
   }
 
@@ -421,9 +436,9 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
     case 'switch':
       return runSwitchNode({ values, input })
     case 'for_loop':
+      throw new Error('For Loop block: loop expansion is not supported in client-side execution. Connect to the convengine backend to run loop blocks.')
     case 'for_each':
-      // Placeholder — loop expansion is a bigger feature; for now pass through.
-      return input
+      throw new Error('For Each block: loop iteration is not supported in client-side execution. Connect to the convengine backend to run for-each blocks.')
     case 'json_validator':
       return runJsonValidator({ values, input })
     case 'save_to_files':
@@ -463,8 +478,11 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
       return runErrorHandlerNode({ values, input })
     case 'http_response':
       return runHttpResponseNode({ values, input })
-    case 'sub_workflow':
-      return { result: input, status: 'pass-through', duration: 0 }
+    case 'sub_workflow': {
+      const wfId = values?.workflowId
+      if (!wfId) throw new Error('Sub-Workflow block: no workflow selected. Open the Inspector and select a workflow to execute.')
+      throw new Error('Sub-Workflow block requires the convengine backend to run. Connect to convengine to execute sub-workflows.')
+    }
     case 'ai_classifier':
       return await runAiClassifierNode({ node, values, input })
     case 'variables':
@@ -474,19 +492,21 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
     case 'router_v2':
       return await runRouterV2Node({ node, values, input })
     case 'loop':
+      throw new Error('Loop block: loop execution is not supported in client-side execution. Connect to the convengine backend to run loop blocks.')
     case 'parallel':
+      throw new Error('Parallel block: parallel branch execution requires convengine server-side execution. Connect to the convengine backend to run parallel blocks.')
     case 'table':
-      return input
+      throw new Error('Table block: requires a database connection via convengine server-side execution. Connect to the convengine backend to use table blocks.')
     case 'slack':
-      return { ok: false, error: 'Slack integration requires server-side execution via convengine' }
+      throw new Error('Slack block requires server-side execution via convengine. Connect to the convengine backend to send Slack messages.')
     case 'smtp':
-      return { success: false, error: 'SMTP requires server-side execution via convengine' }
+      throw new Error('SMTP block requires server-side execution via convengine. Connect to the convengine backend to send emails.')
     case 'postgresql':
-      return { error: 'PostgreSQL requires server-side execution via convengine' }
+      throw new Error('PostgreSQL block requires server-side execution via convengine. Connect to the convengine backend to query your database.')
     case 'redis':
-      return { error: 'Redis requires server-side execution via convengine' }
+      throw new Error('Redis block requires server-side execution via convengine. Connect to the convengine backend to use Redis.')
     case 'mongodb':
-      return { error: 'MongoDB requires server-side execution via convengine' }
+      throw new Error('MongoDB block requires server-side execution via convengine. Connect to the convengine backend to query MongoDB.')
     case 'schedule':
       return { firedAt: new Date().toISOString() }
     case 'webhook_request':
@@ -651,13 +671,71 @@ async function runAgentNode({ node, values, input }) {
  * form when the upstream is a URL-like string. For anything else we pass
  * `{ input }` and let the skill destructure whatever it needs.
  */
-async function runSkillSource(skill, inputStr) {
+/**
+ * In the VSCode extension webview, `fetch()` is CSP-blocked for external
+ * URLs. We inject a bridge-aware fetch that tunnels GET requests through
+ * the Node.js bridge server proxy endpoint instead of going direct.
+ *
+ * Non-extension (Vite dev / browser) context: returns the native fetch so
+ * skills work identically outside the extension.
+ */
+function makeSkillFetch() {
+  const base = typeof window !== 'undefined' && window.__BS_BRIDGE_BASE__
+    ? window.__BS_BRIDGE_BASE__
+    : null
+
+  if (!base) return typeof fetch !== 'undefined' ? fetch : undefined
+
+  return async function skillFetch(url, opts = {}) {
+    // Only proxy absolute http(s) URLs; relative paths or data: URIs pass through.
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      if ((opts.method || 'GET').toUpperCase() === 'GET') {
+        // Simple GET — use the query-param proxy endpoint
+        const proxyUrl = `${base}/api/v1/builder-studio/proxy?url=${encodeURIComponent(url)}`
+        const r = await window.fetch(proxyUrl)
+        return {
+          ok: r.ok,
+          status: r.status,
+          headers: r.headers,
+          text: () => r.text(),
+          json: () => r.json(),
+          arrayBuffer: () => r.arrayBuffer(),
+        }
+      } else {
+        // POST / custom method — use the body-based proxy endpoint
+        const proxyUrl = `${base}/api/v1/builder-studio/proxy`
+        const r = await window.fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            method: opts.method || 'POST',
+            headers: opts.headers || {},
+            body: opts.body,
+          }),
+        })
+        return {
+          ok: r.ok,
+          status: r.status,
+          headers: r.headers,
+          text: () => r.text(),
+          json: () => r.json(),
+          arrayBuffer: () => r.arrayBuffer(),
+        }
+      }
+    }
+    return window.fetch(url, opts)
+  }
+}
+
+export async function runSkillSource(skill, inputStr, { debugLog } = {}) {
   const params = looksLikeUrl(inputStr)
     ? { url: inputStr, input: inputStr }
     : { input: inputStr }
+  const skillFetch = makeSkillFetch()
   // eslint-disable-next-line no-new-func
-  const fn = new Function('params', skill.source)
-  const result = await fn(params)
+  const fn = new Function('params', 'fetch', 'console', skill.source)
+  const result = await fn(params, skillFetch, debugLog || console)
   return result
 }
 

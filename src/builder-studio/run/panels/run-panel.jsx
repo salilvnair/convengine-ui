@@ -60,7 +60,13 @@ const RunPanel = {
           <RunResult result={result} />
         ) : (
           !error && !busy && inputNodes.length === 0 && (
-            <div className="bs-run-empty">Ready. Click <kbd>Run</kbd> to execute the workflow.</div>
+            <div className="bs-run-empty">
+              Ready.{' '}
+              <button className="bs-btn-run-green bs-btn-sm bs-run-empty-run-btn" onClick={onRun}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                Run
+              </button>
+            </div>
           )
         )}
       </div>

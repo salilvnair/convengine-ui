@@ -29,6 +29,7 @@ import { runRouter } from './routes/run';
 import { deployRouter } from './routes/deploy';
 import { providerRouter } from './routes/provider';
 import { configRouter } from './routes/config';
+import { proxyRouter } from './routes/proxy';
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -68,6 +69,7 @@ export async function startBridgeServer(): Promise<number> {
   router.use(deployRouter());
   router.use(providerRouter());
   router.use(configRouter());
+  router.use(proxyRouter());
   app.use('/api/v1', router);
 
   /* Webhook catch-all — must match /hook/:workflowId */

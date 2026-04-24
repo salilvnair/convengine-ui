@@ -549,18 +549,15 @@ function McpServerSelector({ value, onChange, placeholder }) {
   useEffect(() => { ensureLoaded() }, [ensureLoaded])
 
   return (
-    <select
-      className="bs-input"
+    <StyledSelect
       value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">{loading ? 'Loading…' : (placeholder || 'Select an MCP server')}</option>
-      {servers.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.name || s.id} {s.transport ? `(${s.transport.toLowerCase()})` : ''}
-        </option>
-      ))}
-    </select>
+      placeholder={loading ? 'Loading…' : (placeholder || 'Select an MCP server')}
+      options={servers.map((s) => ({
+        id: s.id,
+        label: `${s.name || s.id}${s.transport ? ` (${s.transport.toLowerCase()})` : ''}`,
+      }))}
+      onChange={onChange}
+    />
   )
 }
 
@@ -686,18 +683,15 @@ function McpToolSelector({ value, onChange, placeholder, serverId }) {
   const list = tools || []
   return (
     <div className="bs-mcp-tool-picker">
-      <select
-        className="bs-input"
+      <StyledSelect
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">{tools == null ? 'Loading tools…' : (placeholder || 'Select a tool')}</option>
-        {list.map((t) => (
-          <option key={t.name} value={t.name} title={t.description || ''}>
-            {t.name}{t.description ? ` — ${t.description.slice(0, 60)}` : ''}
-          </option>
-        ))}
-      </select>
+        placeholder={tools == null ? 'Loading tools…' : (placeholder || 'Select a tool')}
+        options={list.map((t) => ({
+          id: t.name,
+          label: t.name + (t.description ? ` — ${t.description.slice(0, 55)}` : ''),
+        }))}
+        onChange={onChange}
+      />
       <button
         type="button"
         className="bs-btn-ghost bs-mcp-refresh"
