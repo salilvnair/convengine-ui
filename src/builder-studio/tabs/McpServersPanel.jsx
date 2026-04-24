@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { useMcpStore } from '../mcp/mcp-store'
 import { McpIcon, PlusIcon, TrashIcon } from '../components/icons'
 import ConfirmModal from '../components/ConfirmModal'
+import StyledSelect from '../components/StyledSelect'
 
 const EMPTY = {
   id: '',
@@ -181,10 +182,15 @@ function McpServerForm({ form, setForm, onSave, onCancel, busy }) {
 
       <div className="bs-field">
         <label className="bs-label">Transport</label>
-        <select className="bs-input" value={form.transport} onChange={(e) => up('transport', e.target.value)}>
-          <option value="STDIO">stdio (spawn subprocess)</option>
-          <option value="HTTP">http (JSON-RPC POST)</option>
-        </select>
+        <StyledSelect
+          value={form.transport}
+          onChange={(id) => up('transport', id)}
+          options={[
+            { id: 'STDIO', label: 'stdio (spawn subprocess)' },
+            { id: 'HTTP',  label: 'http (JSON-RPC POST)' },
+            { id: 'SSE',   label: 'sse (server-sent events)' },
+          ]}
+        />
       </div>
 
       {form.transport === 'STDIO' ? (

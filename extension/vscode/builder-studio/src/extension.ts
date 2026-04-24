@@ -14,7 +14,7 @@ import { BuilderStudioPanel } from './panel/BuilderStudioPanel';
 import { registerChatParticipant } from './chat/participant';
 import { initDb } from './storage/db';
 import { initWorkspaceService } from './services/workspace';
-import { initMcpService } from './services/mcp';
+import { initMcpService, disposeMcpService } from './services/mcp';
 import { initScheduler, disposeAll as disposeScheduler } from './engine/scheduler';
 import { callAgentViaCopilot } from './services/llm';
 import { loadActiveFamilyFromDb } from './bridge/routes/provider';
@@ -95,6 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  disposeMcpService(); // kill any running stdio subprocesses
   disposeScheduler();  // stop all in-process cron timers
   stopBridgeServer();
   console.log('[builder-studio] Extension deactivated.');

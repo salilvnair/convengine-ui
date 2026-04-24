@@ -24,7 +24,7 @@ import { useWorkspaceStore } from './stores/workspace-store'
 import { useLlmConfigStore } from './stores/llm-config-store'
 import { useWorkflowStore } from './stores/workflow-store'
 import { useTabsStore, workflowTabId } from './stores/tabs-store'
-import { PlayIcon, PanelRightIcon, SettingsIcon } from './components/icons'
+import { PlayIcon, PanelRightIcon, PanelLeftIcon, SettingsIcon } from './components/icons'
 import { BookIcon } from './tabs/WikiGuide'
 import './builder-studio.css'
 
@@ -68,6 +68,7 @@ export default function AgentBuilderPage() {
   useEffect(() => {
     if (!isExtension) return
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-mode', 'extension')
     localStorage.setItem('convengine_ui_theme', isDark ? 'dark' : 'light')
   }, [isDark, isExtension])
   const toggleTheme = useCallback(() => setIsDark((d) => !d), [])
@@ -213,8 +214,11 @@ export default function AgentBuilderPage() {
       if (!dragRef.current.active) return
       const dx = e.clientX - dragRef.current.startX
       if (Math.abs(dx) > 3) dragRef.current.moved = true
-      // Inverse: dragging LEFT increases the right pane width.
-      const next = Math.max(R_MIN, Math.min(R_MAX, dragRef.current.startW - dx))
+      // Browser: inspector on RIGHT — drag left increases width (negative dx = grow)
+      // Extension: inspector on LEFT — drag right increases width (positive dx = grow)
+      const next = Math.max(R_MIN, Math.min(R_MAX, isExtension
+        ? dragRef.current.startW + dx
+        : dragRef.current.startW - dx))
       setRWidth(next)
     }
     function onUp() {
@@ -276,6 +280,15 @@ export default function AgentBuilderPage() {
     <div className="bs-root">
       <header className="bs-topbar">
         <div className="bs-topbar-title">
+          {isExtension && (
+            <button
+              className="bs-btn-ghost bs-topbar-toggle"
+              onClick={() => setROpen((o) => !o)}
+              title={rOpen ? 'Hide inspector (⌥/)' : 'Show inspector (⌥/)'}
+            >
+              <PanelLeftIcon className="bs-ico-sm" />
+            </button>
+          )}
           <span className="bs-topbar-brand">Agent Builder Studio</span>
         </div>
         <div className="bs-topbar-center">
@@ -352,14 +365,18 @@ export default function AgentBuilderPage() {
               <line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
           </button>
-          <span className="bs-topbar-divider" />
-          <button
-            className={`bs-btn-ghost bs-topbar-toggle`}
-            onClick={() => setROpen((o) => !o)}
-            title={rOpen ? `Hide inspector (${isExtension ? '⌥/' : '⌘/'})` : `Show inspector (${isExtension ? '⌥/' : '⌘/'})`}
-          >
-            <PanelRightIcon className="bs-ico-sm" />
-          </button>
+          {!isExtension && (
+            <>
+              <span className="bs-topbar-divider" />
+              <button
+                className="bs-btn-ghost bs-topbar-toggle"
+                onClick={() => setROpen((o) => !o)}
+                title={rOpen ? 'Hide inspector (⌘/)' : 'Show inspector (⌘/)'}
+              >
+                <PanelRightIcon className="bs-ico-sm" />
+              </button>
+            </>
+          )}
           {isExtension && (
             <>
               <span className="bs-topbar-divider" />
@@ -401,7 +418,26 @@ export default function AgentBuilderPage() {
         className={`bs-main ${rDragging ? 'is-dragging' : ''}`}
         style={{ '--bs-right-w': `${rOpen ? rWidth : 0}px` }}
       >
-        <SideNav />
+        <section className={`bs-right ${rOpen ? 'is-open' : 'is-closed'}`} aria-hidden={!rOpen}>
+          <Inspector />
+        </section>
+
+        <div
+          className={`bs-splitter bs-splitter-right${rOpen ? '' : ' is-collapsed'}`}
+          onPointerDown={onSplitterPointerDown}
+          onMouseEnter={() => setRTip(true)}
+          onMouseLeave={() => setRTip(false)}
+          aria-label="Resize or collapse inspector"
+        >
+          <div className="bs-splitter-grip" />
+          {rTip && !rDragging && (
+            <div className="bs-splitter-tip">
+              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>{isExtension ? '⌥/' : '⌘/'}</kbd></div>
+              <div>Drag to resize</div>
+            </div>
+          )}
+        </div>
+
         <div className="bs-center-wrap">
           <CenterPane />
           {liveWorkflow && (
@@ -430,25 +466,7 @@ export default function AgentBuilderPage() {
           />
         </div>
 
-        <div
-          className="bs-splitter bs-splitter-right"
-          onPointerDown={onSplitterPointerDown}
-          onMouseEnter={() => setRTip(true)}
-          onMouseLeave={() => setRTip(false)}
-          aria-label="Resize or collapse inspector"
-        >
-          <div className="bs-splitter-grip" />
-          {rTip && !rDragging && (
-            <div className="bs-splitter-tip bs-splitter-tip-right">
-              <div>Click to {rOpen ? 'collapse' : 'expand'} <kbd>{isExtension ? '⌥/' : '⌘/'}</kbd></div>
-              <div>Drag to resize</div>
-            </div>
-          )}
-        </div>
-
-        <section className={`bs-right ${rOpen ? 'is-open' : 'is-closed'}`} aria-hidden={!rOpen}>
-          <Inspector />
-        </section>
+        <SideNav />
       </main>
 
       {newWorkflowOpen && (

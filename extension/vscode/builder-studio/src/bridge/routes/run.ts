@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { executeGraph } from '../../engine/graph-runner';
-import { callAgentViaCopilot } from '../../services/llm';
+import { callAgent } from '../../services/llm';
 import { callTool } from '../../services/mcp';
 import type { Workflow } from '../../types';
 
@@ -19,7 +19,7 @@ export function runRouter() {
       const result = await executeGraph({
         workflow,
         inputs: inputs || {},
-        callAgent: callAgentViaCopilot,
+        callAgent,
         callTool,
       });
 

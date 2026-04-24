@@ -101,7 +101,10 @@ export interface McpServerConfig {
   id: string;
   name: string;
   url: string;
+  /** Canonical transport stored internally */
   type: 'http' | 'sse' | 'stdio';
+  /** Alias used by the React UI (STDIO | HTTP). Mapped to/from `type` at the boundary. */
+  transport?: 'STDIO' | 'HTTP' | 'SSE';
   command?: string;   // for stdio servers
   args?: string[];    // for stdio servers
   env?: Record<string, string>;

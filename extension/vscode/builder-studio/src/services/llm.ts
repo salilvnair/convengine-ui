@@ -29,6 +29,12 @@
  */
 import * as vscode from 'vscode';
 import type { AgentRequest, AgentResponse } from '../types';
+import {
+  getAllCustomProviders,
+  buildCustomProviderSection,
+  createCustomProviderClient,
+  resolveCustomProviderForModel,
+} from './custom-providers';
 
 /* ════════════════════════════════════════════════════════════
    LlmClient interface  (mirrors Java LlmClient)
@@ -64,15 +70,31 @@ export interface LlmClient {
    ════════════════════════════════════════════════════════════ */
 
 let _activeFamily: string | null = null;
+let _activeCustomProviderKey: string | null = null;
 
 export function setActiveFamily(family: string) {
   _activeFamily = family;
+  _activeCustomProviderKey = null; // switching to Copilot clears custom selection
 }
 
 export function getActiveFamily(): string {
   if (_activeFamily) return _activeFamily;
   const cfg = vscode.workspace.getConfiguration('builderStudio');
   return cfg.get<string>('copilotFamily') ?? '';  // no hardcoded fallback
+}
+
+export function setActiveCustomProvider(key: string | null) {
+  _activeCustomProviderKey = key;
+  if (key) _activeFamily = null; // switching to custom clears copilot selection
+}
+
+export function getActiveCustomProviderKey(): string | null {
+  return _activeCustomProviderKey;
+}
+
+/** Returns the currently active provider key — 'copilot' or a custom provider key. */
+export function getActiveProviderKey(): string {
+  return _activeCustomProviderKey ?? 'copilot';
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -118,14 +140,20 @@ export async function getAvailableProviders(): Promise<ProviderConfig> {
   const active = getActiveFamily();
   const activeModel = models.find((m) => m.family === active)?.id ?? models[0]?.id ?? active;
 
-  // Return the same consumer config format used by the normal app.
-  // apiKey is omitted — Copilot handles authentication.
+  // Merge custom providers into the same consumer-config format.
+  // apiKey is intentionally omitted — never sent to the webview.
+  const customSections: Record<string, unknown> = {};
+  for (const cp of getAllCustomProviders()) {
+    customSections[cp.key] = buildCustomProviderSection(cp);
+  }
+
   return {
-    provider: 'copilot',
+    provider: getActiveProviderKey(),
     copilot: {
       model: activeModel,
       models,
     },
+    ...customSections,
   };
 }
 
@@ -336,8 +364,58 @@ export async function callAgentViaCopilot(req: AgentRequest): Promise<AgentRespo
 }
 
 /* ════════════════════════════════════════════════════════════
-   Helpers
+   callAgent — unified entry point that routes to Copilot or
+   a custom provider adapter based on agent.provider.
    ════════════════════════════════════════════════════════════ */
+
+export async function callAgent(req: AgentRequest): Promise<AgentResponse> {
+  const { agent } = req;
+
+  // Determine which provider to use:
+  //   1. Explicit provider on the node (set via applyDefaultModelToAll)
+  //   2. Active custom provider key (user switched in Settings)
+  //   3. Fall back to Copilot
+  const providerKey =
+    agent.provider && agent.provider !== 'copilot'
+      ? agent.provider
+      : _activeCustomProviderKey ?? 'copilot';
+
+  if (providerKey === 'copilot') {
+    return callAgentViaCopilot(req);
+  }
+
+  // Resolve which custom provider to use — prefer explicit key, then model id lookup
+  let customKey = providerKey;
+  if (customKey === 'custom' || !getAllCustomProviders().find((p) => p.key === customKey)) {
+    // Try to resolve by model id
+    const resolved = resolveCustomProviderForModel(agent.model ?? '');
+    if (!resolved) return callAgentViaCopilot(req); // safe fallback
+    customKey = resolved.key;
+  }
+
+  const t0 = Date.now();
+  const client = createCustomProviderClient(customKey);
+  const bag = buildBag(req.input);
+  const systemPrompt = interpolateBag(agent.systemPrompt ?? '', bag);
+  const userPrompt   = interpolateBag(agent.userPrompt ?? '{{input}}', bag);
+  const model        = agent.model ?? '';
+  const temperature  = agent.temperature ?? 0.7;
+
+  let output: string;
+
+  if (agent.responseFormat) {
+    const hint = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
+    if (agent.strictOutput) {
+      output = await client.generateJsonStrict(hint, agent.responseFormat, req.input, model, temperature);
+    } else {
+      output = await client.generateJson(hint, agent.responseFormat, req.input, model, temperature);
+    }
+  } else {
+    output = await client.generateText(systemPrompt, userPrompt || req.input, model, temperature);
+  }
+
+  return { output, model, ms: Date.now() - t0 };
+}
 
 async function resolveModel(family: string): Promise<vscode.LanguageModelChat> {
   let models: readonly vscode.LanguageModelChat[];

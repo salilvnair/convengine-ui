@@ -280,7 +280,7 @@ export const useWorkspaceStore = create()(
          * (agent, ai_classifier, router_v2, etc.) replace that value with `modelId`.
          * Returns the number of nodes updated.
          */
-        applyDefaultModelToAll(modelId) {
+        applyDefaultModelToAll(modelId, providerId) {
           if (!modelId) return 0
           let count = 0
           set((s) => ({
@@ -297,7 +297,11 @@ export const useWorkspaceStore = create()(
                 const hasModelSub = (cfg.subBlocks || []).some((sb) => sb.id === 'model')
                 if (!hasModelSub) continue
                 const prev = sbv[node.id]
-                sbv[node.id] = { ...(prev || {}), model: modelId }
+                sbv[node.id] = {
+                  ...(prev || {}),
+                  model: modelId,
+                  ...(providerId ? { provider: providerId } : {}),
+                }
                 count++
                 changed = true
               }

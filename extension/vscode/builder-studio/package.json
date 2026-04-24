@@ -92,7 +92,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
-    "build:webview": "cd ../../.. && VITE_CONVENGINE_BASE=BRIDGE_BASE_PLACEHOLDER vite build --config vite.extension.config.js",
+    "build": "cd ../../.. && VITE_CONVENGINE_BASE=BRIDGE_BASE_PLACEHOLDER vite build --config vite.extension.config.js",
     "package": "vsce package"
   },
   "dependencies": {

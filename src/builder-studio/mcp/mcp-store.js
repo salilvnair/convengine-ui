@@ -59,7 +59,7 @@ export const useMcpStore = create((set, get) => ({
     if (!refresh && get().toolsByServer[id]) return get().toolsByServer[id]
     try {
       const resp = await api.listTools(id, { refresh })
-      const tools = resp?.tools || []
+      const tools = Array.isArray(resp) ? resp : (resp?.tools || [])
       set((s) => ({ toolsByServer: { ...s.toolsByServer, [id]: tools } }))
       return tools
     } catch (e) {

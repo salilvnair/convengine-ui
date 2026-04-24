@@ -5,13 +5,14 @@
  * driven by `SHORTCUTS` so adding a new binding in Canvas.jsx /
  * AgentBuilderPage.jsx only needs a corresponding row here.
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { SettingsIcon, KeyboardIcon, McpIcon } from '../components/icons'
-import { changeRuntimeProvider, fetchAvailableProviders } from '../api/llm-provider-client'
+import { changeRuntimeProvider, fetchAvailableProviders, fetchCustomProviders, saveCustomProvider, deleteCustomProvider, refreshCustomProviderModels } from '../api/llm-provider-client'
 import McpServersPanel from './McpServersPanel'
 import { useLlmConfigStore } from '../stores/llm-config-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useWorkflowStore } from '../stores/workflow-store'
+import StyledSelect from '../components/StyledSelect'
 
 const MOD = /Mac|iPhone|iPad/.test(typeof navigator !== 'undefined' ? navigator.platform : '') ? '⌘' : 'Ctrl'
 
@@ -196,7 +197,12 @@ export default function SettingsTab() {
         {activeSection === 'shortcuts' && <KeyboardShortcutsSection />}
         {activeSection === 'mcp' && <McpServersPanel />}
         {activeSection === 'tips' && <TipsAndTricksSection />}
-        {activeSection === 'llm' && <LlmConfigPanel />}
+        {activeSection === 'llm' && (
+          <>
+            <LlmConfigPanel />
+            {isExtension && <CustomProviderPanel />}
+          </>
+        )}
         {activeSection === 'appconfig' && <AppConfigPanel />}
       </div>
     </div>
@@ -289,6 +295,61 @@ function TipsAndTricksSection() {
   )
 }
 
+/* ── Provider SVG brand icons ─────────────────────────────────────── */
+
+const OpenAiProviderIcon = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect width="24" height="24" rx="5.5" fill="#10a37f" />
+    <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.896zm16.597 3.855l-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.061l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z" fill="white" />
+  </svg>
+)
+
+const LmStudioProviderIcon = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <defs>
+      <linearGradient id="lms-bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#7c6af5" />
+        <stop offset="100%" stopColor="#4f46e5" />
+      </linearGradient>
+    </defs>
+    <rect width="24" height="24" rx="5.5" fill="url(#lms-bg)" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M2.84 2a1.273 1.273 0 100 2.547h14.107a1.273 1.273 0 100-2.547H2.84zM7.935 5.33a1.273 1.273 0 000 2.548H22.04a1.274 1.274 0 000-2.547H7.935zM3.624 9.935c0-.704.57-1.274 1.274-1.274h14.106a1.274 1.274 0 010 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM1.273 12.188a1.273 1.273 0 100 2.547H15.38a1.274 1.274 0 000-2.547H1.273zM3.624 16.792c0-.704.57-1.274 1.274-1.274h14.106a1.273 1.273 0 110 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM13.029 18.849a1.273 1.273 0 100 2.547h9.698a1.273 1.273 0 100-2.547h-9.698z" fill="white" fillOpacity=".35" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M2.84 2a1.273 1.273 0 100 2.547h10.287a1.274 1.274 0 000-2.547H2.84zM7.935 5.33a1.273 1.273 0 000 2.548H18.22a1.274 1.274 0 000-2.547H7.935zM3.624 9.935c0-.704.57-1.274 1.274-1.274h10.286a1.273 1.273 0 010 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM1.273 12.188a1.273 1.273 0 100 2.547H11.56a1.274 1.274 0 000-2.547H1.273zM3.624 16.792c0-.704.57-1.274 1.274-1.274h10.286a1.273 1.273 0 110 2.547H4.898c-.703 0-1.274-.57-1.274-1.273zM13.029 18.849a1.273 1.273 0 100 2.547h5.78a1.273 1.273 0 100-2.547h-5.78z" fill="white" />
+  </svg>
+)
+
+const CopilotProviderIcon = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect width="24" height="24" rx="5.5" fill="#6366f1" />
+    <path d="M19.245 5.364c1.322 1.36 1.877 3.216 2.11 5.817.622 0 1.2.135 1.592.654l.73.964c.21.278.323.61.323.955v2.62c0 .339-.173.669-.453.868C20.239 19.602 16.157 21.5 12 21.5c-4.6 0-9.205-2.583-11.547-4.258-.28-.2-.452-.53-.453-.868v-2.62c0-.345.113-.679.321-.956l.73-.963c.392-.517.974-.654 1.593-.654l.029-.297c.25-2.446.81-4.213 2.082-5.52 2.461-2.54 5.71-2.851 7.146-2.864h.198c1.436.013 4.685.323 7.146 2.864zm-7.244 4.328c-.284 0-.613.016-.962.05-.123.447-.305.85-.57 1.108-1.05 1.023-2.316 1.18-2.994 1.18-.638 0-1.306-.13-1.851-.464-.516.165-1.012.403-1.044.996a65.882 65.882 0 00-.063 2.884l-.002.48c-.002.563-.005 1.126-.013 1.69.002.326.204.63.51.765 2.482 1.102 4.83 1.657 6.99 1.657 2.156 0 4.504-.555 6.985-1.657a.854.854 0 00.51-.766c.03-1.682.006-3.372-.076-5.053-.031-.596-.528-.83-1.046-.996-.546.333-1.212.464-1.85.464-.677 0-1.942-.157-2.993-1.18-.266-.258-.447-.661-.57-1.108-.32-.032-.64-.049-.96-.05zm-2.525 4.013c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zm5 0c.539 0 .976.426.976.95v1.753c0 .525-.437.95-.976.95a.964.964 0 01-.976-.95v-1.752c0-.525.437-.951.976-.951zM7.635 5.087c-1.05.102-1.935.438-2.385.906-.975 1.037-.765 3.668-.21 4.224.405.394 1.17.657 1.995.657h.09c.649-.013 1.785-.176 2.73-1.11.435-.41.705-1.433.675-2.47-.03-.834-.27-1.52-.63-1.813-.39-.336-1.275-.482-2.265-.394zm6.465.394c-.36.292-.6.98-.63 1.813-.03 1.037.24 2.06.675 2.47.968.957 2.136 1.104 2.776 1.11h.044c.825 0 1.59-.263 1.995-.657.555-.556.765-3.187-.21-4.224-.45-.468-1.335-.804-2.385-.906-.99-.088-1.875.058-2.265.394zM12 7.615c-.24 0-.525.015-.84.044.03.16.045.336.06.526l-.001.159a2.94 2.94 0 01-.014.25c.225-.022.425-.027.612-.028h.366c.187 0 .387.006.612.028-.015-.146-.015-.277-.015-.409.015-.19.03-.365.06-.526a9.29 9.29 0 00-.84-.044z" fill="white" />
+  </svg>
+)
+
+const AnthropicProviderIcon = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect width="24" height="24" rx="5.5" fill="#d97706" />
+    <path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-3.654 0H6.57L0 20h3.603l1.378-3.454h6.875L13.234 20h3.603l-6.664-16.48zm-1.427 9.953 2.094-5.251 2.094 5.251H8.746z" fill="white" />
+  </svg>
+)
+
+const OllamaProviderIcon = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="ollama-provider-icon" {...props}>
+    <rect width="24" height="24" rx="5.5" fill="white" />
+    <g transform="translate(2 2) scale(0.039)">
+      <path fillRule="evenodd" clipRule="evenodd" d="M168.64 23.253c4.608 1.814 8.768 4.8 12.544 8.747 6.293 6.528 11.605 15.872 15.659 26.944 4.074 11.136 6.72 23.467 7.722 35.84a107.824 107.824 0 0143.712-13.568l1.088-.085c18.56-1.494 36.907 1.856 52.907 10.112a103.091 103.091 0 016.336 3.626c1.067-12.138 3.669-24.192 7.68-35.072 4.053-11.093 9.365-20.416 15.637-26.965a35.628 35.628 0 0112.566-8.747c5.482-2.133 11.306-2.517 16.981-.896 8.555 2.432 15.893 7.851 21.675 15.723 5.29 7.19 9.258 16.405 11.968 27.456 4.906 19.925 5.76 46.144 2.453 77.76l1.131.853.554.406c16.15 12.288 27.392 29.802 33.344 50.133 9.28 31.723 4.608 67.307-11.392 87.211l-.384.448.043.064c8.896 16.256 14.293 33.429 15.445 51.2l.043.64c1.365 22.72-4.267 45.589-17.365 68.053l-.15.213.214.512c10.069 24.683 13.226 49.536 9.344 74.368l-.128.832a13.888 13.888 0 01-15.936 11.435 13.83 13.83 0 01-11.31-10.43 13.828 13.828 0 01-.21-5.399c3.562-22.038.213-44.139-10.24-66.624a13.713 13.713 0 01.853-13.163l.085-.128c12.886-19.712 18.219-39.04 17.067-58.027-.981-16.618-6.933-32.938-17.067-48.49a13.737 13.737 0 013.84-18.902l.192-.128c5.184-3.392 9.963-12.053 12.374-23.893a90.218 90.218 0 00-2.027-42.112c-4.373-14.933-12.373-27.392-23.573-35.904-12.694-9.685-29.504-14.357-50.774-13.013a13.93 13.93 0 01-13.482-7.915c-6.699-14.187-16.47-24.341-28.651-30.635a70.145 70.145 0 00-37.803-7.082c-26.56 2.112-49.984 17.088-56.96 35.968a13.91 13.91 0 01-13.013 9.066c-22.763.043-40.384 5.376-53.269 14.998-11.136 8.32-18.731 19.946-22.742 33.877a86.824 86.824 0 00-1.45 40.235c2.389 11.904 7.061 21.76 12.416 27.072l.17.149c4.523 4.416 5.483 11.307 2.326 16.747-7.68 13.269-13.419 33.045-14.358 52.053-1.066 21.717 3.968 40.576 15.339 54.101l.341.406a13.711 13.711 0 012.027 14.72c-12.288 26.368-16.064 48.042-11.989 65.109a13.91 13.91 0 01-27.072 6.357c-5.184-21.717-1.664-46.592 10.09-74.624l.299-.746-.17-.256a92.574 92.574 0 01-12.758-27.926l-.107-.405a122.965 122.965 0 01-3.776-38.08c.939-19.413 5.931-39.296 13.27-55.253l.256-.555-.043-.043c-6.25-8.917-10.88-20.33-13.44-32.96l-.107-.512a114.176 114.176 0 011.984-53.12c5.59-19.52 16.576-36.288 32.768-48.405 1.28-.96 2.624-1.92 3.968-2.816-3.392-31.851-2.538-58.24 2.39-78.293 2.709-11.051 6.698-20.267 11.989-27.456 5.76-7.851 13.099-13.27 21.653-15.723 5.675-1.621 11.52-1.259 17.003.896v.021zm87.808 193.92c19.968 0 38.4 6.678 52.181 18.24 13.44 11.243 21.44 26.347 21.44 41.387 0 18.944-8.661 33.707-24.17 43.136-13.227 8-30.955 11.883-51.264 11.883-21.526 0-39.915-5.526-53.184-15.659-13.163-10.027-20.544-24.107-20.544-39.36 0-15.083 8.49-30.229 22.528-41.515 14.25-11.456 33.066-18.112 53.013-18.112zm0 19.115a65.498 65.498 0 00-40.875 13.867c-9.834 7.893-15.402 17.813-15.402 26.666 0 9.131 4.48 17.686 13.013 24.192 9.707 7.403 23.979 11.691 41.451 11.691 17.045 0 31.424-3.136 41.216-9.088 9.877-5.973 14.933-14.635 14.933-26.816 0-9.024-5.248-18.987-14.571-26.795-10.325-8.64-24.32-13.717-39.765-13.717zm14.123 25.813l.085.086a7.431 7.431 0 01-1.195 10.453l-6.229 4.907v9.514a7.999 7.999 0 01-8.021 7.958 8.004 8.004 0 01-8.022-7.958v-9.813l-5.781-4.651a7.4 7.4 0 01-1.109-10.453 7.53 7.53 0 0110.538-1.088l4.587 3.669 4.693-3.712a7.533 7.533 0 0110.454 1.088zm-107.52-40.938c10.197 0 18.496 8.32 18.496 18.581a18.564 18.564 0 01-18.518 18.581 18.559 18.559 0 01-18.496-18.56 18.565 18.565 0 015.399-13.129 18.609 18.609 0 0113.119-5.473zm185.728 0c10.24 0 18.517 8.32 18.517 18.581a18.559 18.559 0 01-18.517 18.581 18.56 18.56 0 01-18.496-18.56 18.56 18.56 0 0118.496-18.602zM158.72 49.067l-.064.042a14.06 14.06 0 00-6.08 5.078l-.107.128c-2.944 4.032-5.504 9.962-7.424 17.749-3.626 14.763-4.608 34.795-2.645 59.349 9.173-2.73 19.179-4.437 29.952-5.056l.213-.021.406-.725a69.41 69.41 0 013.157-5.099c2.624-16.448.469-36.096-5.397-52.139-2.859-7.765-6.336-13.866-9.664-17.344a13.403 13.403 0 00-2.283-1.92l-.064-.042zm195.712.853l-.043.021a13.396 13.396 0 00-2.282 1.92c-3.328 3.478-6.827 9.6-9.664 17.366-6.187 16.938-8.256 37.888-4.907 54.869l1.237 2.069.171.299h.64a110.599 110.599 0 0131.275 4.523c1.834-23.979.81-43.584-2.731-58.07-1.92-7.786-4.48-13.717-7.445-17.749l-.086-.128a14.054 14.054 0 00-6.08-5.099h-.085v-.021z" fill="#18181b" />
+    </g>
+  </svg>
+)
+
+/* ── Provider brand metadata (key → display info) ─────────────────── */
+const PROVIDER_META = {
+  openai:    { label: 'OpenAI',         Icon: OpenAiProviderIcon,    color: '#10a37f' },
+  lmstudio:  { label: 'LM Studio',      Icon: LmStudioProviderIcon,  color: '#8b5cf6' },
+  copilot:   { label: 'GitHub Copilot', Icon: CopilotProviderIcon,   color: '#6e7bf9' },
+  anthropic: { label: 'Anthropic',      Icon: AnthropicProviderIcon, color: '#d97706' },
+  ollama:    { label: 'Ollama',         Icon: OllamaProviderIcon,    color: '#64748b' },
+}
+
 /* ── LLM Provider Configuration Panel ────────────────────────────────── */
 
 function LlmConfigPanel() {
@@ -298,16 +359,36 @@ function LlmConfigPanel() {
   const setConfig = useLlmConfigStore((s) => s.setConfig)
   const applyDefaultModelToAll = useWorkspaceStore((s) => s.applyDefaultModelToAll)
   const syncToServer = useWorkspaceStore((s) => s.syncToServer)
-
   const reset = useWorkspaceStore((s) => s.reset)
 
-  const [pending, setPending] = useState(null)   // chip clicked but not yet saved
+  const [selectedProvider, setSelectedProvider] = useState(null)
+  const [pending, setPending] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [applying, setApplying] = useState(false)
-  const [applyResult, setApplyResult] = useState(null) // { count } after apply
+  const [applyResult, setApplyResult] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
+
+  // Derive unique providers from the flat models list
+  const providers = useMemo(() => {
+    const seen = new Set()
+    const list = []
+    for (const m of models) {
+      const pk = m.provider || 'unknown'
+      if (!seen.has(pk)) {
+        seen.add(pk)
+        list.push({ key: pk, label: m.group || pk })
+      }
+    }
+    return list
+  }, [models])
+
+  // Sync selected provider when store loads
+  useEffect(() => {
+    if (activeProvider && !selectedProvider) setSelectedProvider(activeProvider)
+    else if (!selectedProvider && providers.length > 0) setSelectedProvider(providers[0].key)
+  }, [activeProvider, providers, selectedProvider])
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -324,12 +405,39 @@ function LlmConfigPanel() {
 
   useEffect(() => { refresh() }, [refresh])
 
+  // Build provider options for StyledSelect (icon + label + active badge)
+  const providerOptions = useMemo(() => providers.map((p) => {
+    const meta = PROVIDER_META[p.key] || {}
+    const Icon = meta.Icon || null
+    return {
+      id: p.key,
+      label: p.label,
+      icon: Icon ? <Icon size={15} /> : null,
+      badge: p.key === activeProvider
+        ? <span className="bs-llm-provider-active-dot" style={{ display: 'block' }} />
+        : null,
+    }
+  }), [providers, activeProvider])
+
+  // Models visible in the current provider tab
+  const providerModels = useMemo(
+    () => models.filter((m) => m.provider === selectedProvider),
+    [models, selectedProvider]
+  )
+
+  const hasChanges = useMemo(() => {
+    if (selectedProvider && selectedProvider !== activeProvider) return true
+    if (pending && pending !== defaultModel) return true
+    return false
+  }, [selectedProvider, activeProvider, pending, defaultModel])
+
   const saveDefault = useCallback(async () => {
-    if (!pending || pending === defaultModel) return
+    if (!hasChanges) return
     setSaving(true)
     setLoadError('')
     try {
-      await changeRuntimeProvider({ family: pending, model: pending })
+      const modelToSave = pending || providerModels[0]?.id || null
+      await changeRuntimeProvider({ provider: selectedProvider, family: modelToSave, model: modelToSave })
       await refresh()
       setPending(null)
     } catch (e) {
@@ -337,7 +445,7 @@ function LlmConfigPanel() {
     } finally {
       setSaving(false)
     }
-  }, [pending, defaultModel, refresh])
+  }, [hasChanges, pending, providerModels, selectedProvider, refresh])
 
   const applyToAll = useCallback(async () => {
     const target = defaultModel
@@ -345,7 +453,7 @@ function LlmConfigPanel() {
     setApplying(true)
     setApplyResult(null)
     try {
-      const count = applyDefaultModelToAll(target)
+      const count = applyDefaultModelToAll(target, selectedProvider)
       await syncToServer()
       setApplyResult({ count })
       setTimeout(() => setApplyResult(null), 4000)
@@ -357,15 +465,9 @@ function LlmConfigPanel() {
   }, [defaultModel, applyDefaultModelToAll, syncToServer])
 
   const doReset = useCallback(() => {
-    // 1. Clear the persisted localStorage blob.
     try { localStorage.removeItem('builder-studio/workspace') } catch { /* sandboxed */ }
-    // 2. Reset workspace store → workflows = [demoWorkflow].
     reset()
-    // 3. If a default model is active, stamp it on every node in the (now
-    //    seed-only) workflow list so no node can ever fall back to gpt-4o-mini.
     if (defaultModel) applyDefaultModelToAll(defaultModel)
-    // 4. Wipe the runtime canvas store — useEffect in AgentBuilderPage will
-    //    re-load the seed workflow from the updated workspace store.
     useWorkflowStore.getState().reset()
     setConfirmReset(false)
   }, [reset, defaultModel, applyDefaultModelToAll])
@@ -373,12 +475,7 @@ function LlmConfigPanel() {
   return (
     <div className="bs-llm-config">
       <div className="bs-settings-section-head">
-        <svg className="bs-ico-sm" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="6" width="16" height="12" rx="3" />
-          <circle cx="9" cy="12" r="1.2" fill="currentColor" />
-          <circle cx="15" cy="12" r="1.2" fill="currentColor" />
-          <path d="M12 3v3" />
-        </svg>
+        <LlmIcon className="bs-ico-sm" />
         <h3 className="bs-settings-h3">LLM Provider Configuration</h3>
       </div>
 
@@ -392,65 +489,88 @@ function LlmConfigPanel() {
 
       {!loading && !loadError && models.length === 0 && (
         <div className="bs-llm-config-error">
-          No model provider found. Ensure the backend is running and
+          No model provider found. Ensure the backend is running and{' '}
           <code>/builder-studio/llm/providers</code> returns at least one model.
         </div>
       )}
 
       {!loading && models.length > 0 && (
         <div className="bs-llm-config-status">
+
+          {/* ── Available Providers dropdown ── */}
           <div className="bs-llm-config-status-row">
-            <span className="bs-llm-status-label">Active Provider</span>
-            <span className="bs-llm-status-badge">{activeProvider || '—'}</span>
+            <span className="bs-llm-status-label">Available Providers</span>
+            <StyledSelect
+              value={selectedProvider || ''}
+              options={providerOptions}
+              onChange={(id) => { setSelectedProvider(id); setPending(null) }}
+              placeholder="Select provider…"
+              className="bs-llm-provider-select"
+              iconSize={15}
+              menuMinWidth={200}
+            />
           </div>
+
+          {/* ── Default Model badge ── */}
           <div className="bs-llm-config-status-row">
             <span className="bs-llm-status-label">Default Model</span>
             <span className="bs-llm-status-badge bs-llm-status-model">
               {pending && pending !== defaultModel ? pending : (defaultModel || '—')}
             </span>
           </div>
-          <div className="bs-llm-config-status-row">
-            <span className="bs-llm-status-label">Available Models</span>
+
+          {/* ── Model chips for selected provider ── */}
+          <div className="bs-llm-config-status-row bs-llm-models-row">
+            <span className="bs-llm-status-label">
+              Available Models
+              {providerModels.length > 0 && (
+                <span className="bs-llm-models-count">{providerModels.length}</span>
+              )}
+            </span>
             <div className="bs-llm-model-chips">
-              {models.map((m) => {
-                const isSaved = m.id === defaultModel
-                const isPending = m.id === pending && pending !== defaultModel
-                return (
-                  <span
-                    key={m.id}
-                    className={`bs-llm-model-chip bs-llm-model-chip-btn${
-                      isSaved ? ' bs-llm-model-chip-active' : ''
-                    }${isPending ? ' bs-llm-model-chip-pending' : ''}`}
-                    title={`${m.group} — ${m.id}`}
-                    onClick={() => setPending(isSaved ? null : m.id)}
+              {providerModels.length === 0 ? (
+                <span className="bs-llm-no-models">No models available for this provider.</span>
+              ) : (
+                providerModels.map((m) => {
+                  const isSaved = m.id === defaultModel
+                  const isPending = m.id === pending && pending !== defaultModel
+                  return (
+                    <span
+                      key={m.id}
+                          className={`bs-llm-model-chip bs-llm-model-chip-btn${isSaved ? ' bs-llm-model-chip-active' : ''}${isPending ? ' bs-llm-model-chip-pending' : ''}`}
+                          title={`${m.group} — ${m.id}`}
+                          onClick={() => setPending(isSaved ? null : m.id)}
+                        >
+                          {m.label}
+                        </span>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* ── Save / cancel actions ── */}
+              {hasChanges && (
+                <div className="bs-llm-config-actions">
+                  <button
+                    className="bs-btn-sm bs-btn-success"
+                    onClick={saveDefault}
+                    disabled={saving}
                   >
-                    {m.label}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>
+                    {saving ? 'Saving…' : 'Save as Default'}
+                  </button>
+                  <button
+                    className="bs-btn-sm bs-btn-secondary"
+                    onClick={() => { setSelectedProvider(activeProvider); setPending(null) }}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
 
-          {pending && pending !== defaultModel && (
-            <div className="bs-llm-config-actions">
-              <button
-                className="bs-btn-sm bs-btn-success"
-                onClick={saveDefault}
-                disabled={saving}
-              >
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/></svg>
-                {saving ? 'Saving…' : 'Save as Default'}
-              </button>
-              <button
-                className="bs-btn-sm bs-btn-secondary"
-                onClick={() => setPending(null)}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
+          {/* ── Apply to all ── */}
           <div className="bs-llm-apply-row">
             <button
               className="bs-btn-sm bs-btn-apply-all"
@@ -471,6 +591,7 @@ function LlmConfigPanel() {
             )}
           </div>
 
+          {/* ── Reset workspace ── */}
           <div className="bs-llm-reset-row">
             {!confirmReset ? (
               <button
@@ -496,7 +617,255 @@ function LlmConfigPanel() {
               </div>
             )}
           </div>
+
         </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Custom Provider Panel (extension-only) ──────────────────────── */
+
+const PROVIDER_TYPE_OPTIONS = [
+  { id: 'openai',    label: 'OpenAI',    icon: <OpenAiProviderIcon size={15} /> },
+  { id: 'anthropic', label: 'Anthropic', icon: <AnthropicProviderIcon size={15} /> },
+  { id: 'lmstudio',  label: 'LM Studio', icon: <LmStudioProviderIcon size={15} /> },
+  { id: 'ollama',    label: 'Ollama',    icon: <OllamaProviderIcon size={15} /> },
+]
+
+const PROVIDER_PLACEHOLDERS = {
+  openai: {
+    name:      'My OpenAI Provider',
+    chatUrl:   'https://<your-host>/v1/chat/completions',
+    modelsUrl: 'https://<your-host>/v1/models',
+    apiKey:    'sk-...',
+  },
+  anthropic: {
+    name:      'My Anthropic Provider',
+    chatUrl:   'https://<your-host>/v1/messages',
+    modelsUrl: 'https://<your-host>/v1/models',
+    apiKey:    'sk-ant-...',
+  },
+  lmstudio: {
+    name:      'My LM Studio Server',
+    chatUrl:   'http://<your-host>/v1/chat/completions',
+    modelsUrl: 'http://<your-host>/v1/models',
+    apiKey:    'leave blank if not set',
+  },
+  ollama: {
+    name:      'My Ollama Server',
+    chatUrl:   'http://<your-host>/api/chat',
+    modelsUrl: 'http://<your-host>/api/tags',
+    apiKey:    'leave blank for local Ollama',
+  },
+}
+
+const BLANK_FORM = { name: '', type: 'openai', chatUrl: '', modelsUrl: '', apiKey: '', headers: '' }
+
+function CustomProviderPanel() {
+  const [providers, setProviders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState(BLANK_FORM)
+  const [formError, setFormError] = useState('')
+  const [refreshingKey, setRefreshingKey] = useState(null)
+  const [deletingKey, setDeletingKey] = useState(null)
+  const [showForm, setShowForm] = useState(false)
+
+  const loadProviders = useCallback(async () => {
+    try {
+      const data = await fetchCustomProviders()
+      setProviders(data)
+    } catch (e) {
+      setError(e.message || 'Failed to load custom providers')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadProviders() }, [loadProviders])
+
+  const handleSave = async () => {
+    setFormError('')
+    if (!form.name.trim()) return setFormError('Provider name is required')
+    if (!form.chatUrl.trim()) return setFormError('Chat URL is required')
+    if (!form.modelsUrl.trim()) return setFormError('Models URL is required')
+
+    let parsedHeaders = {}
+    if (form.headers.trim()) {
+      try { parsedHeaders = JSON.parse(form.headers) } catch {
+        return setFormError('Additional headers must be valid JSON')
+      }
+    }
+
+    setSaving(true)
+    try {
+      await saveCustomProvider({
+        name: form.name.trim(),
+        type: form.type,
+        chatUrl: form.chatUrl.trim(),
+        modelsUrl: form.modelsUrl.trim(),
+        apiKey: form.apiKey.trim() || undefined,
+        headers: parsedHeaders,
+      })
+      setForm(BLANK_FORM)
+      setShowForm(false)
+      await loadProviders()
+    } catch (e) {
+      setFormError(e.message || 'Failed to save provider')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (key) => {
+    setDeletingKey(key)
+    try {
+      await deleteCustomProvider(key)
+      setProviders((prev) => prev.filter((p) => p.key !== key))
+    } catch (e) {
+      setError(e.message || 'Failed to delete provider')
+    } finally {
+      setDeletingKey(null)
+    }
+  }
+
+  const handleRefreshModels = async (key) => {
+    setRefreshingKey(key)
+    try {
+      const models = await refreshCustomProviderModels(key)
+      setProviders((prev) => prev.map((p) => p.key === key ? { ...p, cachedModels: models } : p))
+    } catch (e) {
+      setError(e.message || 'Failed to refresh models')
+    } finally {
+      setRefreshingKey(null)
+    }
+  }
+
+  return (
+    <div className="bs-settings-pane bs-custom-provider-pane">
+      <div className="bs-settings-section-head">
+        <LlmIcon className="bs-ico-sm" />
+        <h3 className="bs-settings-h3">Custom LLM Providers</h3>
+        <button
+          className="bs-btn-sm bs-btn-secondary bs-custom-provider-add-btn"
+          onClick={() => setShowForm((v) => !v)}
+        >
+          {showForm ? '✕ Cancel' : '+ Add Provider'}
+        </button>
+      </div>
+
+      {error && <div className="bs-llm-config-error">{error}</div>}
+
+      {/* Add form */}
+      {showForm && (
+        <div className="bs-custom-provider-form">
+          <div className="bs-custom-provider-form-grid">
+            <label className="bs-custom-provider-label">
+              Provider Name
+              <input
+                className="bs-custom-provider-input"
+                placeholder={PROVIDER_PLACEHOLDERS[form.type]?.name || 'My Provider'}
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </label>
+            <label className="bs-custom-provider-label">
+              Type
+              <StyledSelect
+                value={form.type}
+                options={PROVIDER_TYPE_OPTIONS}
+                onChange={(id) => setForm((f) => ({ ...f, type: id }))}
+              />
+            </label>
+            <label className="bs-custom-provider-label bs-span2">
+              Chat URL
+              <input
+                className="bs-custom-provider-input"
+                placeholder={PROVIDER_PLACEHOLDERS[form.type]?.chatUrl}
+                value={form.chatUrl}
+                onChange={(e) => setForm((f) => ({ ...f, chatUrl: e.target.value }))}
+              />
+            </label>
+            <label className="bs-custom-provider-label bs-span2">
+              Models URL
+              <input
+                className="bs-custom-provider-input"
+                placeholder={PROVIDER_PLACEHOLDERS[form.type]?.modelsUrl}
+                value={form.modelsUrl}
+                onChange={(e) => setForm((f) => ({ ...f, modelsUrl: e.target.value }))}
+              />
+            </label>
+            <label className="bs-custom-provider-label bs-span2">
+              API Key
+              <input
+                className="bs-custom-provider-input"
+                type="password"
+                placeholder={PROVIDER_PLACEHOLDERS[form.type]?.apiKey}
+                value={form.apiKey}
+                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
+                autoComplete="off"
+              />
+            </label>
+            <label className="bs-custom-provider-label bs-span2">
+              Additional Headers <span className="bs-optional-hint">(JSON, optional)</span>
+              <textarea
+                className="bs-custom-provider-textarea"
+                placeholder='{ "X-Custom-Header": "value" }'
+                rows={2}
+                value={form.headers}
+                onChange={(e) => setForm((f) => ({ ...f, headers: e.target.value }))}
+              />
+            </label>
+          </div>
+          {formError && <div className="bs-custom-provider-form-error">{formError}</div>}
+          <div className="bs-custom-provider-form-actions">
+            <button className="bs-btn-sm bs-btn-success" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Provider'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Provider list */}
+      {loading ? (
+        <div className="bs-llm-config-loading">Loading…</div>
+      ) : providers.length === 0 ? (
+        <div className="bs-custom-provider-empty">No custom providers added yet.</div>
+      ) : (
+        <ul className="bs-custom-provider-list">
+          {providers.map((p) => (
+            <li key={p.key} className="bs-custom-provider-item">
+              <div className="bs-custom-provider-item-info">
+                <span className="bs-custom-provider-name">{p.name}</span>
+                <span className="bs-custom-provider-type-badge">
+                  {PROVIDER_TYPE_OPTIONS.find((o) => o.id === p.type)?.label ?? p.type}
+                </span>
+                <span className="bs-custom-provider-model-count">
+                  {(p.cachedModels || []).length} model{(p.cachedModels || []).length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="bs-custom-provider-item-actions">
+                <button
+                  className="bs-btn-sm bs-btn-secondary"
+                  onClick={() => handleRefreshModels(p.key)}
+                  disabled={refreshingKey === p.key}
+                  title="Fetch latest model list from provider"
+                >
+                  {refreshingKey === p.key ? 'Refreshing…' : '↻ Refresh Models'}
+                </button>
+                <button
+                  className="bs-btn-sm bs-btn-danger"
+                  onClick={() => handleDelete(p.key)}
+                  disabled={deletingKey === p.key}
+                >
+                  {deletingKey === p.key ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

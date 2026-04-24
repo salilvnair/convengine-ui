@@ -114,7 +114,9 @@ export default function SideNav() {
       if (!dragRef.current.active) return
       const dx = e.clientX - dragRef.current.startX
       if (Math.abs(dx) > 3) dragRef.current.moved = true
-      const next = Math.max(MIN_W, Math.min(MAX_W, dragRef.current.startW + dx))
+      const next = Math.max(MIN_W, Math.min(MAX_W,
+        _isExtension ? dragRef.current.startW - dx : dragRef.current.startW + dx
+      ))
       setWidth(next)
     }
     function onUp() {
@@ -199,6 +201,7 @@ export default function SideNav() {
             : (_isExtension ? 'Expand panel (⌥\\)' : 'Expand panel (⌘\\)')}
         >
           <PanelLeftIcon className="bs-rail-ico" />
+          <span className="bs-rail-label">{open ? 'Hide' : 'Show'}</span>
         </button>
       </nav>
 

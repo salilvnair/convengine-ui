@@ -4,7 +4,7 @@
  *
  * Props:
  *   value      — currently selected option id (string)
- *   options    — [{ id, label }]
+ *   options    — [{ id, label, icon?: ReactElement, badge?: ReactElement }]
  *   onChange   — (id: string) => void
  *   placeholder — shown when nothing is selected
  *   className  — extra class on the wrapper
@@ -12,7 +12,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function StyledSelect({ value, options = [], onChange, placeholder, className = '' }) {
+export default function StyledSelect({ value, options = [], onChange, placeholder, className = '', iconSize = 16, menuMinWidth = 0 }) {
   const [open, setOpen] = useState(false)
   const [menuStyle, setMenuStyle] = useState({})
   const triggerRef = useRef(null)
@@ -33,7 +33,8 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
       position: 'fixed',
       top: goUp ? r.top - menuH - 4 : r.bottom + 4,
       left: r.left,
-      width: r.width,
+      minWidth: Math.max(r.width, menuMinWidth),
+      width: 'max-content',
       zIndex: 99999,
     })
   }, [open, options.length])
@@ -67,7 +68,13 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
         onClick={() => setOpen((v) => !v)}
       >
         <span className={`bs-styled-select-value ${!selected ? 'is-placeholder' : ''}`}>
+          {selected?.icon && (
+            <span className="bs-styled-select-opt-icon" style={{ width: iconSize, height: iconSize }}>
+              {selected.icon}
+            </span>
+          )}
           {selected ? selected.label : (placeholder || 'Select…')}
+          {selected?.badge && <span className="bs-styled-select-opt-badge">{selected.badge}</span>}
         </span>
         <svg
           className="bs-styled-select-chevron"
@@ -99,7 +106,13 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
                 className={`bs-styled-select-option ${o.id === value ? 'is-active' : ''}`}
                 onClick={() => { onChange(o.id); setOpen(false) }}
               >
+                {o.icon && (
+                  <span className="bs-styled-select-opt-icon" style={{ width: iconSize, height: iconSize }}>
+                    {o.icon}
+                  </span>
+                )}
                 <span className="bs-styled-select-option-label">{o.label}</span>
+                {o.badge && <span className="bs-styled-select-opt-badge">{o.badge}</span>}
                 {o.id === value && (
                   <svg
                     width="12"
