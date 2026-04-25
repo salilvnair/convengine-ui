@@ -103,6 +103,7 @@ export class BuilderStudioPanel {
     const injectScript = `<script>
   globalThis.__BS_BRIDGE_BASE__ = '${bridgeBase}';
   window.__BS_MODE__ = 'vscode-extension';
+  try { window.__BS_VSCODE_API__ = acquireVsCodeApi(); } catch(e) {}
 </script>`;
     html = html.replace('</head>', `${injectScript}\n</head>`);
 
@@ -174,11 +175,27 @@ export class BuilderStudioPanel {
   }
 
   private _handleMessage(msg: { type: string; payload?: unknown }) {
-    // Reserved for future postMessage bridge (e.g. file save, notifications)
     switch (msg.type) {
       case 'ping':
         this._panel.webview.postMessage({ type: 'pong' });
         break;
+      case 'saveFile': {
+        const { filename, content } = msg.payload as { filename: string; content: string };
+        vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(filename),
+          filters: { 'JSON': ['json'] },
+        }).then((uri) => {
+          if (!uri) return;
+          fs.writeFile(uri.fsPath, content, 'utf8', (err) => {
+            if (err) {
+              vscode.window.showErrorMessage(`Failed to save file: ${err.message}`);
+            } else {
+              vscode.window.showInformationMessage(`Workflow exported to ${uri.fsPath}`);
+            }
+          });
+        });
+        break;
+      }
     }
   }
 

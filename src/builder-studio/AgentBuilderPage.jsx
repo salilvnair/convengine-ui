@@ -147,11 +147,22 @@ export default function AgentBuilderPage() {
       },
     }
     const json = JSON.stringify(exportData, null, 2)
+    const filename = (active.name || active.id || 'workflow').replace(/\s+/g, '_') + '.json'
+
+    // VS Code webview — <a download> is blocked by the sandbox; use postMessage bridge instead
+    const vsApi = typeof window !== 'undefined' && window.__BS_VSCODE_API__
+    if (vsApi) {
+      vsApi.postMessage({ type: 'saveFile', payload: { filename, content: json } })
+      showToast('Workflow JSON exported', 'save')
+      return
+    }
+
+    // Browser / standalone — standard anchor download
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = (active.name || active.id || 'workflow').replace(/\s+/g, '_') + '.json'
+    a.download = filename
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -401,8 +412,8 @@ export default function AgentBuilderPage() {
           >
             <svg className="bs-ico-topbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </button>
           {!isExtension && (
