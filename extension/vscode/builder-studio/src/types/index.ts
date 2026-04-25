@@ -49,6 +49,15 @@ export interface RunResult {
 
 /* ── Agent types ── */
 
+export interface AgentMemoryConfig {
+  type: 'conversation' | 'sliding_window' | 'sliding_window_tokens';
+  conversationId?: string;
+  /** sliding_window: max number of prior messages to include */
+  windowSize?: number;
+  /** sliding_window_tokens: max token budget for prior messages (rough word estimate) */
+  maxTokens?: number;
+}
+
 export interface AgentRequest {
   agent: {
     id: string;
@@ -60,6 +69,7 @@ export interface AgentRequest {
     responseFormat?: string | null;
     strictOutput?: boolean;
     skills?: string[];
+    memory?: AgentMemoryConfig | null;
   };
   input: string;
 }

@@ -22,6 +22,7 @@ import { Handle, Position } from 'reactflow'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useMcpStore } from '../mcp/mcp-store'
+import { useLlmConfigStore } from '../stores/llm-config-store'
 import { getBlock } from '../blocks/registry'
 import { getTypeColor, getCardPorts, getAllPortTypes, isTypeCompatible } from '../panel/io-registry'
 import { useTabsStore, skillTabId } from '../stores/tabs-store'
@@ -105,6 +106,8 @@ function WorkflowNode({ id, data, selected }) {
   const lastOutput = useWorkflowStore((s) => s.lastOutputs?.[id])
   const resizeNodeStore = useWorkflowStore((s) => s.resizeNode)
   const fitNodeStore = useWorkflowStore((s) => s.fitNode)
+  // Subscribe to active LLM provider so model comboboxes on card re-render when provider changes
+  useLlmConfigStore((s) => s.activeProvider)
   // Check if this non-seed, non-disabled node has no incoming edges
   const SEED_TYPES = new Set(['starter', 'user_input'])
   const hasNoIncoming = useWorkflowStore((s) => {
@@ -502,10 +505,6 @@ function WorkflowNode({ id, data, selected }) {
           <div className="bs-node-body">
             {previewRows.map((row) => {
               if (row.sb.type === 'json-preview') {
-                // Detect whether the lastOutput is (or contains) JSON so we can render
-                // the nice tree view vs plain text. Strings that are valid JSON are
-                // rendered as a tree; everything else (including plain strings) is shown
-                // as pre-formatted text.
                 let previewValue = lastOutput
                 // Only treat as JSON if it IS an object/array — strings stay strings.
                 const isJsonOutput = lastOutput !== null && lastOutput !== undefined && typeof lastOutput === 'object'
@@ -540,8 +539,6 @@ function WorkflowNode({ id, data, selected }) {
                     >
                       {renderInlineEditor(row.sb, row.value, (v) => {
                         setSubBlockValue(id, row.id, v)
-                        // When kind changes on a user_input block, clear the
-                        // defaultValue so stale incompatible values don't linger.
                         if (data.blockType === 'user_input' && row.id === 'kind') {
                           setSubBlockValue(id, 'defaultValue', '')
                         }
@@ -553,6 +550,21 @@ function WorkflowNode({ id, data, selected }) {
                 </div>
               )
             })}
+            {/* Extra "Value" row for user_input — shows defaultValue inline after Label */}
+            {data.blockType === 'user_input' && (
+              <div className="bs-node-row bs-ui-node-value-row" {...stopPointer}>
+                <span className="bs-node-row-pin bs-node-row-pin-green" aria-hidden="true" />
+                <span className="bs-node-row-label">Value</span>
+                <span className="bs-node-row-edit">
+                  <InlineInput
+                    type={(values?.kind === 'password') ? 'password' : 'text'}
+                    value={values?.defaultValue ?? ''}
+                    placeholder={`Enter ${(values?.label || 'value').toLowerCase()}…`}
+                    onChange={(v) => setSubBlockValue(id, 'defaultValue', v)}
+                  />
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -684,6 +696,55 @@ function McpToolNodeSelect({ value, onChange, placeholder, serverId }) {
       onChange={onChange}
       placeholder={placeholder || 'Select tool…'}
     />
+  )
+}
+
+/**
+ * Compact inline body for user_input nodes:
+ * shows the Label field (editable) then a Value row (defaultValue, editable).
+ * The full config (kind, placeholder, options…) stays in the Inspector.
+ */
+function UserInputNodeBody({ id, values, setSubBlockValue }) {
+  const label = values?.label ?? 'Input'
+  const kind = values?.kind ?? 'short-text'
+  const isPassword = kind === 'password'
+  const defVal = values?.defaultValue ?? ''
+
+  const stopPointer = {
+    onClick: (e) => e.stopPropagation(),
+    onMouseDown: (e) => e.stopPropagation(),
+    onPointerDown: (e) => e.stopPropagation(),
+  }
+
+  return (
+    <div className="bs-node-body bs-ui-node-body">
+      {/* Row 1 — Label */}
+      <div className="bs-node-row">
+        <span className="bs-node-row-pin bs-node-row-pin-orange" />
+        <span className="bs-node-row-label">Label</span>
+        <span className="bs-node-row-edit" {...stopPointer}>
+          <InlineInput
+            type="text"
+            value={label}
+            placeholder="Input"
+            onChange={(v) => setSubBlockValue(id, 'label', v)}
+          />
+        </span>
+      </div>
+      {/* Row 2 — Value (defaultValue) */}
+      <div className="bs-node-row bs-ui-node-value-row">
+        <span className="bs-node-row-pin bs-node-row-pin-green" />
+        <span className="bs-node-row-label">Value</span>
+        <span className="bs-node-row-edit" {...stopPointer}>
+          <InlineInput
+            type={isPassword ? 'password' : 'text'}
+            value={defVal}
+            placeholder={isPassword ? '••••••' : `Enter ${label.toLowerCase() || 'value'}…`}
+            onChange={(v) => setSubBlockValue(id, 'defaultValue', v)}
+          />
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -836,6 +897,9 @@ function NodeDropdown({ value, options = [], onChange, placeholder }) {
         type="button"
         className={`bs-node-dropdown-trigger ${open ? 'is-open' : ''}`}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v) }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
       >
         <span className={`bs-node-dropdown-value ${!selected ? 'is-placeholder' : ''}`}>
           {selected ? selected.label : (placeholder || 'Select…')}
@@ -869,6 +933,8 @@ function NodeDropdown({ value, options = [], onChange, placeholder }) {
 
 /** Notion-style "ghost" text input: invisible chrome until hovered/focused.
  * Commits on change; blurs on Enter; Escape reverts to last committed value.
+ * Stops pointer/mouse/dblclick events from bubbling to ReactFlow drag and
+ * the card's double-click rename handler.
  */
 function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
   return (
@@ -882,6 +948,11 @@ function InlineInput({ type = 'text', value, onChange, placeholder, ...rest }) {
         if (e.key === 'Enter') e.currentTarget.blur()
         if (e.key === 'Escape') e.currentTarget.blur()
       }}
+      // Prevent ReactFlow from starting a card drag when the user clicks/drags inside the input
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      // Prevent the card's double-click → rename handler from firing when user double-clicks to select text
+      onDoubleClick={(e) => e.stopPropagation()}
       {...rest}
     />
   )

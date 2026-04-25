@@ -77,6 +77,19 @@ export const useTabsStore = create((set, get) => ({
     set({ activeId: id })
   },
 
+  /** After a background server load, add tabs for any new workflows without
+   *  resetting existing open tabs or the current active tab. */
+  syncWorkflowTabs(workflows) {
+    set((s) => {
+      const existingIds = new Set(s.tabs.map((t) => t.id))
+      const added = workflows
+        .filter((w) => !existingIds.has(workflowTabId(w.id)))
+        .map((w) => ({ id: workflowTabId(w.id), kind: 'workflow', entityId: w.id, title: w.name }))
+      if (added.length === 0) return s
+      return { tabs: [...s.tabs, ...added] }
+    })
+  },
+
   renameTab(id, title) {
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, title } : t)) }))
   },

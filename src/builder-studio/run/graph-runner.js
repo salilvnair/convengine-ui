@@ -23,6 +23,7 @@ import { useWorkspaceStore } from '../stores/workspace-store'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useLlmConfigStore } from '../stores/llm-config-store'
 import { resolvePortType, isTypeCompatible } from '../panel/io-registry'
+import { getBlock } from '../blocks/registry'
 
 // Validate a runtime value against a declared port type.
 // Returns an error string if mismatch, or null if OK.
@@ -127,6 +128,45 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
 
   const outgoing = groupBy(edges, 'source')
   const incoming = groupBy(edges, 'target')
+
+  // ── Validate: required subBlock fields must be set before execution starts ──
+  // This catches blocks like MCP (server + tool required) or any block with
+  // required: true fields that the user hasn't configured yet.
+  for (const n of nodes) {
+    if (disabledIds.has(n.id)) continue
+    if (SEED_BLOCK_TYPES.has(n.data?.blockType)) continue
+    if (!reachable.has(n.id)) continue
+    const blockDef = getBlock(n.data?.blockType)
+    if (!blockDef?.subBlocks?.length) continue
+    const vals = subBlockValues[n.id] || {}
+    for (const sub of blockDef.subBlocks) {
+      if (!sub.required) continue
+      // Handle conditional required: { field, value } — only required when dep matches
+      if (typeof sub.required === 'object') {
+        const dep = vals[sub.required.field]
+        const reqValues = Array.isArray(sub.required.value) ? sub.required.value : [sub.required.value]
+        if (!reqValues.includes(dep)) continue
+      }
+      const v = vals[sub.id]
+      const isEmpty = v == null || v === '' || (Array.isArray(v) && v.length === 0)
+      if (isEmpty) {
+        const nodeTitle = n.data?.title || blockDef.name || n.data?.blockType || n.id
+        const fieldLabel = sub.title || sub.id
+        throw new GraphValidationError(
+          `"${nodeTitle}" is missing required field: ${fieldLabel}`,
+          {
+            nodeId: n.id,
+            nodeTitle,
+            blockType: n.data?.blockType,
+            cause: `The "${fieldLabel}" field is required but has not been configured.`,
+            hint: `Select or enter a value for "${fieldLabel}" in the "${nodeTitle}" block before running.`,
+            severity: 'error',
+          }
+        )
+      }
+    }
+  }
+
   const outputs = {}     // nodeId -> output value
   const trace = []       // ordered
   const started = new Set()
@@ -617,6 +657,20 @@ async function runAgentNode({ node, values, input }) {
     )
   }
 
+  // Build memory config — only included when memoryType is non-empty and not 'none'
+  const memoryType = values.memoryType || 'none'
+  const memoryConfig = memoryType !== 'none' ? (() => {
+    const cfg = { type: memoryType }
+    if (values.conversationId) cfg.conversationId = values.conversationId
+    if (memoryType === 'sliding_window' && values.slidingWindowSize) {
+      cfg.windowSize = parseInt(values.slidingWindowSize, 10) || undefined
+    }
+    if (memoryType === 'sliding_window_tokens' && values.slidingWindowTokens) {
+      cfg.maxTokens = parseInt(values.slidingWindowTokens, 10) || undefined
+    }
+    return cfg
+  })() : null
+
   const agent = {
     id: node.id,
     provider: resolvedProvider,
@@ -627,6 +681,7 @@ async function runAgentNode({ node, values, input }) {
     responseFormat: values.responseFormat || null,
     strictOutput: values.strictOutput === true,
     skills: skillIds,
+    ...(memoryConfig ? { memory: memoryConfig } : {}),
   }
 
   // When skills ran and produced output, the backend only sees systemPrompt +
@@ -650,6 +705,7 @@ async function runAgentNode({ node, values, input }) {
       temperature: agent.temperature,
       systemPrompt: agent.systemPrompt,
       userPrompt: agent.userPrompt,
+      memory: memoryConfig,
       skillIds,
       skillRuns,
       templateBag: bag,
@@ -679,7 +735,7 @@ async function runAgentNode({ node, values, input }) {
  * Non-extension (Vite dev / browser) context: returns the native fetch so
  * skills work identically outside the extension.
  */
-function makeSkillFetch() {
+export function makeSkillFetch() {
   const base = typeof window !== 'undefined' && window.__BS_BRIDGE_BASE__
     ? window.__BS_BRIDGE_BASE__
     : null
@@ -691,7 +747,8 @@ function makeSkillFetch() {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
       if ((opts.method || 'GET').toUpperCase() === 'GET') {
         // Simple GET — use the query-param proxy endpoint
-        const proxyUrl = `${base}/api/v1/builder-studio/proxy?url=${encodeURIComponent(url)}`
+        // base already contains /api/v1 (e.g. http://127.0.0.1:PORT/api/v1)
+        const proxyUrl = `${base}/builder-studio/proxy?url=${encodeURIComponent(url)}`
         const r = await window.fetch(proxyUrl)
         return {
           ok: r.ok,
@@ -703,7 +760,7 @@ function makeSkillFetch() {
         }
       } else {
         // POST / custom method — use the body-based proxy endpoint
-        const proxyUrl = `${base}/api/v1/builder-studio/proxy`
+        const proxyUrl = `${base}/builder-studio/proxy`
         const r = await window.fetch(proxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -729,9 +786,23 @@ function makeSkillFetch() {
 }
 
 export async function runSkillSource(skill, inputStr, { debugLog } = {}) {
-  const params = looksLikeUrl(inputStr)
-    ? { url: inputStr, input: inputStr }
-    : { input: inputStr }
+  let params
+  if (looksLikeUrl(inputStr)) {
+    params = { url: inputStr, input: inputStr }
+  } else {
+    // If inputStr is a JSON object, spread all its keys into params so skills
+    // can access params.url, params.query, etc. directly (not just params.input).
+    try {
+      const parsed = JSON.parse(inputStr)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        params = { input: inputStr, ...parsed }
+      } else {
+        params = { input: inputStr }
+      }
+    } catch {
+      params = { input: inputStr }
+    }
+  }
   const skillFetch = makeSkillFetch()
   // eslint-disable-next-line no-new-func
   const fn = new Function('params', 'fetch', 'console', skill.source)

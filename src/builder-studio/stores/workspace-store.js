@@ -367,7 +367,12 @@ export const useWorkspaceStore = create()(
           }
           set({
             activeWorkspaceId: snapshot.activeWorkspaceId || id,
-            activeWorkflowId: snapshot.activeWorkflowId || get().activeWorkflowId,
+            // Do NOT override the current activeWorkflowId — the user may have
+            // already navigated to a different workflow while the background load
+            // was in flight. Overwriting it here was the root cause of the
+            // "click workflow, default comes up" navigation bug.
+            // activeWorkflowId is already persisted in localStorage; on the next
+            // full cold-boot it will reflect whatever the server had last.
             workspaces: snapshot.workspaces?.length ? snapshot.workspaces : get().workspaces,
             teams: snapshot.teams?.length ? snapshot.teams : get().teams,
             agentPools: snapshot.agentPools?.length ? snapshot.agentPools : get().agentPools,

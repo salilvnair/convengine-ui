@@ -268,9 +268,14 @@ export const useLlmConfigStore = create((set, get) => ({
 
 /* ── Convenience functions (non-React, callable from block definitions) ─ */
 
-/** Returns model options — consumer-configured or built-in fallback */
+/** Returns model options filtered to the active provider only. */
 export function getConfiguredModelOptions() {
-  return useLlmConfigStore.getState().getModelOptions()
+  const state = useLlmConfigStore.getState()
+  const all = state.getModelOptions()
+  const active = state.activeProvider
+  if (!active) return all
+  const filtered = all.filter((m) => m.provider === active)
+  return filtered.length > 0 ? filtered : all
 }
 
 /** Returns the default model id */

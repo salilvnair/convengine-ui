@@ -50,11 +50,12 @@ export default function AgentBuilderPage() {
   const openSettings = useTabsStore((s) => s.openSettings)
   const openWiki = useTabsStore((s) => s.openWiki)
   const initWorkflowTabs = useTabsStore((s) => s.initWorkflowTabs)
+  const syncWorkflowTabs = useTabsStore((s) => s.syncWorkflowTabs)
   const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
   const renameTab = useTabsStore((s) => s.renameTab)
   const activeTabId = useTabsStore((s) => s.activeId)
 
-  const [rOpen, setROpen] = useState(true)
+  const [rOpen, setROpen] = useState(false)
   const [rWidth, setRWidth] = useState(R_DEFAULT)
   const [rDragging, setRDragging] = useState(false)
 
@@ -169,6 +170,13 @@ export default function AgentBuilderPage() {
       initWorkflowTabs(workflows, activeWorkflowId)
     }
   }, [workflows, activeWorkflowId, initWorkflowTabs])
+
+  // After background server sync adds new workflows, add their tabs without
+  // resetting the current open tab state.
+  useEffect(() => {
+    if (!tabsInited.current) return
+    syncWorkflowTabs(workflows)
+  }, [workflows, syncWorkflowTabs])
 
   // Hydrate from server on startup (if backend is available)
   const serverLoaded = useRef(false)

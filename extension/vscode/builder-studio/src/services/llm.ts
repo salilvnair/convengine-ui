@@ -28,13 +28,74 @@
  * Note: vscode.lm has no System role — simulated with User/Assistant pairs.
  */
 import * as vscode from 'vscode';
-import type { AgentRequest, AgentResponse } from '../types';
+import type { AgentRequest, AgentResponse, AgentMemoryConfig } from '../types';
 import {
   getAllCustomProviders,
   buildCustomProviderSection,
   createCustomProviderClient,
   resolveCustomProviderForModel,
 } from './custom-providers';
+
+/* ════════════════════════════════════════════════════════════
+   In-process conversation memory store
+   Keyed by conversationId — stores ordered turn pairs.
+   Lives for the lifetime of the extension host process.
+   ════════════════════════════════════════════════════════════ */
+
+interface ConvTurn {
+  user: string;
+  assistant: string;
+}
+
+const _convStore = new Map<string, ConvTurn[]>();
+
+function getHistory(conversationId: string): ConvTurn[] {
+  return _convStore.get(conversationId) ?? [];
+}
+
+function appendTurn(conversationId: string, user: string, assistant: string): void {
+  const turns = _convStore.get(conversationId) ?? [];
+  turns.push({ user, assistant });
+  _convStore.set(conversationId, turns);
+}
+
+/** Trim history to at most windowSize turns (most recent kept). */
+function applyWindow(turns: ConvTurn[], windowSize: number): ConvTurn[] {
+  return turns.length > windowSize ? turns.slice(-windowSize) : turns;
+}
+
+/** Rough token estimate: 1 token ≈ 4 chars. */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/** Trim history so total token estimate stays within maxTokens (most recent kept). */
+function applyTokenWindow(turns: ConvTurn[], maxTokens: number): ConvTurn[] {
+  let budget = maxTokens;
+  const result: ConvTurn[] = [];
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const cost = estimateTokens(turns[i].user) + estimateTokens(turns[i].assistant);
+    if (budget < cost) break;
+    budget -= cost;
+    result.unshift(turns[i]);
+  }
+  return result;
+}
+
+/**
+ * Resolve the history turns to inject given the memory config.
+ * Returns [] when memoryType is none/absent.
+ */
+function resolveHistory(memory: AgentMemoryConfig | null | undefined): ConvTurn[] {
+  if (!memory || memory.type === undefined) return [];
+  const convId = memory.conversationId;
+  if (!convId) return [];
+  const raw = getHistory(convId);
+  if (memory.type === 'conversation') return raw;
+  if (memory.type === 'sliding_window') return applyWindow(raw, memory.windowSize ?? 10);
+  if (memory.type === 'sliding_window_tokens') return applyTokenWindow(raw, memory.maxTokens ?? 4000);
+  return raw;
+}
 
 /* ════════════════════════════════════════════════════════════
    LlmClient interface  (mirrors Java LlmClient)
@@ -171,8 +232,8 @@ export class CopilotLlmClient implements LlmClient {
    *   system: hint
    *   user:   context
    * ─────────────────────────────────────────────────────── */
-  async generateText(hint: string, context: string): Promise<string> {
-    const messages = buildTextMessages(hint, context);
+  async generateText(hint: string, context: string, history: ConvTurn[] = []): Promise<string> {
+    const messages = buildTextMessages(hint, context, history);
     return this._send(messages);
   }
 
@@ -237,6 +298,7 @@ export class CopilotLlmClient implements LlmClient {
 function buildTextMessages(
   hint: string,
   context: string,
+  history: ConvTurn[] = [],
 ): vscode.LanguageModelChatMessage[] {
   const msgs: vscode.LanguageModelChatMessage[] = [];
 
@@ -250,6 +312,12 @@ function buildTextMessages(
   if (hint) {
     msgs.push(vscode.LanguageModelChatMessage.User(`[System]: ${hint}`));
     msgs.push(vscode.LanguageModelChatMessage.Assistant('Understood.'));
+  }
+
+  // prior conversation turns (memory)
+  for (const turn of history) {
+    msgs.push(vscode.LanguageModelChatMessage.User(turn.user));
+    msgs.push(vscode.LanguageModelChatMessage.Assistant(turn.assistant));
   }
 
   // user: context (the actual user input)
@@ -334,6 +402,9 @@ export async function callAgentViaCopilot(req: AgentRequest): Promise<AgentRespo
   const systemPrompt = interpolateBag(agent.systemPrompt ?? '', bag);
   const userPrompt   = interpolateBag(agent.userPrompt ?? '{{input}}', bag);
 
+  // Resolve prior conversation history
+  const history = resolveHistory(agent.memory);
+
   let output: string;
 
   if (agent.responseFormat) {
@@ -350,7 +421,12 @@ export async function callAgentViaCopilot(req: AgentRequest): Promise<AgentRespo
     }
   } else {
     // Text mode — hint = systemPrompt, context = userPrompt
-    output = await client.generateText(systemPrompt, userPrompt || input);
+    output = await client.generateText(systemPrompt, userPrompt || input, history);
+  }
+
+  // Persist this turn into conversation memory
+  if (agent.memory?.conversationId) {
+    appendTurn(agent.memory.conversationId, userPrompt || input, output);
   }
 
   // Resolve model name for the response metadata
@@ -401,6 +477,13 @@ export async function callAgent(req: AgentRequest): Promise<AgentResponse> {
   const model        = agent.model ?? '';
   const temperature  = agent.temperature ?? 0.7;
 
+  // Inject conversation history as formatted prior-context prefix
+  const history = resolveHistory(agent.memory);
+  const historyPrefix = history.length > 0
+    ? history.map((t) => `[User]: ${t.user}\n[Assistant]: ${t.assistant}`).join('\n\n') + '\n\n'
+    : '';
+  const contextWithHistory = historyPrefix + (userPrompt || req.input);
+
   let output: string;
 
   if (agent.responseFormat) {
@@ -411,7 +494,12 @@ export async function callAgent(req: AgentRequest): Promise<AgentResponse> {
       output = await client.generateJson(hint, agent.responseFormat, req.input, model, temperature);
     }
   } else {
-    output = await client.generateText(systemPrompt, userPrompt || req.input, model, temperature);
+    output = await client.generateText(systemPrompt, contextWithHistory, model, temperature);
+  }
+
+  // Persist this turn into conversation memory
+  if (agent.memory?.conversationId) {
+    appendTurn(agent.memory.conversationId, userPrompt || req.input, output);
   }
 
   return { output, model, ms: Date.now() - t0 };

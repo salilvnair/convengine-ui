@@ -92,15 +92,25 @@ export function collectInputNodes(workflow) {
 export function validateInput(node, value) {
   const spec = kindRegistry.get(node.kind) || kindRegistry.get('short-text')
   if (!spec) return null
-  if (node.required && spec.isEmpty(value)) return `"${node.label}" is required.`
+  // If a defaultValue is configured and the current value is empty, the default
+  // will be used at run time — treat it as satisfied, no validation error.
+  const effectiveValue = (spec.isEmpty(value) && node.defaultValue != null && !spec.isEmpty(node.defaultValue))
+    ? node.defaultValue
+    : value
+  if (node.required && spec.isEmpty(effectiveValue)) return `"${node.label}" is required.`
   if (String(value).trim() === '') return null // empty + not required = ok
   return spec.validate(value, node)
 }
 
-/** Coerce a raw value through the kind's normaliser. */
+/** Coerce a raw value through the kind's normaliser.
+ *  Falls back to node.defaultValue when value is empty. */
 export function coerceInput(node, value) {
   const spec = kindRegistry.get(node.kind) || kindRegistry.get('short-text')
-  return spec ? spec.coerce(value) : value
+  // Use defaultValue as fallback if the user left the field empty
+  const effective = (spec && spec.isEmpty(value) && node.defaultValue != null && !spec.isEmpty(node.defaultValue))
+    ? node.defaultValue
+    : value
+  return spec ? spec.coerce(effective) : effective
 }
 
 // ─── helpers ────────────────────────────────────────────────────────

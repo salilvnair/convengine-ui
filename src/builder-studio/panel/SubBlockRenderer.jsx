@@ -65,6 +65,9 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
         ? sub.value(blockValues || {})
         : sub.defaultValue
 
+  // Subscribe to llm store so model comboboxes re-render when active provider changes
+  useLlmConfigStore((s) => s.activeProvider)
+
   const options = typeof sub.options === 'function' ? safeCall(sub.options) : sub.options
 
   switch (sub.type) {
