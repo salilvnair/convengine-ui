@@ -34,15 +34,21 @@
       "builder-studio": [
         {
           "id": "bs.canvasView",
-          "name": "Agent Builder Studio",
+          "name": "Quick Access",
           "type": "tree"
+        },
+        {
+          "id": "bs.wikiView",
+          "name": "Quick Reference",
+          "type": "webview",
+          "initialSize": 6
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "bs.canvasView",
-        "contents": "[$(zap) Open Builder Studio](command:bs.start)"
+        "contents": "[$(zap) Open Builder Studio](command:bs.start)\n\n[$(settings-gear) Builder Studio Settings](command:workbench.action.openSettings?%5B%22builderStudio%22%5D)"
       }
     ],
     "chatParticipants": [

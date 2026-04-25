@@ -11,6 +11,7 @@
 import * as vscode from 'vscode';
 import { startBridgeServer, stopBridgeServer } from './bridge/server';
 import { BuilderStudioPanel } from './panel/BuilderStudioPanel';
+import { WikiViewProvider } from './panel/WikiViewProvider';
 import { registerChatParticipant } from './chat/participant';
 import { initDb } from './storage/db';
 import { initWorkspaceService } from './services/workspace';
@@ -62,6 +63,12 @@ export async function activate(context: vscode.ExtensionContext) {
     treeDataProvider: { getTreeItem: (e) => e, getChildren: () => [] },
   });
   context.subscriptions.push(canvasTreeView);
+
+  /* ── Wiki reference sidebar panel ── */
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(WikiViewProvider.viewId, new WikiViewProvider()),
+  );
+
   context.subscriptions.push(
     canvasTreeView.onDidChangeVisibility((e) => {
       if (!e.visible) return;
