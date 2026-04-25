@@ -686,8 +686,15 @@ function WorkflowNode({ id, data, selected }) {
 /** Inline MCP server dropdown — reads live server list from the MCP store. */
 function McpServerNodeSelect({ value, onChange, placeholder }) {
   const servers = useMcpStore((s) => s.servers)
+  const loading = useMcpStore((s) => s.loading)
+  const ensureLoaded = useMcpStore((s) => s.ensureLoaded)
+
+  useEffect(() => { ensureLoaded() }, [ensureLoaded])
+
   const serverOptions = servers.map((s) => ({ id: s.id, label: s.name || s.id }))
-  const options = value
+  // Only prepend the clear option when there are actual servers to show — avoids
+  // a "clear-only" menu appearing when the store hasn't loaded yet.
+  const options = (value && serverOptions.length > 0)
     ? [{ id: '', label: '— Clear selection —', isClear: true }, ...serverOptions]
     : serverOptions
   return (
@@ -695,7 +702,7 @@ function McpServerNodeSelect({ value, onChange, placeholder }) {
       value={value ?? ''}
       options={options}
       onChange={onChange}
-      placeholder={placeholder || 'Select server…'}
+      placeholder={loading ? 'Loading…' : (placeholder || 'Select server…')}
     />
   )
 }
@@ -703,17 +710,26 @@ function McpServerNodeSelect({ value, onChange, placeholder }) {
 /** Inline MCP tool dropdown — filters tools by the currently selected server. */
 function McpToolNodeSelect({ value, onChange, placeholder, serverId }) {
   const toolsByServer = useMcpStore((s) => s.toolsByServer)
+  const loadTools = useMcpStore((s) => s.loadTools)
+
+  useEffect(() => {
+    if (!serverId) return
+    if (!toolsByServer[serverId]) loadTools(serverId)
+  }, [serverId, toolsByServer, loadTools])
+
   const tools = (serverId && toolsByServer[serverId]) || []
   const toolOptions = tools.map((t) => ({ id: t.name, label: t.name }))
-  const options = value
+  // Only prepend clear option when tools are actually loaded.
+  const options = (value && toolOptions.length > 0)
     ? [{ id: '', label: '— Clear selection —', isClear: true }, ...toolOptions]
     : toolOptions
+  const loadingTools = serverId && toolsByServer[serverId] == null
   return (
     <NodeDropdown
       value={value ?? ''}
       options={options}
       onChange={onChange}
-      placeholder={placeholder || 'Select tool…'}
+      placeholder={loadingTools ? 'Loading…' : (placeholder || 'Select tool…')}
     />
   )
 }

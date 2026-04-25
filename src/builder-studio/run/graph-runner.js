@@ -22,7 +22,7 @@ import { callTool as callMcpTool } from '../mcp/mcp-client'
 import { useWorkspaceStore } from '../stores/workspace-store'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { useLlmConfigStore } from '../stores/llm-config-store'
-import { resolvePortType, isTypeCompatible } from '../panel/io-registry'
+import { resolvePortType, isTypeCompatible, getCardPorts } from '../panel/io-registry'
 import { getBlock } from '../blocks/registry'
 
 // Validate a runtime value against a declared port type.
@@ -182,7 +182,24 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
   // two block types were seeded silently, which is why the URL and Start
   // cards never flipped to the "done" state after a run.
   for (const n of nodes) {
-    if (n.data?.blockType === 'user_input') {
+    const bt = n.data?.blockType
+    if (!SEED_BLOCK_TYPES.has(bt)) continue
+
+    // ── Disabled seed node: produce null output, mark started, skip core logic ──
+    if (disabledIds.has(n.id)) {
+      outputs[n.id] = null
+      trace.push({
+        nodeId: n.id, blockType: bt, title: n.data?.title,
+        input: null, output: null, ms: 0,
+        meta: { skipped: true, reason: 'Node is disabled' },
+      })
+      started.add(n.id)
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: bt, title: n.data?.title })
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: bt, title: n.data?.title, output: null, meta: { skipped: true } })
+      continue
+    }
+
+    if (bt === 'user_input') {
       outputs[n.id] = Object.prototype.hasOwnProperty.call(inputs || {}, n.id)
         ? inputs[n.id]
         : null
@@ -199,7 +216,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'user_input', title: n.data?.title })
       try { useWorkflowStore.getState().recordNodeOutput(n.id, outputs[n.id]) } catch { /* ignore */ }
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'user_input', title: n.data?.title, output: outputs[n.id] })
-    } else if (n.data?.blockType === 'starter') {
+    } else if (bt === 'starter') {
       // In chat mode, inputs.__chat__ carries { message, history }.
       // Seed the starter with that payload so downstream blocks receive it.
       const chatPayload = inputs?.__chat__ ?? null
@@ -212,14 +229,14 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       started.add(n.id)
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'starter', title: n.data?.title })
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'starter', title: n.data?.title, output: chatPayload })
-    } else if (n.data?.blockType === 'schedule') {
+    } else if (bt === 'schedule') {
       const firedAt = new Date().toISOString()
       outputs[n.id] = { firedAt }
       trace.push({ nodeId: n.id, blockType: 'schedule', title: n.data?.title, input: null, output: { firedAt }, ms: 0, meta: { source: 'simulated trigger' } })
       started.add(n.id)
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'schedule', title: n.data?.title })
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'schedule', title: n.data?.title, output: { firedAt } })
-    } else if (n.data?.blockType === 'webhook_request') {
+    } else if (bt === 'webhook_request') {
       const webhookOut = { body: inputs?.webhook ?? null, headers: {}, query: {} }
       outputs[n.id] = webhookOut
       trace.push({ nodeId: n.id, blockType: 'webhook_request', title: n.data?.title, input: null, output: webhookOut, ms: 0, meta: { source: 'simulated webhook' } })
@@ -322,26 +339,46 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
         }
         } // end type-validation guard
 
-        // ── Disabled node: pass-through input → output (ComfyUI-style) ──
+        // ── Disabled node: skip or pass-through based on port presence ──
         if (disabledIds.has(n.id)) {
-          outputs[n.id] = input
-          const traceEntry = {
-            nodeId: n.id,
-            blockType: n.data?.blockType,
-            title: n.data?.title,
-            input,
-            inputsByHandle,
-            output: input,
-            values,
-            meta: { passThrough: true, reason: 'Node is disabled' },
-            ms: Math.round(performance.now() - t0),
+          const blockDef = getBlock(n.data?.blockType)
+          const cardPorts = getCardPorts(n.data?.blockType, blockDef?.inputs, blockDef?.outputs)
+          const hasInputs = cardPorts.inputs.length > 0
+          const hasOutputs = cardPorts.outputs.length > 0
+
+          if (hasInputs && hasOutputs) {
+            // Both ports → pass input straight through without running core logic.
+            // If the upstream produced nothing (e.g. connected to Starter), output is null.
+            const passValue = input ?? null
+            outputs[n.id] = passValue
+            const traceEntry = {
+              nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+              input, inputsByHandle, output: passValue, values,
+              meta: { passThrough: true, reason: 'Node is disabled' },
+              ms: Math.round(performance.now() - t0),
+            }
+            trace.push(traceEntry)
+            try { useWorkflowStore.getState().recordNodeTrace(n.id, traceEntry) } catch { /* ignore */ }
+            onProgress?.({
+              type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+              output: passValue, meta: traceEntry.meta, values, ms: traceEntry.ms,
+            })
+          } else {
+            // Only input, only output, or neither → skip entirely; produce no output.
+            outputs[n.id] = null
+            const traceEntry = {
+              nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+              input: null, inputsByHandle, output: null, values,
+              meta: { skipped: true, reason: 'Node is disabled (no pass-through — requires both input and output ports)' },
+              ms: Math.round(performance.now() - t0),
+            }
+            trace.push(traceEntry)
+            try { useWorkflowStore.getState().recordNodeTrace(n.id, traceEntry) } catch { /* ignore */ }
+            onProgress?.({
+              type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
+              output: null, meta: traceEntry.meta, values, ms: traceEntry.ms,
+            })
           }
-          trace.push(traceEntry)
-          try { useWorkflowStore.getState().recordNodeTrace(n.id, traceEntry) } catch { /* ignore */ }
-          onProgress?.({
-            type: 'done', nodeId: n.id, blockType: n.data?.blockType, title: n.data?.title,
-            output: input, meta: traceEntry.meta, values, ms: traceEntry.ms,
-          })
           return
         }
 
@@ -499,9 +536,9 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
       return await runSkillNode({ values, input })
     // ── Server-parity blocks ──────────────────────────────────────────────
     case 'api':
-      return await runApiNode({ values, input })
+      return await runApiNode({ values, input, inputsByHandle })
     case 'delay':
-      return await runDelayNode({ values })
+      return await runDelayNode({ values, input })
     case 'wait':
       return await runWaitNode({ values, input })
     case 'filter':
@@ -513,11 +550,11 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
     case 'merge':
       return runMergeNode({ values, input })
     case 'crypto':
-      return await runCryptoNode({ values })
+      return await runCryptoNode({ values, input })
     case 'error_handler':
       return runErrorHandlerNode({ values, input })
     case 'http_response':
-      return runHttpResponseNode({ values, input })
+      return runHttpResponseNode({ values, input, inputsByHandle })
     case 'sub_workflow': {
       const wfId = values?.workflowId
       if (!wfId) throw new Error('Sub-Workflow block: no workflow selected. Open the Inspector and select a workflow to execute.')
@@ -875,15 +912,13 @@ async function runMcpNode({ values, input }) {
   if (!serverId) throw new Error('MCP block: no server selected')
   if (!tool) throw new Error('MCP block: no tool selected')
 
-  let args = values.arguments
-  if (typeof args === 'string') {
-    // Pre-substitute {{input}} so tool args can reference upstream output.
-    const inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? '')
-    args = args.replace(/\{\{\s*input\s*\}\}/g, inputStr.replace(/"/g, '\\"'))
-    try { args = args.trim() ? JSON.parse(args) : {} }
-    catch (e) { throw new Error(`MCP block: arguments is not valid JSON — ${e.message}`) }
+  // `input` is whatever the upstream node produced — use it directly as tool args.
+  let args = {}
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    args = input
+  } else if (typeof input === 'string' && input.trim()) {
+    try { args = JSON.parse(input) } catch { args = {} }
   }
-  args = args || {}
 
   const resp = await callMcpTool(serverId, tool, args)
   return resp?.result
@@ -993,9 +1028,19 @@ function runJsonValidator({ values, input }) {
 /* Server-parity block handlers (ported from graph-runner.ts)                */
 /* ------------------------------------------------------------------------- */
 
-async function runApiNode({ values, input }) {
+async function runApiNode({ values, input, inputsByHandle }) {
   const method = String(values.method || 'GET').toUpperCase()
-  let url = String(values.url || '')
+  // `in_body` direct wire overrides the static body field; `in_input` (or
+  // just `input`) makes {{input}} available in URL/body templates.
+  const inputStr = input !== undefined ? (typeof input === 'string' ? input : JSON.stringify(input ?? '')) : ''
+  const substitute = (s) => typeof s === 'string' && inputStr ? s.replace(/\{\{\s*input\s*\}\}/g, inputStr) : s
+
+  let url = substitute(String(values.url || ''))
+  // Allow a directly-wired node to supply the full URL
+  if (inputsByHandle && inputsByHandle.url != null) {
+    url = String(inputsByHandle.url)
+  }
+
   let params = Array.isArray(values.params) ? values.params : []
   if (typeof values.params === 'string') { try { params = JSON.parse(values.params) } catch { params = [] } }
   if (params.length > 0) {
@@ -1008,10 +1053,21 @@ async function runApiNode({ values, input }) {
   for (const h of headerEntries) { if (h.Key) headers[h.Key] = String(h.Value ?? '') }
   let body
   if (method !== 'GET' && method !== 'HEAD') {
-    const rawBody = values.body
-    if (typeof rawBody === 'string' && rawBody.trim()) {
-      body = rawBody
+    // Priority: directly wired `body` handle > directly wired `input` handle > static `body` field with {{input}} substituted
+    if (inputsByHandle && inputsByHandle.body != null) {
+      const wb = inputsByHandle.body
+      body = typeof wb === 'string' ? wb : JSON.stringify(wb)
       if (!headers['Content-Type'] && !headers['content-type']) headers['Content-Type'] = 'application/json'
+    } else if (inputsByHandle && inputsByHandle.input != null) {
+      const wi = inputsByHandle.input
+      body = typeof wi === 'string' ? wi : JSON.stringify(wi)
+      if (!headers['Content-Type'] && !headers['content-type']) headers['Content-Type'] = 'application/json'
+    } else {
+      const rawBody = substitute(values.body)
+      if (typeof rawBody === 'string' && rawBody.trim()) {
+        body = rawBody
+        if (!headers['Content-Type'] && !headers['content-type']) headers['Content-Type'] = 'application/json'
+      }
     }
   }
   try {
@@ -1026,7 +1082,7 @@ async function runApiNode({ values, input }) {
   }
 }
 
-async function runDelayNode({ values }) {
+async function runDelayNode({ values, input }) {
   const duration = Number(values.duration ?? 0)
   const unit = String(values.unit || 'ms')
   let ms = duration
@@ -1035,7 +1091,7 @@ async function runDelayNode({ values }) {
   else if (unit === 'h') ms = duration * 3_600_000
   const t0 = Date.now()
   await new Promise((resolve) => setTimeout(resolve, ms))
-  return { output: null, elapsed: Date.now() - t0 }
+  return { output: input ?? null, elapsed: Date.now() - t0 }
 }
 
 async function runWaitNode({ values, input }) {
@@ -1163,9 +1219,10 @@ function runMergeNode({ values, input }) {
   }
 }
 
-async function runCryptoNode({ values }) {
+async function runCryptoNode({ values, input }) {
   const operation = String(values.operation || 'sha256')
-  const data = String(values.data ?? '')
+  // A wired `data` port overrides the static subBlock value.
+  const data = String(input != null ? (typeof input === 'string' ? input : JSON.stringify(input)) : (values.data ?? ''))
   const secret = String(values.secret ?? '')
   const encode = (s) => new TextEncoder().encode(s)
   const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -1204,10 +1261,14 @@ function runErrorHandlerNode({ values, input }) {
   return { result: input, error: null, retryCount: 0 }
 }
 
-function runHttpResponseNode({ values, input }) {
-  const statusCode = Number(values.statusCode ?? 200)
-  const body = (values.body !== undefined && values.body !== '') ? values.body : input
-  return { sent: true, statusCode, body }
+function runHttpResponseNode({ values, input, inputsByHandle }) {
+  const statusCode = Number((inputsByHandle?.statusCode ?? values.statusCode) ?? 200)
+  const rawHeaders = inputsByHandle?.headers ?? values.headers
+  // Priority for body: wired `body` port > wired `input` port > static field > upstream input
+  const body = (inputsByHandle?.body !== undefined)
+    ? inputsByHandle.body
+    : ((values.body !== undefined && values.body !== '') ? values.body : input)
+  return { sent: true, statusCode, body, headers: rawHeaders ?? {} }
 }
 
 async function runAiClassifierNode({ node, values, input }) {

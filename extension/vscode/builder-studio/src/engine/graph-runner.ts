@@ -138,22 +138,12 @@ async function runMcpNode(opts: {
   const serverId = String(values.server || '');
   const tool     = String(values.tool || '');
 
+  // `input` is whatever the upstream node produced — use it directly as tool args.
   let args: Record<string, unknown> = {};
-  const rawArgs = values.arguments || values.args;
-  if (typeof rawArgs === 'string') {
-    try {
-      const inputStr = typeof input === 'string' ? input : JSON.stringify(input);
-      args = JSON.parse(rawArgs.replace(/\{\{input\}\}/g, inputStr));
-    } catch { args = {}; }
-  } else if (rawArgs && typeof rawArgs === 'object') {
-    args = rawArgs as Record<string, unknown>;
-  }
-
-  for (const [k, v] of Object.entries(args)) {
-    if (typeof v === 'string') {
-      const s = typeof input === 'string' ? input : JSON.stringify(input);
-      args[k] = v.replace(/\{\{input\}\}/g, s);
-    }
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    args = input as Record<string, unknown>;
+  } else if (typeof input === 'string' && input.trim()) {
+    try { args = JSON.parse(input); } catch { args = {}; }
   }
 
   const resp = await callTool(serverId, tool, args);
@@ -452,6 +442,65 @@ async function runAiClassifierNode(opts: {
   }
 }
 
+// ── Card port defaults (mirrors io-registry.js cardPortOverrides) ──────────
+// Used to determine disabled-node behaviour: only nodes with BOTH inputs and
+// outputs do a pass-through; others are skipped (produce null).
+const CARD_PORT_DEFAULTS: Record<string, { inputs: string[]; outputs: string[] }> = {
+  starter:         { inputs: [],  outputs: [] },
+  user_input:      { inputs: [],  outputs: ['value'] },
+  schedule:        { inputs: [],  outputs: ['firedAt'] },
+  webhook_request: { inputs: [],  outputs: ['body', 'headers', 'query'] },
+  variables:       { inputs: [],  outputs: [] },
+  agent:           { inputs: ['input'],  outputs: ['data', 'status', 'headers'] },
+  function:        { inputs: ['input'],  outputs: ['result'] },
+  response:        { inputs: ['data', 'status', 'headers'], outputs: ['data', 'status', 'headers'] },
+  mcp:             { inputs: ['input'],  outputs: ['content'] },
+  api:             { inputs: ['input', 'body'], outputs: ['data', 'status', 'headers'] },
+  mapper:          { inputs: ['input'],  outputs: ['result'] },
+  skill:           { inputs: ['input'],  outputs: ['result'] },
+  text_template:   { inputs: ['input'],  outputs: ['result'] },
+  json_map:        { inputs: ['input'],  outputs: ['result'] },
+  json_path:       { inputs: ['input'],  outputs: ['result'] },
+  filter:          { inputs: ['input'],  outputs: ['kept', 'rejected', 'count'] },
+  sort:            { inputs: ['input'],  outputs: ['sorted', 'count'] },
+  aggregate:       { inputs: ['input'],  outputs: ['result', 'count'] },
+  merge:           { inputs: ['input1', 'input2'], outputs: ['merged'] },
+  if_else:         { inputs: ['input'],  outputs: [] },
+  if_elseif_else:  { inputs: ['input'],  outputs: [] },
+  switch:          { inputs: ['input'],  outputs: [] },
+  condition:       { inputs: ['input'],  outputs: ['conditionResult', 'selectedPath'] },
+  for_loop:        { inputs: ['input'],  outputs: ['iterations', 'last'] },
+  for_each:        { inputs: ['input'],  outputs: ['iterations', 'last'] },
+  loop:            { inputs: ['collection'], outputs: ['results', 'iterations'] },
+  parallel:        { inputs: ['input'],  outputs: ['results', 'winner'] },
+  router_v2:       { inputs: ['context'], outputs: ['selectedRoute', 'reasoning'] },
+  delay:           { inputs: ['input'],  outputs: ['output', 'elapsed'] },
+  wait:            { inputs: ['input'],  outputs: ['output', 'elapsed'] },
+  crypto:          { inputs: ['data'],   outputs: ['result'] },
+  save_to_files:   { inputs: ['input'],  outputs: ['savedAt', 'bytes'] },
+  error_handler:   { inputs: ['input'],  outputs: ['result', 'error'] },
+  http_response:   { inputs: ['body', 'statusCode', 'headers'], outputs: ['sent'] },
+  smtp:            { inputs: ['body', 'to', 'subject'], outputs: ['success', 'messageId'] },
+  ai_classifier:   { inputs: ['input'],  outputs: ['category', 'confidence'] },
+  show_preview:    { inputs: ['input'],  outputs: ['payload'] },
+  sub_workflow:    { inputs: ['input'],  outputs: ['result', 'status'] },
+  table:           { inputs: ['data'],   outputs: ['rows', 'count'] },
+  postgresql:      { inputs: ['input'],  outputs: ['rows', 'rowCount', 'message'] },
+  mongodb:         { inputs: ['input'],  outputs: ['result', 'count', 'insertedId'] },
+  redis:           { inputs: ['input'],  outputs: ['result', 'success'] },
+  slack:           { inputs: ['input'],  outputs: ['ok', 'ts'] },
+};
+
+function hasCardInputs(blockType: string): boolean {
+  const def = CARD_PORT_DEFAULTS[blockType];
+  return def ? def.inputs.length > 0 : true; // unknown blocks assumed to have ports
+}
+
+function hasCardOutputs(blockType: string): boolean {
+  const def = CARD_PORT_DEFAULTS[blockType];
+  return def ? def.outputs.length > 0 : true;
+}
+
 /* ── Main executor ── */
 
 export interface ExecuteGraphOptions {
@@ -497,16 +546,27 @@ export async function executeGraph({
 
   // Seed starter + user_input
   for (const n of nodes) {
-    if (n.data?.blockType === 'user_input') {
+    const bt = n.data?.blockType as string;
+    if (!['starter', 'user_input', 'webhook_request', 'schedule'].includes(bt)) continue;
+
+    // Disabled seed node → produce null, mark started, skip core logic
+    if (disabledIds.has(n.id)) {
+      outputs[n.id] = null;
+      trace.push({ nodeId: n.id, blockType: bt, title: n.data?.title as string, input: null, output: null, ms: 0, meta: { skipped: true, reason: 'Node is disabled' } } as TraceEntry);
+      started.add(n.id);
+      continue;
+    }
+
+    if (bt === 'user_input') {
       outputs[n.id] = Object.prototype.hasOwnProperty.call(inputs || {}, n.id) ? inputs[n.id] : null;
       trace.push({ nodeId: n.id, blockType: 'user_input', title: n.data?.title as string, input: null, output: outputs[n.id], ms: 0 });
       started.add(n.id);
-    } else if (n.data?.blockType === 'starter') {
+    } else if (bt === 'starter') {
       const chatPayload = inputs?.__chat__ ?? null;
       outputs[n.id] = chatPayload;
       trace.push({ nodeId: n.id, blockType: 'starter', title: n.data?.title as string, input: null, output: chatPayload, ms: 0 });
       started.add(n.id);
-    } else if (n.data?.blockType === 'webhook_request') {
+    } else if (bt === 'webhook_request') {
       outputs[n.id] = inputs[n.id] ?? null;
       trace.push({ nodeId: n.id, blockType: 'webhook_request', title: n.data?.title as string, input: null, output: outputs[n.id], ms: 0 });
       started.add(n.id);
@@ -559,7 +619,26 @@ export async function executeGraph({
       let nodeError: string | undefined;
 
       if (disabledIds.has(n.id)) {
-        output = input;
+        // ── Disabled node: skip or pass-through based on port presence ──
+        // Rule 1: no inputs OR no outputs → skip entirely (produce null)
+        // Rule 2: both inputs AND outputs → pass input through without
+        //         running core logic. Empty input (e.g. from Starter) → null.
+        const bt = n.data?.blockType as string;
+        if (hasCardInputs(bt) && hasCardOutputs(bt)) {
+          output = input ?? null;
+        } else {
+          output = null;
+        }
+        outputs[n.id] = output;
+        trace.push({
+          nodeId: n.id, blockType: bt, title: n.data?.title as string,
+          input, output, values: subBlockValues[n.id] || {},
+          meta: hasCardInputs(bt) && hasCardOutputs(bt)
+            ? { passThrough: true, reason: 'Node is disabled' }
+            : { skipped: true, reason: 'Node is disabled (no pass-through — requires both input and output ports)' },
+          ms: performance.now() - t0,
+        });
+        return;
       } else {
         try {
           switch (blockType) {

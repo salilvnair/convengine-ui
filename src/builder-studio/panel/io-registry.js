@@ -140,7 +140,6 @@ const cardPortOverrides = {
   // Triggers — no input
   starter:       { inputs: [],  outputs: [] },
   user_input:    { inputs: [],  outputs: 'auto' },
-  webhook_request: { inputs: [],  outputs: 'auto' },
   schedule:      { inputs: [],  outputs: 'auto' },
   variables:     { inputs: [],  outputs: [] },
   // Agent — one input (upstream text/json), multi-output (data, status, headers)
@@ -155,9 +154,15 @@ const cardPortOverrides = {
     inputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
     outputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
   },
-  // API — connectable inputs: url, headers, body; multi-output
+  // MCP — wire any upstream node to `input`; that value becomes the tool arguments
+  mcp:           {
+    inputs: [{ key: 'input', type: 'any' }],
+    outputs: [{ key: 'content', type: 'array' }],
+  },
+  // API — input: upstream data (available as {{input}} in URL/body templates)
+  //        body: direct wire → becomes the request body (POST/PUT/PATCH)
   api:           {
-    inputs: [{ key: 'input', type: 'json' }],
+    inputs: [{ key: 'input', type: 'json' }, { key: 'body', type: 'json' }],
     outputs: [{ key: 'data', type: 'json' }, { key: 'status', type: 'number' }, { key: 'headers', type: 'json' }],
   },
   // Merge — two separate inputs
@@ -168,7 +173,7 @@ const cardPortOverrides = {
   // Filter — multi-output
   filter:        {
     inputs: [{ key: 'input', type: 'json' }],
-    outputs: [{ key: 'kept', type: 'json' }, { key: 'rejected', type: 'json' }],
+    outputs: [{ key: 'kept', type: 'json' }, { key: 'rejected', type: 'json' }, { key: 'count', type: 'number' }],
   },
   // Aggregate — multi-output
   aggregate:     {
@@ -214,14 +219,77 @@ const cardPortOverrides = {
     outputs: [{ key: 'ok', type: 'boolean' }, { key: 'ts', type: 'string' }],
   },
   // If/Else family — multi-output branching, handled by outputHandles
-  if_else:       { inputs: 'auto', outputs: [] },
-  if_elseif_else:{ inputs: 'auto', outputs: [] },
-  switch:        { inputs: 'auto', outputs: [] },
+  if_else:       { inputs: [{ key: 'input', type: 'json' }], outputs: [] },
+  if_elseif_else:{ inputs: [{ key: 'input', type: 'json' }], outputs: [] },
+  switch:        { inputs: [{ key: 'input', type: 'json' }], outputs: [] },
   // Show Preview: always any→any pass-through
   show_preview:  { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'payload', type: 'any' }] },
   // Mapper — type conversion utility
   mapper:        { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
   skill:         { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
+
+  // ─── Data transformation ───────────────────────────────────────────────────
+  text_template: { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'string' }] },
+  json_map:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] },
+  json_path:     { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'json' }] },
+
+  // ─── Control flow ──────────────────────────────────────────────────────────
+  // condition: evaluates expression against upstream input
+  condition:     { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'conditionResult', type: 'boolean' }, { key: 'selectedPath', type: 'json' }] },
+  // loop/for_each/for_loop: server-side, but port visible for wiring
+  loop:          { inputs: [{ key: 'collection', type: 'json' }], outputs: [{ key: 'results', type: 'array' }, { key: 'iterations', type: 'number' }] },
+  for_loop:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'iterations', type: 'array' }, { key: 'last', type: 'json' }] },
+  for_each:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'iterations', type: 'array' }, { key: 'last', type: 'json' }] },
+  // parallel: server-side; wire input for branch fan-out
+  parallel:      { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'results', type: 'array' }, { key: 'winner', type: 'json' }] },
+
+  // ─── Utility ───────────────────────────────────────────────────────────────
+  // delay/wait: pass input through after the pause
+  delay:         { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'output', type: 'any' }, { key: 'elapsed', type: 'number' }] },
+  wait:          { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'output', type: 'any' }, { key: 'elapsed', type: 'number' }] },
+  // crypto: data can come from upstream node
+  crypto:        { inputs: [{ key: 'data', type: 'string' }], outputs: [{ key: 'result', type: 'string' }] },
+  // save_to_files: input is the payload to persist
+  save_to_files: { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'savedAt', type: 'string' }, { key: 'bytes', type: 'number' }] },
+
+  // ─── HTTP / Messaging ──────────────────────────────────────────────────────
+  // http_response: body, statusCode, headers each individually connectable
+  http_response: {
+    inputs: [{ key: 'body', type: 'any' }, { key: 'statusCode', type: 'number' }, { key: 'headers', type: 'json' }],
+    outputs: [{ key: 'sent', type: 'boolean' }],
+  },
+  // smtp: body, to, subject can be wired from upstream
+  smtp:          {
+    inputs: [{ key: 'body', type: 'string' }, { key: 'to', type: 'string' }, { key: 'subject', type: 'string' }],
+    outputs: [{ key: 'success', type: 'boolean' }, { key: 'messageId', type: 'string' }],
+  },
+
+  // ─── AI Router ─────────────────────────────────────────────────────────────
+  router_v2:     {
+    inputs: [{ key: 'context', type: 'string' }],
+    outputs: [{ key: 'selectedRoute', type: 'string' }, { key: 'reasoning', type: 'string' }],
+  },
+
+  // ─── Workflows / Database ──────────────────────────────────────────────────
+  // sub_workflow: input becomes the sub-workflow's inputMapping
+  sub_workflow:  {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'result', type: 'any' }, { key: 'status', type: 'string' }],
+  },
+  // table: data drives insert/update rows
+  table:         {
+    inputs: [{ key: 'data', type: 'json' }],
+    outputs: [{ key: 'rows', type: 'array' }, { key: 'count', type: 'number' }],
+  },
+  // postgresql/mongodb/redis outputs (upgrade from generic to actual schema)
+  postgresql:    {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'rows', type: 'array' }, { key: 'rowCount', type: 'number' }, { key: 'message', type: 'string' }],
+  },
+  mongodb:       {
+    inputs: [{ key: 'input', type: 'json' }],
+    outputs: [{ key: 'result', type: 'json' }, { key: 'count', type: 'number' }, { key: 'insertedId', type: 'string' }],
+  },
 }
 
 export function registerCardPorts(blockType, ports) {

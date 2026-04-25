@@ -32,12 +32,6 @@ export const McpBlock = {
       dependsOn: ['server'],
       condition: { field: 'server', value: '', not: true },
     },
-    {
-      id: 'arguments',
-      title: '',
-      type: 'mcp-dynamic-args',
-      condition: { field: 'tool', value: '', not: true },
-    },
   ],
   tools: {
     access: [],
@@ -54,9 +48,9 @@ export const McpBlock = {
     },
   },
   inputs: {
+    input: { type: 'any', description: 'Arguments to pass to the tool — wire any upstream node here' },
     server: { type: 'string', description: 'MCP server ID' },
     tool: { type: 'string', description: 'Tool name to execute' },
-    arguments: { type: 'json', description: 'Arguments passed to the tool' },
   },
   outputs: {
     content: { type: 'array', description: 'Content array from MCP tool response' },

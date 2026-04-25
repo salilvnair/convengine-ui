@@ -636,7 +636,8 @@ function CanvasInner() {
       }
 
       // ⌥B — Toggle Disable/Enable (ComfyUI-style)
-      if (e.altKey && !meta && !e.ctrlKey && (e.key === 'b' || e.key === 'B') && !e.shiftKey) {
+      // Use e.code ('KeyB') instead of e.key because on macOS Option+B produces '∫' not 'b'
+      if (e.altKey && !meta && !e.ctrlKey && e.code === 'KeyB' && !e.shiftKey) {
         if (!selectedNodeId) return
         e.preventDefault()
         useWorkflowStore.getState().toggleDisabled(selectedNodeId)
