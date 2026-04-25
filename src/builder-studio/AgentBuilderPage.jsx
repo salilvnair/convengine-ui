@@ -50,7 +50,6 @@ export default function AgentBuilderPage() {
   const openSettings = useTabsStore((s) => s.openSettings)
   const openWiki = useTabsStore((s) => s.openWiki)
   const initWorkflowTabs = useTabsStore((s) => s.initWorkflowTabs)
-  const syncWorkflowTabs = useTabsStore((s) => s.syncWorkflowTabs)
   const openWorkflowTab = useTabsStore((s) => s.openWorkflowTab)
   const renameTab = useTabsStore((s) => s.renameTab)
   const activeTabId = useTabsStore((s) => s.activeId)
@@ -171,12 +170,9 @@ export default function AgentBuilderPage() {
     }
   }, [workflows, activeWorkflowId, initWorkflowTabs])
 
-  // After background server sync adds new workflows, add their tabs without
-  // resetting the current open tab state.
-  useEffect(() => {
-    if (!tabsInited.current) return
-    syncWorkflowTabs(workflows)
-  }, [workflows, syncWorkflowTabs])
+  // NOTE: syncWorkflowTabs is intentionally NOT called here.
+  // Workflows are opened on-demand by clicking in the sidebar.
+  // Auto-syncing would re-open tabs the user explicitly closed.
 
   // Hydrate from server on startup (if backend is available)
   const serverLoaded = useRef(false)

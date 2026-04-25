@@ -16,17 +16,15 @@ export const useTabsStore = create((set, get) => ({
   /** Id of the first workflow — this tab is pinned/non-closable. */
   pinnedWorkflowTabId: null,
 
-  /** Called once at app boot to seed workflow tabs from workspace store. */
+  /** Called once at app boot — opens only the active (or first) workflow as a single tab. */
   initWorkflowTabs(workflows, activeWorkflowId) {
-    const wfTabs = workflows.map((w) => ({
-      id: workflowTabId(w.id),
-      kind: 'workflow',
-      entityId: w.id,
-      title: w.name,
-    }))
-    const pinnedId = wfTabs.length > 0 ? wfTabs[0].id : null
-    const activeTab = activeWorkflowId ? workflowTabId(activeWorkflowId) : pinnedId
-    set({ tabs: wfTabs, activeId: activeTab, pinnedWorkflowTabId: pinnedId })
+    const activeWf = workflows.find((w) => w.id === activeWorkflowId) || workflows[0]
+    if (!activeWf) {
+      set({ tabs: [], activeId: null, pinnedWorkflowTabId: null })
+      return
+    }
+    const tab = { id: workflowTabId(activeWf.id), kind: 'workflow', entityId: activeWf.id, title: activeWf.name }
+    set({ tabs: [tab], activeId: tab.id, pinnedWorkflowTabId: tab.id })
   },
 
   /** Open or focus a workflow as a tab. Returns the tab id. */
@@ -53,8 +51,6 @@ export const useTabsStore = create((set, get) => ({
 
   closeTab(id) {
     set((s) => {
-      // Don't close if it's the last remaining tab
-      if (s.tabs.length <= 1) return s
       const idx = s.tabs.findIndex((t) => t.id === id)
       if (idx < 0) return s
       const tabs = s.tabs.filter((t) => t.id !== id)
@@ -63,7 +59,7 @@ export const useTabsStore = create((set, get) => ({
         const fallback = tabs[Math.min(idx, tabs.length - 1)] || tabs[0]
         activeId = fallback?.id || null
       }
-      // If pinned tab was closed, re-pin the first remaining workflow tab
+      // Re-pin to next workflow tab if pinned tab was closed
       let pinnedWorkflowTabId = s.pinnedWorkflowTabId
       if (id === pinnedWorkflowTabId) {
         const nextWf = tabs.find((t) => t.kind === 'workflow')
@@ -114,59 +110,56 @@ export const useTabsStore = create((set, get) => ({
     }))
   },
 
-  /** Close all workflow tabs except the pinned one. */
+  /** Close all workflow tabs — leaves non-workflow tabs (settings, agent, etc.) intact. */
   closeAllWorkflowTabs() {
     set((s) => {
-      const kept = s.tabs.filter((t) => t.kind !== 'workflow' || t.id === s.pinnedWorkflowTabId)
-      let activeId = s.activeId
-      if (!kept.find((t) => t.id === activeId)) {
-        activeId = kept[0]?.id || null
-      }
-      return { tabs: kept, activeId }
+      const kept = s.tabs.filter((t) => t.kind !== 'workflow')
+      const activeId = kept.find((t) => t.id === s.activeId)?.id || kept[0]?.id || null
+      return { tabs: kept, activeId, pinnedWorkflowTabId: null }
     })
   },
 
-  /** Close all tabs except the pinned workflow tab. */
-  /** Close all tabs except one workflow tab (pinned, or first workflow if no pinned). */
+  /** Close every tab — results in empty canvas state. */
   closeAllTabs() {
-    set((s) => {
-      const pinned = s.tabs.find((t) => t.id === s.pinnedWorkflowTabId)
-      const fallback = s.tabs.find((t) => t.kind === 'workflow')
-      const keep = pinned || fallback
-      const kept = keep ? [keep] : s.tabs.slice(0, 1)
-      return { tabs: kept, activeId: kept[0]?.id || null }
-    })
+    set({ tabs: [], activeId: null, pinnedWorkflowTabId: null })
   },
 
-  /** Close all tabs except the given one (and the pinned workflow tab). */
+  /** Close all tabs except the given one. */
   closeOtherTabs(id) {
     set((s) => {
-      const kept = s.tabs.filter((t) => t.id === id || t.id === s.pinnedWorkflowTabId)
-      return { tabs: kept, activeId: id }
+      const kept = s.tabs.filter((t) => t.id === id)
+      const pinnedWorkflowTabId = kept.find((t) => t.kind === 'workflow')?.id || null
+      return { tabs: kept, activeId: id, pinnedWorkflowTabId }
     })
   },
 
-  /** Close tabs to the right of the given tab (keep pinned). */
+  /** Close tabs to the right of the given tab. */
   closeTabsToRight(id) {
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id)
       if (idx < 0) return s
-      const kept = s.tabs.filter((t, i) => i <= idx || t.id === s.pinnedWorkflowTabId)
+      const kept = s.tabs.filter((_, i) => i <= idx)
       let activeId = s.activeId
       if (!kept.find((t) => t.id === activeId)) activeId = id
-      return { tabs: kept, activeId }
+      const pinnedWorkflowTabId = kept.find((t) => t.id === s.pinnedWorkflowTabId)
+        ? s.pinnedWorkflowTabId
+        : kept.find((t) => t.kind === 'workflow')?.id || null
+      return { tabs: kept, activeId, pinnedWorkflowTabId }
     })
   },
 
-  /** Close tabs to the left of the given tab (keep pinned). */
+  /** Close tabs to the left of the given tab. */
   closeTabsToLeft(id) {
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id)
       if (idx < 0) return s
-      const kept = s.tabs.filter((t, i) => i >= idx || t.id === s.pinnedWorkflowTabId)
+      const kept = s.tabs.filter((_, i) => i >= idx)
       let activeId = s.activeId
       if (!kept.find((t) => t.id === activeId)) activeId = id
-      return { tabs: kept, activeId }
+      const pinnedWorkflowTabId = kept.find((t) => t.id === s.pinnedWorkflowTabId)
+        ? s.pinnedWorkflowTabId
+        : kept.find((t) => t.kind === 'workflow')?.id || null
+      return { tabs: kept, activeId, pinnedWorkflowTabId }
     })
   },
 }))

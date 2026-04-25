@@ -84,23 +84,21 @@ export default function CenterPane() {
               aria-selected={isActive}
               className={`bs-tab ${isActive ? 'is-active' : ''} ${pinned ? 'is-pinned' : ''}`}
               onClick={() => setActive(t.id)}
-              onAuxClick={(e) => { if (e.button === 1 && tabs.length > 1) closeTab(t.id) }}
+              onAuxClick={(e) => { if (e.button === 1) closeTab(t.id) }}
               onContextMenu={(e) => handleTabContextMenu(e, t)}
             >
               <Icon className="bs-ico-xs" />
               <span className="bs-tab-label">{t.title}</span>
-              {tabs.length > 1 && (
-                <span
-                  className="bs-tab-close"
-                  role="button"
-                  tabIndex={0}
-                  title="Close tab"
-                  onClick={(e) => { e.stopPropagation(); closeTab(t.id) }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); closeTab(t.id) } }}
-                >
-                  <XIcon className="bs-ico-xs" />
-                </span>
-              )}
+              <span
+                className="bs-tab-close"
+                role="button"
+                tabIndex={0}
+                title="Close tab"
+                onClick={(e) => { e.stopPropagation(); closeTab(t.id) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); closeTab(t.id) } }}
+              >
+                <XIcon className="bs-ico-xs" />
+              </span>
             </button>
           )
         })}
@@ -115,7 +113,7 @@ export default function CenterPane() {
           style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {tabs.length > 1 && !ctxMenu.pinned && (
+          {!ctxMenu.pinned && (
             <button className="bs-ctx-item" onClick={() => { closeTab(ctxMenu.tabId); setCtxMenu(null) }}>
               <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               Close
@@ -133,12 +131,12 @@ export default function CenterPane() {
             <svg viewBox="0 0 24 24"><path d="M11 18l-6-6 6-6" /><line x1="19" y1="12" x2="5" y2="12" /><line x1="8" y1="9" x2="2" y2="15" opacity="0.4" /><line x1="2" y1="9" x2="8" y2="15" opacity="0.4" /></svg>
             Close to the Left
           </button>
-          <button className="bs-ctx-item" disabled={tabs.filter((t) => t.kind === 'workflow').length <= 1} onClick={() => { closeAllWorkflowTabs(); setCtxMenu(null) }}>
+          <button className="bs-ctx-item" disabled={tabs.filter((t) => t.kind === 'workflow').length === 0} onClick={() => { closeAllWorkflowTabs(); setCtxMenu(null) }}>
             <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4" /><path d="M15 3h4a2 2 0 0 1 2 2v4" /><path d="M9 21H5a2 2 0 0 1-2-2v-4" /><path d="M15 21h4a2 2 0 0 0 2-2v-4" /><line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" /></svg>
             Close All Workflows
           </button>
           <div className="bs-ctx-sep" />
-          <button className="bs-ctx-item is-danger" disabled={tabs.length <= 1} onClick={() => { closeAllTabs(); setCtxMenu(null) }}>
+          <button className="bs-ctx-item is-danger" onClick={() => { closeAllTabs(); setCtxMenu(null) }}>
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
             Close All
           </button>
@@ -146,6 +144,19 @@ export default function CenterPane() {
         )
       })()}
       <div className="bs-tab-body">
+        {!active && (
+          <div className="bs-empty-canvas">
+            <div className="bs-empty-canvas-hint">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.35">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+              </svg>
+              <span>No open tabs</span>
+              <span className="bs-empty-canvas-sub">Open a workflow from the sidebar or create a new one.</span>
+            </div>
+          </div>
+        )}
         {active?.kind === 'workflow' && <Canvas />}
         {active?.kind === 'agent' && <AgentEditor agentId={active.entityId} />}
         {active?.kind === 'skill' && <SkillEditor skillId={active.entityId} />}
