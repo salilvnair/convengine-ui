@@ -101,9 +101,9 @@ export default function StyledSelect({ value, options = [], onChange, placeholde
           ) : (
             options.map((o) => (
               <button
-                key={o.id}
+                key={o.id || '__clear__'}
                 type="button"
-                className={`bs-styled-select-option ${o.id === value ? 'is-active' : ''}`}
+                className={`bs-styled-select-option ${o.id === value ? 'is-active' : ''} ${o.id === '' ? 'is-clear' : ''}`}
                 onClick={() => { onChange(o.id); setOpen(false) }}
               >
                 {o.icon && (

@@ -50,6 +50,7 @@ export const UserInputBlock = {
         { label: 'Color', id: 'color' },
         { label: 'File', id: 'file' },
         { label: 'Hidden', id: 'hidden' },
+        { label: 'JSON', id: 'json' },
       ],
       value: () => 'short-text',
     },
@@ -147,7 +148,17 @@ export const UserInputBlock = {
       description:
         'Pre-filled value. If set, the workflow auto-runs with this value without opening an input dialog.',
       value: () => '',
-      condition: { field: 'kind', value: ['password'], not: true },
+      condition: { field: 'kind', value: ['password', 'json'], not: true },
+    },
+    {
+      // JSON default value — edited with the full JSON editor
+      id: 'defaultValue',
+      title: 'Default Value',
+      type: 'json-editor',
+      description:
+        'Pre-filled JSON value. If set, the workflow auto-runs with this value without opening an input dialog.',
+      value: () => '{}',
+      condition: { field: 'kind', value: ['json'] },
     },
     {
       // Password default value — masked with eye toggle

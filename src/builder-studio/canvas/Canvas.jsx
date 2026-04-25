@@ -635,8 +635,8 @@ function CanvasInner() {
         return
       }
 
-      // ⌘B — Toggle Disable/Enable (ComfyUI-style)
-      if (meta && (e.key === 'b' || e.key === 'B') && !e.shiftKey) {
+      // ⌥B — Toggle Disable/Enable (ComfyUI-style)
+      if (e.altKey && !meta && !e.ctrlKey && (e.key === 'b' || e.key === 'B') && !e.shiftKey) {
         if (!selectedNodeId) return
         e.preventDefault()
         useWorkflowStore.getState().toggleDisabled(selectedNodeId)

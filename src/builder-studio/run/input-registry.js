@@ -148,7 +148,15 @@ function parseDefaultValue(kind, value) {
   if (!hasValue(value)) {
     if (kind === 'checkbox' || kind === 'toggle') return false
     if (kind === 'checkbox-group') return []
+    if (kind === 'json') return '{}'
     return ''
+  }
+
+  if (kind === 'json') {
+    if (typeof value === 'object') {
+      try { return JSON.stringify(value, null, 2) } catch { return '{}' }
+    }
+    return String(value)
   }
 
   if (kind === 'checkbox' || kind === 'toggle') {

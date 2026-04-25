@@ -18,6 +18,7 @@ import { registerRunInputKind } from './input-registry'
 import { useState } from 'react'
 import MiniCalendar from '../components/MiniCalendar'
 import StyledSelect from '../components/StyledSelect'
+import JsonEditor from '../components/JsonEditor'
 
 // ─── Password input with eye toggle ─────────────────────────────────
 function PasswordInput({ value, onChange, placeholder, disabled }) {
@@ -328,6 +329,32 @@ registerRunInputKind('hidden', {
   defaultValue: '',
   isEmpty: (v) => !String(v ?? '').trim(),
   render: () => null,
+})
+
+registerRunInputKind('json', {
+  defaultValue: '{}',
+  isEmpty: (v) => !v || !String(v).trim(),
+  validate: (v) => {
+    if (!v || !String(v).trim()) return null
+    try { JSON.parse(v); return null } catch (e) { return `Invalid JSON: ${e.message}` }
+  },
+  coerce: (v) => {
+    if (v == null || v === '' || v === '{}') return {}
+    if (typeof v === 'object') return v
+    try { return JSON.parse(v) } catch { return v }
+  },
+  render: ({ value, onChange, disabled }) => {
+    const strVal = typeof value === 'object' ? JSON.stringify(value, null, 2) : (value ?? '{}')
+    return (
+      <JsonEditor
+        value={strVal}
+        onChange={onChange}
+        readOnly={disabled}
+        height="160px"
+        placeholder="{}"
+      />
+    )
+  },
 })
 
 function mapBooleanOutput(value, node) {

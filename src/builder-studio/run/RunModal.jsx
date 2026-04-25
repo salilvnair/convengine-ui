@@ -18,6 +18,7 @@ import { executeGraph, GraphValidationError } from './graph-runner'
 import { useWorkflowStore } from '../stores/workflow-store'
 import { PlayIcon, MinimizeIcon } from '../components/icons'
 import { getRunPanels, onRunPanelsChange, registerRunPanel } from './panel-registry'
+import { getBlock } from '../blocks/registry'
 import { coerceInput, collectInputNodes, validateInput } from './input-registry'
 import RunPanel from './panels/run-panel'
 import DebugPanel from './panels/debug-panel'
@@ -109,22 +110,68 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
     return out
   }, [inputNodes, values])
   const missing = useMemo(() => inputNodes.filter((n) => invalidInputs[n.id]), [inputNodes, invalidInputs])
+
+  // Compute which non-seed nodes are missing required subBlock values (MCP server/tool, etc.)
+  // This runs reactively so the squiggle clears as soon as the user fixes the field.
+  const missingConfigNodeIds = useMemo(() => {
+    const SEED_TYPES = new Set(['starter', 'user_input', 'schedule', 'webhook_request'])
+    const nodes = workflow?.nodes || []
+    const edges = workflow?.edges || []
+    const subBlockValues = workflow?.subBlockValues || {}
+    const disabledIds = new Set(nodes.filter((n) => n.data?.disabled).map((n) => n.id))
+    const outgoing = {}
+    for (const e of edges) {
+      if (!outgoing[e.source]) outgoing[e.source] = []
+      outgoing[e.source].push(e.target)
+    }
+    const reachable = new Set()
+    const queue = nodes.filter((n) => SEED_TYPES.has(n.data?.blockType)).map((n) => n.id)
+    for (const id of queue) {
+      if (reachable.has(id)) continue
+      reachable.add(id)
+      for (const t of (outgoing[id] || [])) queue.push(t)
+    }
+    const result = new Set()
+    for (const n of nodes) {
+      if (SEED_TYPES.has(n.data?.blockType)) continue
+      if (disabledIds.has(n.id)) continue
+      if (!reachable.has(n.id)) continue
+      const blockDef = getBlock(n.data?.blockType)
+      if (!blockDef?.subBlocks?.length) continue
+      const vals = subBlockValues[n.id] || {}
+      for (const sub of blockDef.subBlocks) {
+        if (!sub.required) continue
+        if (typeof sub.required === 'object') {
+          const dep = vals[sub.required.field]
+          const reqVals = Array.isArray(sub.required.value) ? sub.required.value : [sub.required.value]
+          if (!reqVals.includes(dep)) continue
+        }
+        const v = vals[sub.id]
+        if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) {
+          result.add(n.id)
+        }
+      }
+    }
+    return result
+  }, [workflow])
+
   const runBtnRef = useRef(null)
   const prevMissingRef = useRef(missing.length)
 
   // Push invalid node IDs into the canvas store so the card on canvas turns orange.
-  // Show squiggle whenever the dock is open and a field has a validation error.
-  // Clear it completely when the dock is closed.
+  // Merges user_input validation errors with missing required-config nodes so both
+  // show the squiggle animation. Clears completely when the dock is closed.
   useEffect(() => {
     if (!visible) {
       setInvalidInputNodeIds(new Set())
       return
     }
-    const ids = new Set(
-      Object.keys(invalidInputs).filter((nodeId) => !!invalidInputs[nodeId])
-    )
+    const ids = new Set([
+      ...Object.keys(invalidInputs).filter((nodeId) => !!invalidInputs[nodeId]),
+      ...missingConfigNodeIds,
+    ])
     setInvalidInputNodeIds(ids)
-  }, [invalidInputs, visible, setInvalidInputNodeIds])
+  }, [invalidInputs, missingConfigNodeIds, visible, setInvalidInputNodeIds])
 
   // Auto-focus the Run button when user fills all required inputs (first time)
   useEffect(() => {
@@ -187,6 +234,87 @@ const RunModal = forwardRef(function RunModal({ workflow, onClose, onOpen, activ
       setActiveTab('problems')
       onOpen?.()
       return
+    }
+
+    // ── Pre-run required-subBlock validation (MCP server/tool, agent model, etc.) ──
+    // Walk every reachable node, check its block definition for required subBlocks,
+    // and shake any node whose required field is empty — same squiggle as user_input.
+    {
+      const SEED_TYPES = new Set(['starter', 'user_input', 'schedule', 'webhook_request'])
+      const nodes = workflow?.nodes || []
+      const edges = workflow?.edges || []
+      const subBlockValues = workflow?.subBlockValues || {}
+      const disabledIds = new Set(nodes.filter((n) => n.data?.disabled).map((n) => n.id))
+
+      // BFS to find reachable nodes from seed types
+      const outgoing = {}
+      for (const e of edges) {
+        if (!outgoing[e.source]) outgoing[e.source] = []
+        outgoing[e.source].push(e.target)
+      }
+      const reachable = new Set()
+      const queue = nodes.filter((n) => SEED_TYPES.has(n.data?.blockType)).map((n) => n.id)
+      for (const id of queue) {
+        if (reachable.has(id)) continue
+        reachable.add(id)
+        for (const t of (outgoing[id] || [])) queue.push(t)
+      }
+
+      const missingConfigNodeIds = new Set()
+      const missingConfigDetails = [] // { nodeId, nodeTitle, blockType, fieldLabel }
+
+      for (const n of nodes) {
+        if (SEED_TYPES.has(n.data?.blockType)) continue
+        if (disabledIds.has(n.id)) continue
+        if (!reachable.has(n.id)) continue
+        const blockDef = getBlock(n.data?.blockType)
+        if (!blockDef?.subBlocks?.length) continue
+        const vals = subBlockValues[n.id] || {}
+        for (const sub of blockDef.subBlocks) {
+          if (!sub.required) continue
+          // Conditional required: only required when a dep field matches
+          if (typeof sub.required === 'object') {
+            const dep = vals[sub.required.field]
+            const reqVals = Array.isArray(sub.required.value) ? sub.required.value : [sub.required.value]
+            if (!reqVals.includes(dep)) continue
+          }
+          const v = vals[sub.id]
+          const isEmpty = v == null || v === '' || (Array.isArray(v) && v.length === 0)
+          if (isEmpty) {
+            missingConfigNodeIds.add(n.id)
+            missingConfigDetails.push({
+              nodeId: n.id,
+              nodeTitle: n.data?.title || blockDef.name || n.data?.blockType || n.id,
+              blockType: n.data?.blockType,
+              fieldLabel: sub.title || sub.id,
+            })
+          }
+        }
+      }
+
+      if (missingConfigNodeIds.size > 0) {
+        setInvalidInputNodeIds(missingConfigNodeIds)
+        shakeInvalidInputs()
+        // Build synthetic trace entries so Problems tab shows detail
+        const traceEntries = missingConfigDetails.map((d) => ({
+          nodeId: d.nodeId,
+          blockType: d.blockType,
+          title: d.nodeTitle,
+          error: `"${d.nodeTitle}" is missing required field: ${d.fieldLabel}`,
+          errorDetail: {
+            nodeId: d.nodeId,
+            nodeTitle: d.nodeTitle,
+            blockType: d.blockType,
+            cause: `The "${d.fieldLabel}" field is required but has not been configured.`,
+            hint: `Select or enter a value for "${d.fieldLabel}" in the "${d.nodeTitle}" block before running.`,
+          },
+        }))
+        setResult({ output: null, trace: traceEntries })
+        setError(`${missingConfigNodeIds.size} block${missingConfigNodeIds.size > 1 ? 's are' : ' is'} missing required configuration`)
+        setActiveTab('problems')
+        onOpen?.()
+        return
+      }
     }
 
     // All inputs valid — close dock and execute

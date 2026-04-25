@@ -117,9 +117,10 @@ function WorkflowNode({ id, data, selected }) {
   const isActive = activeNodeId === id
   const isDone = completedNodeIds.includes(id)
   const isError = errorNodeIds?.has?.(id) ?? false
-  const isInvalidInput = invalidInputNodeIds?.has?.(id) ?? false
-  const isUnconnected = hasNoIncoming
   const isDisabled = !!data.disabled
+  // Disabled nodes are never flagged for missing config — they're bypassed at runtime
+  const isInvalidInput = !isDisabled && (invalidInputNodeIds?.has?.(id) ?? false)
+  const isUnconnected = hasNoIncoming
   const cfg = getBlock(data.blockType)
   const Icon = data.icon || cfg?.icon
 
@@ -542,6 +543,10 @@ function WorkflowNode({ id, data, selected }) {
                         if (data.blockType === 'user_input' && row.id === 'kind') {
                           setSubBlockValue(id, 'defaultValue', '')
                         }
+                        // When MCP server is cleared, also clear the tool selection.
+                        if (row.sb.type === 'mcp-server-selector' && !v) {
+                          setSubBlockValue(id, 'tool', '')
+                        }
                       }, { values })}
                     </span>
                   ) : (
@@ -556,12 +561,20 @@ function WorkflowNode({ id, data, selected }) {
                 <span className="bs-node-row-pin bs-node-row-pin-green" aria-hidden="true" />
                 <span className="bs-node-row-label">Value</span>
                 <span className="bs-node-row-edit">
-                  <InlineInput
-                    type={(values?.kind === 'password') ? 'password' : 'text'}
-                    value={values?.defaultValue ?? ''}
-                    placeholder={`Enter ${(values?.label || 'value').toLowerCase()}…`}
-                    onChange={(v) => setSubBlockValue(id, 'defaultValue', v)}
-                  />
+                  {values?.kind === 'json' ? (
+                    <span className="bs-node-json-badge" title="Edit JSON in the Inspector panel">
+                      {(values?.defaultValue && values.defaultValue !== '{}')
+                        ? String(values.defaultValue).slice(0, 20) + (String(values.defaultValue).length > 20 ? '…' : '')
+                        : '{ … }'}
+                    </span>
+                  ) : (
+                    <InlineInput
+                      type={(values?.kind === 'password') ? 'password' : 'text'}
+                      value={values?.defaultValue ?? ''}
+                      placeholder={`Enter ${(values?.label || 'value').toLowerCase()}…`}
+                      onChange={(v) => setSubBlockValue(id, 'defaultValue', v)}
+                    />
+                  )}
                 </span>
               </div>
             )}
@@ -638,7 +651,7 @@ function WorkflowNode({ id, data, selected }) {
             { id: 'resize', label: resizeMode ? 'Lock Size' : 'Resize', icon: CtxResizeIcon, iconColor: '#a78bfa', onSelect: () => setResizeMode((v) => !v) },
             { id: 'fit', label: 'Fit to Content', icon: CtxResizeIcon, iconColor: '#a78bfa', disabled: !nodeH, onSelect: () => { setNodeH(undefined); fitNodeStore(id) } },
             { separator: true },
-            { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', shortcut: '⌘B', onSelect: () => toggleDisabled(id) },
+            { id: 'disable', label: isDisabled ? 'Enable' : 'Disable', icon: isDisabled ? CtxEnableIcon : CtxDisableIcon, iconColor: isDisabled ? '#22c55e' : '#a855f6', shortcut: '⌥B', onSelect: () => toggleDisabled(id) },
             { id: 'disc', label: 'Disconnect All Edges', icon: CtxDisconnectIcon, iconColor: '#f87171', onSelect: () => disconnectNode(id) },
             { id: 'copy', label: 'Copy Node ID', icon: CtxCopyIcon, iconColor: '#94a3b8', shortcut: '⌘C', onSelect: copyId },
             { separator: true },
@@ -673,7 +686,10 @@ function WorkflowNode({ id, data, selected }) {
 /** Inline MCP server dropdown — reads live server list from the MCP store. */
 function McpServerNodeSelect({ value, onChange, placeholder }) {
   const servers = useMcpStore((s) => s.servers)
-  const options = servers.map((s) => ({ id: s.id, label: s.name || s.id }))
+  const serverOptions = servers.map((s) => ({ id: s.id, label: s.name || s.id }))
+  const options = value
+    ? [{ id: '', label: '— Clear selection —', isClear: true }, ...serverOptions]
+    : serverOptions
   return (
     <NodeDropdown
       value={value ?? ''}
@@ -688,7 +704,10 @@ function McpServerNodeSelect({ value, onChange, placeholder }) {
 function McpToolNodeSelect({ value, onChange, placeholder, serverId }) {
   const toolsByServer = useMcpStore((s) => s.toolsByServer)
   const tools = (serverId && toolsByServer[serverId]) || []
-  const options = tools.map((t) => ({ id: t.name, label: t.name }))
+  const toolOptions = tools.map((t) => ({ id: t.name, label: t.name }))
+  const options = value
+    ? [{ id: '', label: '— Clear selection —', isClear: true }, ...toolOptions]
+    : toolOptions
   return (
     <NodeDropdown
       value={value ?? ''}
@@ -912,9 +931,9 @@ function NodeDropdown({ value, options = [], onChange, placeholder }) {
         <div className="bs-node-dropdown-menu nowheel" onClick={(e) => e.stopPropagation()}>
           {options.map((o) => (
             <button
-              key={o.id}
+              key={o.id || '__clear__'}
               type="button"
-              className={`bs-node-dropdown-option ${o.id === value ? 'is-active' : ''}`}
+              className={`bs-node-dropdown-option ${o.id === value ? 'is-active' : ''} ${o.isClear ? 'is-clear' : ''}`}
               onClick={(e) => { e.stopPropagation(); onChange(o.id); setOpen(false) }}
             >
               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</span>

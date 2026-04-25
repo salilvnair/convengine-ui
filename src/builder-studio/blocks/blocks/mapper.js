@@ -28,8 +28,18 @@ export const MapperBlock = {
         { label: 'To Number', id: 'to_number' },
         { label: 'To Boolean', id: 'to_boolean' },
         { label: 'To String', id: 'to_string' },
+        { label: 'Skill', id: 'skill' },
       ],
       value: () => 'json_parse',
+    },
+    {
+      id: 'skillId',
+      title: 'Skill',
+      type: 'skill-picker',
+      description: 'Skill to use as transformer. Receives the input value and returns the mapped output.',
+      value: () => '',
+      required: { field: 'mode', value: ['skill'] },
+      condition: { field: 'mode', value: ['skill'] },
     },
   ],
   inputs: {

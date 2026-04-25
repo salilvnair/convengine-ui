@@ -113,7 +113,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
           nodeTitle: title,
           blockType: n.data?.blockType,
           cause: 'No incoming edges found. The graph executor can only run nodes that are connected downstream from a Start or User Input node.',
-          hint: 'Connect an edge from another block\'s output to this block\'s input, or disable it (⌘B / right-click → Disable).',
+          hint: 'Connect an edge from another block\'s output to this block\'s input, or disable it (⌥B / right-click → Disable).',
           affectedNodes: allUnconnected,
           extra: {
             totalNodes: nodes.length,
@@ -494,7 +494,7 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
     case 'json_path':
       return runJsonPathNode({ values, input })
     case 'mapper':
-      return runMapperNode({ values, input })
+      return await runMapperNode({ values, input })
     case 'skill':
       return await runSkillNode({ values, input })
     // ── Server-parity blocks ──────────────────────────────────────────────
@@ -1405,7 +1405,7 @@ function runJsonPathNode({ values, input }) {
 }
 
 /* ── Mapper block — type conversion ────────────────────────────────────────── */
-function runMapperNode({ values, input }) {
+async function runMapperNode({ values, input }) {
   const mode = values.mode || 'json_parse'
   switch (mode) {
     case 'json_parse': {
@@ -1428,6 +1428,15 @@ function runMapperNode({ values, input }) {
     case 'to_string':
       if (typeof input === 'string') return input
       return input == null ? '' : (typeof input === 'object' ? JSON.stringify(input) : String(input))
+    case 'skill': {
+      const skillId = values.skillId
+      if (!skillId) throw new Error('Mapper: no skill selected. Choose a skill from the dropdown.')
+      const skills = useWorkspaceStore.getState().skills || []
+      const skill = skills.find((s) => s.id === skillId)
+      if (!skill) throw new Error(`Mapper: skill "${skillId}" not found in workspace.`)
+      const inputStr = typeof input === 'string' ? input : JSON.stringify(input ?? null)
+      return await runSkillSource(skill, inputStr)
+    }
     default:
       return input
   }

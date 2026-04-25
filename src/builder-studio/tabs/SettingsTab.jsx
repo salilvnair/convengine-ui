@@ -53,7 +53,7 @@ const SHORTCUTS = [
     items: [
       { keys: ['Delete'], or: ['Backspace'], desc: 'Delete selected node(s) — confirm dialog' },
       { keys: [MOD, 'D'], desc: 'Duplicate selected node(s)' },
-      { keys: [MOD, 'B'], desc: 'Toggle disable / enable selected node' },
+      { keys: ['⌥', 'B'], desc: 'Toggle disable / enable selected node' },
       { keys: [MOD, 'I'], desc: 'Inspect the selected node (after run)' },
       { keys: [MOD, 'C'], desc: 'Copy selected node ID to clipboard' },
       { keys: [MOD, 'F'], desc: 'Fit all nodes into view' },

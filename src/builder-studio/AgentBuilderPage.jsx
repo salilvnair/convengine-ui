@@ -192,11 +192,43 @@ export default function AgentBuilderPage() {
       .catch(() => {})
   }, [setLlmConfig])
 
+  // Keep a non-reactive ref to the latest workflows so the load effect
+  // doesn't re-run just because the workflows array reference changed (e.g.
+  // after an auto-save or server sync). Only activeWorkflowId changes
+  // should trigger a canvas reload.
+  const workflowsRef = useRef(workflows)
+  useEffect(() => { workflowsRef.current = workflows }, [workflows])
+
+  // Track which workflow is currently loaded in the canvas so we can avoid
+  // redundant reloads and save the previous one before switching.
+  const loadedWorkflowIdRef = useRef(null)
   useEffect(() => {
     if (!activeWorkflowId) return
-    const wf = workflows.find((w) => w.id === activeWorkflowId)
+    if (loadedWorkflowIdRef.current === activeWorkflowId) return // already loaded — skip
+    // Flush the previous workflow's unsaved canvas state before switching so it
+    // isn't lost when we come back to that tab.
+    const prevId = loadedWorkflowIdRef.current
+    if (prevId) {
+      const { nodes: curNodes, edges: curEdges, subBlockValues: curSBV } = useWorkflowStore.getState()
+      saveWorkflow(prevId, { nodes: curNodes, edges: curEdges, subBlockValues: curSBV })
+    }
+    loadedWorkflowIdRef.current = activeWorkflowId
+    const wf = workflowsRef.current.find((w) => w.id === activeWorkflowId)
     if (wf) loadWorkflow({ nodes: wf.nodes, edges: wf.edges, subBlockValues: wf.subBlockValues })
-  }, [activeWorkflowId, workflows, loadWorkflow])
+  }, [activeWorkflowId, loadWorkflow, saveWorkflow])
+
+  // Auto-save canvas state into the workspace store on every canvas change
+  // (debounced). This ensures blocks/edges added since the last explicit Save
+  // survive tab switches without requiring a manual Save press.
+  const autoSaveTimerRef = useRef(null)
+  useEffect(() => {
+    if (!activeWorkflowId) return
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveWorkflow(activeWorkflowId, { nodes, edges, subBlockValues })
+    }, 400)
+    return () => clearTimeout(autoSaveTimerRef.current)
+  }, [nodes, edges, subBlockValues, activeWorkflowId, saveWorkflow])
 
   // Listen for context-menu action dispatches from Canvas
   useEffect(() => {

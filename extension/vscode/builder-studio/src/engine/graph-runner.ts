@@ -237,7 +237,7 @@ function runJsonPathNode(opts: { values: Record<string, unknown>; input: unknown
   return result !== undefined ? result : null;
 }
 
-function runMapperNode(opts: { values: Record<string, unknown>; input: unknown }): unknown {
+async function runMapperNode(opts: { values: Record<string, unknown>; input: unknown }): Promise<unknown> {
   const mode = String(opts.values.mode || 'json_parse');
   switch (mode) {
     case 'json_parse':
@@ -271,6 +271,8 @@ function runMapperNode(opts: { values: Record<string, unknown>; input: unknown }
       return String(opts.input).toUpperCase();
     case 'lower':
       return String(opts.input).toLowerCase();
+    case 'skill':
+      throw new Error('Mapper skill mode requires workspace skill execution — not supported in the VS Code extension runner.');
     default:
       return opts.input;
   }
@@ -610,7 +612,7 @@ export async function executeGraph({
               break;
             }
             case 'mapper': {
-              output = runMapperNode({ values, input });
+              output = await runMapperNode({ values, input });
               break;
             }
             case 'filter': {
@@ -778,23 +780,57 @@ export async function executeGraph({
             const typeErr = checkValueType(output, outType);
             if (typeErr) console.warn(`[graph-runner] Node ${n.id} (${blockType}): ${typeErr}`);
           }
+
+          trace.push({
+            nodeId: n.id,
+            blockType,
+            title: n.data?.title as string,
+            input,
+            inputsByHandle,
+            output,
+            values,
+            ms: performance.now() - t0,
+          });
+          outputs[n.id] = output;
+          return;
         } catch (err: unknown) {
-          nodeError = err instanceof Error ? err.message : String(err);
+          const e = err as Error & { [k: string]: unknown };
+          nodeError = (e.message as string | undefined) || String(err);
           output = null;
+          const errorDetail: Record<string, unknown> = {
+            message: nodeError,
+            nodeId: n.id,
+            nodeTitle: n.data?.title,
+            blockType,
+            timestamp: new Date().toISOString(),
+          };
+          if (e.url)             errorDetail.url             = e.url;
+          if (e.resolvedUrl)     errorDetail.resolvedUrl     = e.resolvedUrl;
+          if (e.method)          errorDetail.method          = e.method;
+          if (e.status)          errorDetail.status          = e.status;
+          if (e.statusText)      errorDetail.statusText      = e.statusText;
+          if (e.responseBody)    errorDetail.responseBody    = e.responseBody;
+          if (e.responseHeaders) errorDetail.responseHeaders = e.responseHeaders;
+          if (e.requestHeaders)  errorDetail.requestHeaders  = e.requestHeaders;
+          if (e.requestPayload)  errorDetail.requestPayload  = e.requestPayload;
+          if (e.stack)           errorDetail.stack           = e.stack;
+          if (e.cause)           errorDetail.cause           = (e.cause as Error).message || String(e.cause);
+          trace.push({
+            nodeId: n.id,
+            blockType,
+            title: n.data?.title as string,
+            input,
+            inputsByHandle,
+            output: null,
+            values,
+            error: nodeError,
+            errorDetail,
+            ms: performance.now() - t0,
+          });
+          outputs[n.id] = null;
+          return;
         }
       }
-
-      trace.push({
-        nodeId: n.id,
-        blockType,
-        title: n.data?.title as string,
-        input,
-        inputsByHandle,
-        output,
-        values,
-        error: nodeError,
-        ms: performance.now() - t0,
-      });
 
       outputs[n.id] = output;
     }));

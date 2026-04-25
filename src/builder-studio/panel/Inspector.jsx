@@ -155,6 +155,10 @@ export default function Inspector() {
                 if (cfgKey === 'user_input' && id === 'kind') {
                   setSubBlockValue(node.id, 'defaultValue', '')
                 }
+                // When MCP server is cleared, also clear the tool selection.
+                if (id === 'server' && !v) {
+                  setSubBlockValue(node.id, 'tool', '')
+                }
               }}
             />
             {sb.description && <div className="bs-hint">{sb.description}</div>}

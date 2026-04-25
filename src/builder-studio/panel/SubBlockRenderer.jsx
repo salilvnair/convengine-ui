@@ -128,6 +128,16 @@ export default function SubBlockRenderer({ sub, value, onChange, blockValues, no
         />
       )
 
+    case 'json-editor':
+      return (
+        <JsonEditor
+          value={defaultValue ?? '{}'}
+          onChange={set}
+          height="200px"
+          placeholder="{}"
+        />
+      )
+
     case 'response-format':
       // JSON-schema authoring → tree editor with text fallback. Wrapped in
       // FullscreenWrapper so large schemas can be edited against the full
@@ -551,14 +561,19 @@ function McpServerSelector({ value, onChange, placeholder }) {
 
   useEffect(() => { ensureLoaded() }, [ensureLoaded])
 
+  const serverOptions = servers.map((s) => ({
+    id: s.id,
+    label: `${s.name || s.id}${s.transport ? ` (${s.transport.toLowerCase()})` : ''}`,
+  }))
+  const options = value
+    ? [{ id: '', label: '— Clear selection —' }, ...serverOptions]
+    : serverOptions
+
   return (
     <StyledSelect
       value={value ?? ''}
       placeholder={loading ? 'Loading…' : (placeholder || 'Select an MCP server')}
-      options={servers.map((s) => ({
-        id: s.id,
-        label: `${s.name || s.id}${s.transport ? ` (${s.transport.toLowerCase()})` : ''}`,
-      }))}
+      options={options}
       onChange={onChange}
     />
   )
@@ -684,15 +699,20 @@ function McpToolSelector({ value, onChange, placeholder, serverId }) {
   }
 
   const list = tools || []
+  const toolOptions = list.map((t) => ({
+    id: t.name,
+    label: t.name + (t.description ? ` — ${t.description.slice(0, 55)}` : ''),
+  }))
+  const options = value
+    ? [{ id: '', label: '— Clear selection —' }, ...toolOptions]
+    : toolOptions
+
   return (
     <div className="bs-mcp-tool-picker">
       <StyledSelect
         value={value ?? ''}
         placeholder={tools == null ? 'Loading tools…' : (placeholder || 'Select a tool')}
-        options={list.map((t) => ({
-          id: t.name,
-          label: t.name + (t.description ? ` — ${t.description.slice(0, 55)}` : ''),
-        }))}
+        options={options}
         onChange={onChange}
       />
       <button
