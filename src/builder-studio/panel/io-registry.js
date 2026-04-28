@@ -23,6 +23,7 @@ const typeColors = {
   boolean: { bg: 'rgba(244,114,182,0.12)',border: 'rgba(244,114,182,0.3)',text: '#f9a8d4',  solid: '#f472b6' },
   json:    { bg: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.3)', text: '#a5b4fc',  solid: '#6366f1' },
   array:   { bg: 'rgba(14,165,233,0.12)', border: 'rgba(14,165,233,0.3)', text: '#7dd3fc',  solid: '#0ea5e9' },
+  blob:    { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', text: '#fcd34d',  solid: '#f59e0b' },
   any:     { bg: 'rgba(148,163,184,0.12)',border: 'rgba(148,163,184,0.3)',text: '#cbd5e1',  solid: '#94a3b8' },
 }
 
@@ -54,7 +55,8 @@ const compat = {
   boolean: new Set(['boolean', 'any']),
   json:    new Set(['json', 'array', 'any']),
   array:   new Set(['array', 'any']),
-  any:     new Set(['string', 'number', 'boolean', 'json', 'array', 'any']),
+  blob:    new Set(['blob', 'any']),
+  any:     new Set(['string', 'number', 'boolean', 'json', 'array', 'blob', 'any']),
 }
 
 /** Check if a source output type can connect to a target input type. */
@@ -227,6 +229,8 @@ const cardPortOverrides = {
   // Mapper — type conversion utility
   mapper:        { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
   skill:         { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'result', type: 'any' }] },
+  // Audio Input — accepts upstream data via `any` input, outputs audio data as json
+  audio_input:   { inputs: [{ key: 'input', type: 'any' }], outputs: [{ key: 'audio', type: 'json' }] },
 
   // ─── Data transformation ───────────────────────────────────────────────────
   text_template: { inputs: [{ key: 'input', type: 'json' }], outputs: [{ key: 'result', type: 'string' }] },

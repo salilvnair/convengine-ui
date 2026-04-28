@@ -80,7 +80,7 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
     outgoingAll[e.source].push(e)
   }
   // BFS from seed nodes (all root trigger types)
-  const SEED_BLOCK_TYPES = new Set(['starter', 'user_input', 'schedule', 'webhook_request'])
+  const SEED_BLOCK_TYPES = new Set(['starter', 'user_input', 'schedule', 'webhook_request', 'audio_input'])
   const seedIds = nodes
     .filter((n) => SEED_BLOCK_TYPES.has(n.data?.blockType))
     .map((n) => n.id)
@@ -243,6 +243,24 @@ export async function executeGraph({ workflow, inputs, onProgress }) {
       started.add(n.id)
       onProgress?.({ type: 'start', nodeId: n.id, blockType: 'webhook_request', title: n.data?.title })
       onProgress?.({ type: 'done', nodeId: n.id, blockType: 'webhook_request', title: n.data?.title, output: webhookOut })
+    } else if (bt === 'audio_input') {
+      const vals = subBlockValues[n.id] || {}
+      const audioB64 = vals._audioB64 || ''
+      const audioFormat = vals._audioFormat || 'webm'
+      const audioDurationMs = vals._audioDurationMs || 0
+      const audioOut = audioB64
+        ? { audio_base64: audioB64, format: audioFormat, duration_ms: audioDurationMs }
+        : null
+      outputs[n.id] = audioOut
+      trace.push({
+        nodeId: n.id, blockType: 'audio_input', title: n.data?.title,
+        input: null, output: audioOut, ms: 0,
+        meta: { source: audioB64 ? 'inline recorder (card)' : 'no recording yet', hasAudio: !!audioB64 },
+      })
+      started.add(n.id)
+      onProgress?.({ type: 'start', nodeId: n.id, blockType: 'audio_input', title: n.data?.title })
+      try { useWorkflowStore.getState().recordNodeOutput(n.id, audioOut) } catch { /* ignore */ }
+      onProgress?.({ type: 'done', nodeId: n.id, blockType: 'audio_input', title: n.data?.title, output: audioOut })
     }
   }
 
@@ -497,6 +515,7 @@ async function runNode({ node, values, input, outputs, inputsByHandle }) {
   switch (type) {
     case 'starter':
     case 'user_input':
+    case 'audio_input':
       return outputs[node.id] // already seeded
     case 'response':
       return runResponseNode({ values, input, inputsByHandle, outputs })
@@ -1489,6 +1508,23 @@ async function runMapperNode({ values, input }) {
     case 'to_string':
       if (typeof input === 'string') return input
       return input == null ? '' : (typeof input === 'object' ? JSON.stringify(input) : String(input))
+    case 'merge_fields': {
+      // Merge key/value pairs from the `fields` table into the input object.
+      // Input rows: [[key, value], ...].  Handy for adding `model: "base"`
+      // before piping to whisper-mcp or other consumers.
+      const obj = (input && typeof input === 'object' && !Array.isArray(input))
+        ? { ...input }
+        : {}
+      let fields = Array.isArray(values.fields) ? values.fields : []
+      if (typeof values.fields === 'string') { try { fields = JSON.parse(values.fields) } catch { fields = [] } }
+      for (const row of fields) {
+        if (!Array.isArray(row) || row.length < 2) continue
+        const key = String(row[0] || '').trim()
+        if (!key) continue
+        obj[key] = row[1]
+      }
+      return obj
+    }
     case 'skill': {
       const skillId = values.skillId
       if (!skillId) throw new Error('Mapper: no skill selected. Choose a skill from the dropdown.')

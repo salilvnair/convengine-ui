@@ -83,6 +83,186 @@ function conditionPasses(condition, vals) {
   return true
 }
 
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Audio Recorder — inline UI on the audio_input card                         */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function AudioRecorderInline({ nodeId, values, setSubBlockValue }) {
+  const [recording, setRecording] = useState(false)
+  const [timer, setTimer] = useState('00:00')
+  const mrRef = useRef(null)
+  const chunksRef = useRef([])
+  const timerRef = useRef(null)
+  const audioCtxRef = useRef(null)
+  const analyserRef = useRef(null)
+  const canvasRef = useRef(null)
+  const animRef = useRef(null)
+  const startTimeRef = useRef(0)
+
+  const hasAudio = !!values?._audioB64
+
+  useEffect(() => () => {
+    clearInterval(timerRef.current)
+    cancelAnimationFrame(animRef.current)
+    if (mrRef.current?.state === 'recording') mrRef.current.stop()
+  }, [])
+
+  /* ── Waveform visualiser (mirrors whisper-mcp demo) ─────────────────── */
+  useEffect(() => {
+    if (!recording) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    const ctx = canvas.getContext('2d')
+    ctx.scale(dpr, dpr)
+    drawWaveform()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording])
+
+  function drawWaveform() {
+    const canvas = canvasRef.current
+    const analyser = analyserRef.current
+    if (!canvas || !analyser) return
+    const W = canvas.offsetWidth
+    const H = canvas.offsetHeight
+    const ctx = canvas.getContext('2d')
+    const data = new Uint8Array(analyser.frequencyBinCount)
+    analyser.getByteTimeDomainData(data)
+    ctx.clearRect(0, 0, W, H)
+    ctx.lineWidth = 2
+    ctx.strokeStyle = '#ef4444'
+    ctx.beginPath()
+    const step = W / data.length
+    for (let i = 0; i < data.length; i++) {
+      const y = (data[i] / 128.0) * (H / 2)
+      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y)
+    }
+    ctx.stroke()
+    animRef.current = requestAnimationFrame(drawWaveform)
+  }
+
+  function stopWaveform() {
+    cancelAnimationFrame(animRef.current)
+    const canvas = canvasRef.current
+    if (canvas) {
+      const ctx = canvas.getContext('2d')
+      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const audioCtx = new AudioContext()
+      audioCtxRef.current = audioCtx
+      // Analyser for waveform
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 2048
+      analyserRef.current = analyser
+      const src = audioCtx.createMediaStreamSource(stream)
+      src.connect(analyser)
+      mrRef.current = new MediaRecorder(stream)
+      chunksRef.current = []
+      mrRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+      mrRef.current.start(100)
+      setRecording(true)
+      startTimeRef.current = Date.now()
+      timerRef.current = setInterval(() => {
+        const s = Math.floor((Date.now() - startTimeRef.current) / 1000)
+        setTimer(`${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`)
+      }, 200)
+    } catch (err) {
+      console.error('Microphone access denied', err)
+    }
+  }
+
+  async function stopRecording() {
+    const mr = mrRef.current
+    if (!mr || mr.state !== 'recording') return
+    mr.stop()
+    mr.stream.getTracks().forEach((t) => t.stop())
+    clearInterval(timerRef.current)
+    stopWaveform()
+    setRecording(false)
+    setTimer('00:00')
+    analyserRef.current = null
+    await new Promise((r) => { mr.onstop = r })
+    const mimeType = mr.mimeType || 'audio/webm'
+    // Normalise like the whisper-mcp UI demo:
+    // "audio/webm;codecs=opus" → "webm", "audio/ogg" → "ogg"
+    let fmt = 'webm'
+    if (mimeType.includes('ogg')) fmt = 'ogg'
+    if (mimeType.includes('mp4') || mimeType.includes('m4a')) fmt = 'mp4'
+    if (mimeType.includes('wav')) fmt = 'wav'
+    if (mimeType.includes('mp3') || mimeType.includes('mpeg')) fmt = 'mp3'
+    if (mimeType.includes('flac')) fmt = 'flac'
+    const blob = new Blob(chunksRef.current, { type: mimeType })
+    const durationMs = Date.now() - startTimeRef.current
+    const buf = await blob.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    bytes.forEach((b) => { binary += String.fromCharCode(b) })
+    const b64 = btoa(binary)
+    setSubBlockValue(nodeId, '_audioB64', b64)
+    setSubBlockValue(nodeId, '_audioFormat', fmt)
+    setSubBlockValue(nodeId, '_audioDurationMs', durationMs)
+    try { await audioCtxRef.current?.close() } catch { /* ignore */ }
+  }
+
+  const stop = {
+    onClick: (e) => e.stopPropagation(),
+    onMouseDown: (e) => e.stopPropagation(),
+    onPointerDown: (e) => e.stopPropagation(),
+  }
+
+  return (
+    <div className="bs-node-audio-wrap" {...stop}>
+      {hasAudio ? (
+        <div className="bs-node-audio-done">
+          <span className="bs-node-audio-dot" />
+          <span className="bs-node-audio-info">
+            Recorded · {values._audioFormat || 'webm'} · {Math.round((values._audioDurationMs || 0) / 100) / 10}s
+          </span>
+          <button
+            className="bs-node-audio-rerecord"
+            {...stop}
+            onClick={(e) => { e.stopPropagation(); setSubBlockValue(nodeId, '_audioB64', '') }}
+            title="Discard and re-record"
+          >
+            Re-record
+          </button>
+        </div>
+      ) : recording ? (
+        <div className="bs-node-audio-recording-wrap">
+          <div className="bs-node-audio-recording-row">
+            <button className="bs-node-audio-stop" onClick={(e) => { e.stopPropagation(); stopRecording() }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
+            </button>
+            <span className="bs-node-audio-timer">{timer}</span>
+            <span className="bs-node-audio-pulse" />
+          </div>
+          <canvas ref={canvasRef} className="bs-node-audio-waveform" />
+        </div>
+      ) : (
+        <button className="bs-node-audio-record" onClick={(e) => { e.stopPropagation(); startRecording() }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          </svg>
+          <span>Record Audio</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
 function WorkflowNode({ id, data, selected }) {
   const selectNode = useWorkflowStore((s) => s.selectNode)
   const removeNode = useWorkflowStore((s) => s.removeNode)
@@ -579,6 +759,11 @@ function WorkflowNode({ id, data, selected }) {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── Audio Input recorder inline on card ── */}
+        {data.blockType === 'audio_input' && !isDisabled && (
+          <AudioRecorderInline nodeId={id} values={values} setSubBlockValue={setSubBlockValue} />
         )}
 
         {/* ── Output port strip (ComfyUI-style) — single-output blocks ── */}

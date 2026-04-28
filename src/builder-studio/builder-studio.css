@@ -8288,3 +8288,167 @@ button.bs-palette-group-toggle:hover {
   border-color: rgba(99, 102, 241, 0.3);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+ *  Audio Input Block — inline recording UI on the node card
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+.bs-node-audio-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin: 0 8px 4px;
+  border-radius: 8px;
+  background: rgba(236, 72, 153, 0.06);
+  border: 1px solid rgba(236, 72, 153, 0.15);
+}
+
+/* Record button — circular pink */
+.bs-node-audio-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  background: rgba(236, 72, 153, 0.12);
+  color: #f472b6;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.bs-node-audio-record:hover {
+  background: rgba(236, 72, 153, 0.22);
+  border-color: rgba(236, 72, 153, 0.5);
+  color: #f9a8d4;
+}
+
+/* Recording state — red stop button + timer + waveform canvas */
+.bs-node-audio-recording-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.bs-node-audio-recording-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bs-node-audio-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms, transform 100ms;
+  /* pulsing ring — mirrors the whisper-mcp demo */
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  animation: bs-audio-stop-ring 1.4s ease-out infinite;
+}
+.bs-node-audio-stop:hover {
+  background: #dc2626;
+  transform: scale(1.08);
+}
+@keyframes bs-audio-stop-ring {
+  0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.4); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0   transparent; }
+}
+.bs-node-audio-timer {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+/* Waveform canvas — live audio visualiser */
+.bs-node-audio-waveform {
+  width: 100%;
+  height: 38px;
+  background: rgba(239, 68, 68, 0.05);
+  border-radius: 6px;
+  display: block;
+}
+@keyframes bs-audio-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(1.5); }
+}
+.bs-node-audio-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: bs-audio-pulse 1.2s ease-in-out infinite;
+}
+
+/* Done state — green dot + info */
+.bs-node-audio-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.bs-node-audio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+.bs-node-audio-info {
+  font-size: 11.5px;
+  color: #a3e635;
+  font-weight: 500;
+  flex: 1;
+}
+.bs-node-audio-rerecord {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  background: rgba(236, 72, 153, 0.08);
+  color: #f472b6;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 120ms, border-color 120ms;
+}
+.bs-node-audio-rerecord:hover {
+  background: rgba(236, 72, 153, 0.18);
+  border-color: rgba(236, 72, 153, 0.45);
+}
+
+/* Light theme */
+[data-theme='light'] .bs-node-audio-wrap,
+.light .bs-node-audio-wrap {
+  background: rgba(236, 72, 153, 0.04);
+  border-color: rgba(236, 72, 153, 0.12);
+}
+[data-theme='light'] .bs-node-audio-record,
+.light .bs-node-audio-record {
+  background: rgba(236, 72, 153, 0.06);
+  border-color: rgba(236, 72, 153, 0.2);
+  color: #db2777;
+}
+[data-theme='light'] .bs-node-audio-record:hover,
+.light .bs-node-audio-record:hover {
+  background: rgba(236, 72, 153, 0.12);
+  color: #be185d;
+}
+[data-theme='light'] .bs-node-audio-timer,
+.light .bs-node-audio-timer {
+  color: #dc2626;
+}
+[data-theme='light'] .bs-node-audio-info,
+.light .bs-node-audio-info {
+  color: #059669;
+}
+
