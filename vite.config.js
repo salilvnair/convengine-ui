@@ -14,7 +14,7 @@ const normalizedBasePath = rawBasePath.endsWith('/') ? rawBasePath : `${rawBaseP
 export default defineConfig({
   base: normalizedBasePath,
   build: {
-    outDir: '../o1cd-ui/convengine-ui/dist',
+    outDir: 'dist',
     emptyOutDir: true,
   },
   define: {
