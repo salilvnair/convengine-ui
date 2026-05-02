@@ -5,7 +5,6 @@ import PdfExtractPage from "../../PdfExtractPage";
 import SemanticBuilderPage from "../../SemanticBuilderPage";
 import SemanticQueryDebugPage from "../../SemanticQueryDebugPage";
 import CeBuilderPage from "../../../ce-builder/CeBuilderPage.jsx";
-import AgentBuilderPage from "../../../builder-studio/AgentBuilderPage.jsx";
 
 export function PageContent({
   activePage,
@@ -45,8 +44,6 @@ export function PageContent({
   if (activePage === "pdf_extract") return <PdfExtractPage />;
 
   if (activePage === "ce_builder") return <CeBuilderPage />;
-
-  if (activePage === "agent_builder") return <AgentBuilderPage />;
 
   return (
     <DbSchemaInspectPage

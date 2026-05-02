@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchAudits, refreshCaches, refreshSemanticEmbeddingCatalog, subscribeConversation } from "./api/convengine.api.js";
 import { createClientId } from "./lib/uuid.js";
-import { AgentBuilderModal } from "./components/app/components/AgentBuilderModal.jsx";
 import { AuditDrawer } from "./components/app/components/AuditDrawer.jsx";
 import { InspectModal } from "./components/app/components/InspectModal.jsx";
 import { PageContent } from "./components/app/components/PageContent.jsx";
@@ -29,8 +28,6 @@ export default function App() {
   const [inspectMatchMode, setInspectMatchMode] = useState("REGEX");
   const [inspectQuery, setInspectQuery] = useState({ prefix: "", schema: "", matchMode: "REGEX" });
   const [inspectTargetPage, setInspectTargetPage] = useState("schema");
-  const [agentBuilderOpen, setAgentBuilderOpen] = useState(false);
-  const [agentBuilderType, setAgentBuilderType] = useState("convengine");
   const [cacheRefreshLoading, setCacheRefreshLoading] = useState(false);
   const [cacheRefreshMessage, setCacheRefreshMessage] = useState("");
   const [liveProgressText, setLiveProgressText] = useState("");
@@ -285,24 +282,7 @@ export default function App() {
   };
 
   const onOpenCeBuilder = () => {
-    setAgentBuilderType("convengine");
-    setAgentBuilderOpen(true);
-  };
-
-  const onBuildAgentBuilder = () => {
-    setAgentBuilderOpen(false);
-    if (agentBuilderType === "convengine") {
-      setActivePage("ce_builder");
-      return;
-    }
-    if (agentBuilderType === "agents") {
-      setActivePage("agent_builder");
-      return;
-    }
-  };
-
-  const onCancelAgentBuilder = () => {
-    setAgentBuilderOpen(false);
+    setActivePage("ce_builder");
   };
 
   const onRunInspect = () => {
@@ -392,13 +372,6 @@ export default function App() {
         onMatchModeChange={setInspectMatchMode}
         onRun={onRunInspect}
         onCancel={() => setInspectOpen(false)}
-      />
-      <AgentBuilderModal
-        open={agentBuilderOpen}
-        builderType={agentBuilderType}
-        onBuilderTypeChange={setAgentBuilderType}
-        onBuild={onBuildAgentBuilder}
-        onCancel={onCancelAgentBuilder}
       />
     </>
   );

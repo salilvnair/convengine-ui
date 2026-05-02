@@ -26,16 +26,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Builder-studio & MCP routes → ce-builder-studio (port 3001)
-      '/api/v1/builder-studio': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/api/v1/mcp': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      // Everything else (conversation, cache, db, semantic) → convengine-demo (port 8080)
+      // All API routes (conversation, cache, db, semantic) → convengine-demo (port 8080)
       '/api/v1': {
         target: 'http://localhost:8080',
         changeOrigin: true,

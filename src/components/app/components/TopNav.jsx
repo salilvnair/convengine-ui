@@ -46,7 +46,6 @@ function pageLabel(activePage) {
   if (activePage === "semantic_debug") return "semantic query debug";
   if (activePage === "pdf_extract") return "pdf extract studio";
   if (activePage === "ce_builder") return "ce builder";
-  if (activePage === "agent_builder") return "agent builder";
   return "";
 }
 
