@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ChatPanel from "./components/ChatPanel";
 import AuditTimeline from "./components/AuditTimeline";
+import AuditSearchPage from "./components/AuditSearchPage";
 import CacheAnalyzePage from "./components/CacheAnalyzePage";
 import DbSchemaInspectPage from "./components/DbSchemaInspectPage";
 import SemanticBuilderPage from "./components/SemanticBuilderPage";
@@ -95,6 +96,16 @@ function PdfExtractIcon() {
       <path d="M7 3.8h7.8L19.5 8v12.2H7V3.8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="M14.8 3.8V8h4.7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
       <path d="M9.3 12.1h7.1M9.3 15.3h7.1M9.3 18.5h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AuditSearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M15.2 15.2L20 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8 10.5H13M10.5 8v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -365,6 +376,10 @@ export default function App() {
     setActivePage("pdf_extract");
   };
 
+  const onOpenAuditSearch = () => {
+    setActivePage("audit_search");
+  };
+
   const onRunInspect = () => {
     setInspectQuery({ prefix: inspectPrefix, schema: inspectSchema, matchMode: inspectMatchMode });
     setInspectOpen(false);
@@ -487,6 +502,15 @@ export default function App() {
                     >
                       <PdfExtractIcon />
                     </button>
+                    <button
+                      type="button"
+                      className={`hero-cache-icon-btn hero-cache-icon-btn-audit ${activePage === "audit_search" ? "is-active" : ""}`}
+                      onClick={onOpenAuditSearch}
+                      title="Search Audit Chat by Conversation Id"
+                      aria-label="Search Audit Chat by Conversation Id"
+                    >
+                      <AuditSearchIcon />
+                    </button>
                   </div>
                 </div>
                 <p>Structured AI. Predictable Intelligence.</p>
@@ -510,6 +534,8 @@ export default function App() {
                         ? "semantic query debug"
                       : activePage === "pdf_extract"
                         ? "pdf extract studio"
+                      : activePage === "audit_search"
+                        ? "audit search"
                       : "db schema inspect"}
                 </span>
               )}
@@ -566,6 +592,8 @@ export default function App() {
             <SemanticQueryDebugPage />
           ) : activePage === "pdf_extract" ? (
             <PdfExtractPage />
+          ) : activePage === "audit_search" ? (
+            <AuditSearchPage />
           ) : (
             <DbSchemaInspectPage
               query={inspectQuery}
